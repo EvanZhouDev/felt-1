@@ -46,13 +46,11 @@ def main() -> None:
     pairs = []               # (idx_a, idx_b) into R
     matched = []             # bool per pair
     pair_item_membership = []  # for data-driven: (item_global_a, item_global_b)
+    # Keys must match 02_encode.py exactly: f"{modality}::{raw CSV value}"
+    # (the raw path, NOT the loaded text content or resolved absolute path).
     for r in rows:
-        ka = f"{r['modality_a']}::" + (
-            load_text(r["item_a"]) if r["modality_a"] == "text" else str(resolve_path(r["item_a"]))
-        )
-        kb = f"{r['modality_b']}::" + (
-            load_text(r["item_b"]) if r["modality_b"] == "text" else str(resolve_path(r["item_b"]))
-        )
+        ka = f"{r['modality_a']}::{r['item_a']}"
+        kb = f"{r['modality_b']}::{r['item_b']}"
         ia, ib = key_to_idx[ka], key_to_idx[kb]
         pairs.append((ia, ib))
         matched.append(r["label"] == "matched")
