@@ -92,14 +92,17 @@ def _sample_volume_nn(img, coords_world: np.ndarray) -> np.ndarray:
 
 
 # --- anatomical mask ----------------------------------------------------------
+def network_mask(keep_networks) -> np.ndarray:
+    """Boolean [20484]: True for vertices in any of `keep_networks` (Yeo-7 names)."""
+    labels = yeo7_vertex_labels()
+    keep = set(keep_networks)
+    keep_ids = [i + 1 for i, name in enumerate(config.YEO7_NETWORKS) if name in keep]
+    return np.isin(labels, keep_ids)
+
+
 def anatomical_mask() -> np.ndarray:
     """Boolean [20484]: True for KEPT vertices (amodal/affective/association)."""
-    labels = yeo7_vertex_labels()
-    keep_ids = {
-        i + 1 for i, name in enumerate(config.YEO7_NETWORKS)
-        if name in set(config.ANATOMICAL_KEEP)
-    }
-    return np.isin(labels, list(keep_ids))
+    return network_mask(config.ANATOMICAL_KEEP)
 
 
 # --- data-driven mask (§4 v2, cross-validated) --------------------------------

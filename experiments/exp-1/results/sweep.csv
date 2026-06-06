@@ -1,0 +1,19 @@
+norm,mask,kept_vertices,auc,perm_p
+zscore_then_l2,full (no mask),20484,0.71,0.054
+zscore_then_l2,anat-5 (drop Vis+SomMot),11820,0.76,0.023
+zscore_then_l2,assoc-3 (FP+DMN+Limbic),7224,0.73,0.0315
+zscore_then_l2,affective (DMN+Limbic),4871,0.76,0.0205
+zscore_then_l2,limbic only,1220,0.8,0.008
+zscore_then_l2,DMN only,3651,0.73,0.0375
+l2,full (no mask),20484,0.54,0.3973
+l2,anat-5 (drop Vis+SomMot),11820,0.5,0.5202
+l2,assoc-3 (FP+DMN+Limbic),7224,0.56,0.3358
+l2,affective (DMN+Limbic),4871,0.55,0.3728
+l2,limbic only,1220,0.58,0.2799
+l2,DMN only,3651,0.54,0.4053
+zscore,full (no mask),20484,0.71,0.054
+zscore,anat-5 (drop Vis+SomMot),11820,0.76,0.023
+zscore,assoc-3 (FP+DMN+Limbic),7224,0.73,0.0315
+zscore,affective (DMN+Limbic),4871,0.76,0.0205
+zscore,limbic only,1220,0.8,0.008
+zscore,DMN only,3651,0.73,0.0375
