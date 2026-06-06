@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Guidance for working in **Project Volta** — a vibe-transfer workbench.
 
@@ -27,8 +27,8 @@ Bun monorepo. Workspaces: `apps/*`, `packages/*`, `services/*`.
   contracts live under `src/renderers`, `src/agents`, `src/judges`,
   `src/pipeline`, `src/describers`; scoring is `src/scoring/activation.ts`.
 - `services/orchestrator` (`@volta/orchestrator`) — Bun service: HTTP API,
-  SQLite run storage, the oracle (mock + TRIBE), run execution, and the Python
-  bridge in `python/tribe_oracle_worker.py`.
+  SQLite run index, JSON run artifacts, the oracle (mock + TRIBE), run
+  execution, and the Python bridge in `python/tribe_oracle_worker.py`.
 - `apps/web` (`@volta/web`) — Next.js 16 / React 19 shell for the workflow.
 - `vendor/tribev2` — vendored Meta TRIBE v2 (Python/PyTorch). Patched for Mac
   MPS; see `vendor/tribev2/VENDORED.md`. **Do not edit** beyond the documented
@@ -92,6 +92,7 @@ Set in `services/orchestrator/src/config.ts`:
 - `VOLTA_ORACLE` — `mock` (default) or `tribe`.
 - `VOLTA_PORT` — HTTP port (default `8787`).
 - `VOLTA_DATABASE_PATH` — SQLite path (default `data/volta.sqlite`).
+- `VOLTA_RUNS_ROOT` — JSON artifacts + per-agent workspaces (default `.volta/runs`).
 - `VOLTA_PYTHON` — Python interpreter (default `vendor/tribev2/.venv/bin/python`).
 - `VOLTA_ORACLE_TIMEOUT_MS` — TRIBE request timeout (default 600000).
 
@@ -102,14 +103,17 @@ node model (`Node`, `InputObj`, `OutputObj`, `AgentOutput`, `JudgeDecision`,
 `NextIterationSeed`), and the old `InputModule`/`OutputModule` + `beam.ts` code
 is gone.
 
-What's **contracts only** right now (intentionally unimplemented):
+What's **MVP only** right now:
 
 - Renderers (`render(payload)` dispatch, text/audio/image/code), code screenshot
-  + still-video capture, and audio description are type signatures, not logic.
-- Agent generation/entropy, TRIBE scoring/ranking over outputs, and judge
-  reasoning / next-iteration selection are unimplemented.
-- The orchestrator's run/storage/server/smoke entrypoints are shaped around
-  `InputObj`/`OutputObj` but not yet wired end to end.
+  + still-video capture, and audio description are still mostly type signatures.
+- `packages/agent-sdk` has shared Candidate/Judge contracts, workspace creation,
+  and a deterministic backend; the real Codex SDK backend is not implemented.
+- The orchestrator runs one mock E2E candidate-score-judge iteration. It writes
+  a SQLite index row plus readable JSON artifacts under `.volta/runs/<runId>/`.
+- TRIBE scoring/ranking works through the oracle abstraction, but production
+  multi-iteration search, real renderers, Flux tools, and audio tools are not
+  implemented.
 
 See the open-implementation checklist in `docs/IO_MODULES.md` (Scaffold Status).
 

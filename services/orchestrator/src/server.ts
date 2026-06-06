@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { InputObj, OutputObj } from "@volta/core";
 import { loadConfig } from "./config.ts";
 import { createOracle } from "./oracle.ts";
@@ -40,6 +41,7 @@ const server = Bun.serve({
         id,
         input: body.input,
         output: body.output,
+        runPath: join(config.runsRoot, id),
       });
 
       void executeRun({
@@ -48,6 +50,9 @@ const server = Bun.serve({
         output: body.output,
         store,
         oracle,
+        runsRoot: config.runsRoot,
+      }).catch((error) => {
+        console.error(`Run ${id} failed:`, error);
       });
 
       return json({
@@ -63,7 +68,7 @@ const server = Bun.serve({
       }
       return json({
         run,
-        result: run.resultJson ? JSON.parse(run.resultJson) : null,
+        artifact: store.getArtifact(run.id),
       });
     }
 

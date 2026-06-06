@@ -1,0 +1,70 @@
+import type {
+  AgentOutput,
+  EvaluatedOutput,
+  InputObj,
+  JudgeDecision,
+  NextIterationSeed,
+  OutputObj,
+} from "@volta/core";
+
+export type AgentRole = "candidate" | "judge";
+
+export type AgentSpec =
+  | {
+      role: "candidate";
+      id: string;
+      model?: string;
+      tools?: string[];
+      instructions?: string;
+    }
+  | {
+      role: "judge";
+      id: string;
+      model?: string;
+      tools?: string[];
+      instructions?: string;
+    };
+
+export type AgentWorkspace = {
+  rootPath: string;
+  cwd: string;
+  outputPath: string;
+  logsPath: string;
+};
+
+export type BaseAgentInvocation = {
+  runId: string;
+  iteration: number;
+  input: InputObj;
+  output: OutputObj;
+  workspace: AgentWorkspace;
+};
+
+export type CandidateAgentInvocation = BaseAgentInvocation & {
+  role: "candidate";
+  spec: Extract<AgentSpec, { role: "candidate" }>;
+  previous?: NextIterationSeed;
+  entropy?: string;
+};
+
+export type JudgeAgentInvocation = BaseAgentInvocation & {
+  role: "judge";
+  spec: Extract<AgentSpec, { role: "judge" }>;
+  rankedOutputs: EvaluatedOutput[];
+};
+
+export type AgentInvocation = CandidateAgentInvocation | JudgeAgentInvocation;
+
+export type AgentResult =
+  | {
+      role: "candidate";
+      output: AgentOutput;
+    }
+  | {
+      role: "judge";
+      decision: JudgeDecision;
+    };
+
+export type AgentBackend = {
+  run(invocation: AgentInvocation): Promise<AgentResult>;
+};
