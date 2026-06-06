@@ -30,9 +30,37 @@ POLL_INTERVAL_S = 3.0
 POLL_TIMEOUT_S = 600.0
 HTTP_TIMEOUT_S = 60.0
 
+# The hosted endpoint blips intermittently (Cloudflare 5xx / connection resets).
+# Retry transient failures with backoff so one blip doesn't kill a 30-item run.
+RETRIES = 6
+RETRY_BACKOFF_S = 5.0
+TRANSIENT_STATUS = {500, 502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 530}
+
 
 class TribeError(RuntimeError):
     pass
+
+
+def _request(method: str, url: str, **kw) -> requests.Response:
+    """HTTP with retry on transient 5xx / network errors."""
+    last = None
+    for attempt in range(RETRIES):
+        try:
+            r = requests.request(method, url, timeout=HTTP_TIMEOUT_S, **kw)
+            if r.status_code in TRANSIENT_STATUS:
+                last = requests.HTTPError(f"{r.status_code} for {url}")
+                raise last
+            r.raise_for_status()
+            return r
+        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as e:
+            # only retry transient ones; re-raise hard client errors (4xx)
+            if isinstance(e, requests.HTTPError) and e.response is not None \
+                    and e.response.status_code not in TRANSIENT_STATUS:
+                raise
+            last = e
+            if attempt < RETRIES - 1:
+                time.sleep(RETRY_BACKOFF_S * (attempt + 1))
+    raise TribeError(f"request failed after {RETRIES} retries: {last}")
 
 
 # --- caching ------------------------------------------------------------------
@@ -56,30 +84,20 @@ def _load_cached(path: Path) -> np.ndarray | None:
 
 # --- job lifecycle ------------------------------------------------------------
 def _submit_text(text: str) -> str:
-    r = requests.post(
-        f"{config.TRIBE_URL}/predict/text",
-        json={"text": text},
-        timeout=HTTP_TIMEOUT_S,
-    )
-    r.raise_for_status()
+    r = _request("POST", f"{config.TRIBE_URL}/predict/text", json={"text": text})
     return r.json()["job_id"]
 
 
 def _submit_file(endpoint: str, data: bytes, filename: str) -> str:
-    r = requests.post(
-        f"{config.TRIBE_URL}/{endpoint}",
-        files={"file": (filename, data)},
-        timeout=HTTP_TIMEOUT_S,
-    )
-    r.raise_for_status()
+    r = _request("POST", f"{config.TRIBE_URL}/{endpoint}",
+                 files={"file": (filename, data)})
     return r.json()["job_id"]
 
 
 def _poll(job_id: str, *, timeout_s: float = POLL_TIMEOUT_S) -> dict:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        r = requests.get(f"{config.TRIBE_URL}/jobs/{job_id}", timeout=HTTP_TIMEOUT_S)
-        r.raise_for_status()
+        r = _request("GET", f"{config.TRIBE_URL}/jobs/{job_id}")
         body = r.json()
         status = body.get("status")
         if status == "completed":
@@ -91,18 +109,22 @@ def _poll(job_id: str, *, timeout_s: float = POLL_TIMEOUT_S) -> dict:
 
 
 def _fetch_preds(job_id: str) -> np.ndarray:
-    """Return [T, N_VERTICES] float32."""
-    r = requests.get(
-        f"{config.TRIBE_URL}/jobs/{job_id}/preds.norm.f16.bin", timeout=HTTP_TIMEOUT_S
+    """Return [T, N_VERTICES] float32.
+
+    Right after a job flips to completed the blob can lag a moment, returning a
+    tiny JSON error ({"detail":"Prediction blob not found"}) instead of the
+    array. Retry a few times before giving up."""
+    for attempt in range(RETRIES):
+        r = _request("GET", f"{config.TRIBE_URL}/jobs/{job_id}/preds.norm.f16.bin")
+        flat = np.frombuffer(r.content, dtype=np.float16)
+        if flat.size and flat.size % config.N_VERTICES == 0:
+            t = flat.size // config.N_VERTICES
+            return flat.reshape(t, config.N_VERTICES).astype(np.float32)
+        if attempt < RETRIES - 1:
+            time.sleep(RETRY_BACKOFF_S)
+    raise TribeError(
+        f"preds for {job_id} not ready / wrong size ({flat.size} bytes-as-f16)"
     )
-    r.raise_for_status()
-    flat = np.frombuffer(r.content, dtype=np.float16)
-    if flat.size % config.N_VERTICES != 0:
-        raise TribeError(
-            f"preds size {flat.size} not divisible by {config.N_VERTICES}"
-        )
-    t = flat.size // config.N_VERTICES
-    return flat.reshape(t, config.N_VERTICES).astype(np.float32)
 
 
 def _aggregate_time(preds: np.ndarray) -> np.ndarray:
@@ -131,6 +153,9 @@ def image_to_clip(image_path: Path, *, seconds: float = config.CLIP_SECONDS,
         "-vf", (f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
                 f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"),
         "-pix_fmt", "yuv420p",
+        # frag_keyframe+empty_moov makes the MP4 streamable, so we can pipe it to
+        # stdout — the default muxer needs a seekable file to write its moov atom.
+        "-movflags", "frag_keyframe+empty_moov",
         "-f", "mp4", "pipe:1",
     ]
     proc = subprocess.run(cmd, capture_output=True)
