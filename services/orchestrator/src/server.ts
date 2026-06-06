@@ -51,6 +51,10 @@ const server = Bun.serve({
         store,
         oracle,
         runsRoot: config.runsRoot,
+        candidateCount: config.candidateCount,
+        maxIterations: config.maxIterations,
+        candidateModel: config.candidateModel,
+        judgeModel: config.judgeModel,
       }).catch((error) => {
         console.error(`Run ${id} failed:`, error);
       });

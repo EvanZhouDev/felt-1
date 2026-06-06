@@ -15,6 +15,10 @@ const oracle = createOracle({
   oracleMode: "mock",
   pythonPath: "python3",
   repoRoot: process.cwd(),
+  tribeUrl: "https://tribe.bryanhu.com",
+  fluxUrl: "https://images.bryanhu.com",
+  candidateCount: 2,
+  maxIterations: 1,
 });
 
 const input: InputObj = {
@@ -48,6 +52,8 @@ await executeRun({
   store,
   oracle,
   runsRoot: join(smokeRoot, "runs"),
+  candidateCount: 2,
+  maxIterations: 1,
 });
 
 const completed = store.get(run.id);
@@ -114,9 +120,7 @@ await assertExists(
 await assertExists(join(smokeRoot, "runs", run.id, "input.json"));
 await assertExists(join(smokeRoot, "runs", run.id, "output-request.json"));
 await assertExists(join(smokeRoot, "runs", run.id, "run.json"));
-await assertExists(
-  join(smokeRoot, "runs", run.id, "iterations", "001", "target.json"),
-);
+await assertExists(join(smokeRoot, "runs", run.id, "target.json"));
 await assertExists(
   join(smokeRoot, "runs", run.id, "iterations", "001", "candidates.json"),
 );

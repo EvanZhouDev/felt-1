@@ -1,6 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import type {
   ActivationTrace,
   EncoderStimulus,
@@ -11,6 +12,9 @@ import type { OrchestratorConfig } from "./config.ts";
 export function createOracle(config: OrchestratorConfig): NeuralOracle {
   if (config.oracleMode === "tribe") {
     return new TribeOracle(config);
+  }
+  if (config.oracleMode === "http") {
+    return new HttpTribeOracle(config);
   }
   return new MockOracle();
 }
@@ -40,6 +44,197 @@ class MockOracle implements NeuralOracle {
       },
     };
   }
+}
+
+// Hosted TRIBE v2 brain encoder (https://tribe.bryanhu.com): an async job API.
+// Submit a stimulus, poll the job, then download the raw float16 prediction
+// vector (shape [timesteps, 20484] over the fsaverage5 mesh) and mean-pool over
+// time into one R^20484 vector that `scoreActivations` can compare with cosine.
+const TRIBE_VERTEX_COUNT = 20484;
+const TRIBE_POLL_INTERVAL_MS = 1500;
+
+type TribeJob = {
+  job_id: string;
+};
+
+type TribeJobStatus = {
+  status: "queued" | "running" | "completed" | "failed";
+  error?: string;
+};
+
+class HttpTribeOracle implements NeuralOracle {
+  private readonly baseUrl: string;
+  private readonly timeoutMs = Number(
+    process.env.VOLTA_ORACLE_TIMEOUT_MS ?? 600_000,
+  );
+
+  constructor(config: OrchestratorConfig) {
+    this.baseUrl = config.tribeUrl.replace(/\/+$/, "");
+  }
+
+  async encode(stimulus: EncoderStimulus): Promise<ActivationTrace> {
+    const job = await this.submit(stimulus);
+    await this.waitForJob(job.job_id);
+    const values = await this.fetchPooledValues(job.job_id);
+
+    const flat = values[0];
+    const mean = flat.reduce((sum, value) => sum + value, 0) / flat.length;
+    const variance =
+      flat.reduce((sum, value) => sum + (value - mean) ** 2, 0) / flat.length;
+    const norm = Math.sqrt(flat.reduce((sum, value) => sum + value * value, 0));
+
+    return {
+      model: "tribev2-http",
+      shape: [1, flat.length],
+      values,
+      summary: { mean, std: Math.sqrt(variance), norm },
+    };
+  }
+
+  private async submit(stimulus: EncoderStimulus): Promise<TribeJob> {
+    if (stimulus.kind === "text") {
+      const text = stimulus.text ?? "";
+      const response = await fetch(`${this.baseUrl}/predict/text`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: text.slice(0, 5000) }),
+      });
+      return this.asJob(response, "POST /predict/text");
+    }
+
+    // image targets are fed as a short still-hold mp4 via /predict/video
+    // (the multipart /predict/image route is broken server-side).
+    const endpoint = stimulus.kind === "audio" ? "audio" : "video";
+    const file = await this.readArtifact(stimulus);
+    const form = new FormData();
+    form.append("file", file.blob, file.name);
+    const response = await fetch(`${this.baseUrl}/predict/${endpoint}`, {
+      method: "POST",
+      body: form,
+    });
+    return this.asJob(response, `POST /predict/${endpoint}`);
+  }
+
+  private async readArtifact(
+    stimulus: EncoderStimulus,
+  ): Promise<{ blob: Blob; name: string }> {
+    const path = stimulus.artifactPath;
+    if (!path) {
+      throw new Error(
+        `HttpTribeOracle: ${stimulus.kind} stimulus has no artifactPath to upload.`,
+      );
+    }
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch artifact ${path}: ${response.status}`);
+      }
+      return { blob: await response.blob(), name: basename(path) };
+    }
+    const local = path.startsWith("file://")
+      ? path.slice("file://".length)
+      : path;
+    if (local.includes("://")) {
+      throw new Error(
+        `HttpTribeOracle: unsupported artifact URI scheme: ${path}. Provide a local file path or http(s) URL.`,
+      );
+    }
+    const bytes = await readFile(local);
+    return { blob: new Blob([bytes]), name: basename(local) };
+  }
+
+  private async asJob(response: Response, label: string): Promise<TribeJob> {
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`${label} failed: ${response.status} ${detail}`.trim());
+    }
+    const job = (await response.json()) as TribeJob;
+    if (!job.job_id) {
+      throw new Error(`${label} returned no job_id.`);
+    }
+    return job;
+  }
+
+  private async waitForJob(jobId: string): Promise<void> {
+    const deadline = Date.now() + this.timeoutMs;
+    while (Date.now() < deadline) {
+      const response = await fetch(`${this.baseUrl}/jobs/${jobId}`);
+      if (!response.ok) {
+        throw new Error(`GET /jobs/${jobId} failed: ${response.status}`);
+      }
+      const status = (await response.json()) as TribeJobStatus;
+      if (status.status === "completed") {
+        return;
+      }
+      if (status.status === "failed") {
+        throw new Error(`TRIBE job ${jobId} failed: ${status.error ?? ""}`);
+      }
+      await delay(TRIBE_POLL_INTERVAL_MS);
+    }
+    throw new Error(
+      `TRIBE job ${jobId} did not complete within ${this.timeoutMs}ms.`,
+    );
+  }
+
+  private async fetchPooledValues(jobId: string): Promise<number[][]> {
+    const response = await fetch(
+      `${this.baseUrl}/jobs/${jobId}/preds.norm.f16.bin`,
+    );
+    if (!response.ok) {
+      throw new Error(
+        `GET /jobs/${jobId}/preds.norm.f16.bin failed: ${response.status}`,
+      );
+    }
+    const buffer = await response.arrayBuffer();
+    const raw = decodeFloat16(new Uint8Array(buffer));
+    if (raw.length === 0 || raw.length % TRIBE_VERTEX_COUNT !== 0) {
+      throw new Error(
+        `Unexpected prediction length ${raw.length}; expected a multiple of ${TRIBE_VERTEX_COUNT}.`,
+      );
+    }
+    const timesteps = raw.length / TRIBE_VERTEX_COUNT;
+    const pooled = new Array<number>(TRIBE_VERTEX_COUNT).fill(0);
+    for (let t = 0; t < timesteps; t += 1) {
+      const offset = t * TRIBE_VERTEX_COUNT;
+      for (let v = 0; v < TRIBE_VERTEX_COUNT; v += 1) {
+        pooled[v] += raw[offset + v];
+      }
+    }
+    for (let v = 0; v < TRIBE_VERTEX_COUNT; v += 1) {
+      pooled[v] /= timesteps;
+    }
+    return [pooled];
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+// Decode a little-endian IEEE 754 half-precision (float16) byte array.
+function decodeFloat16(bytes: Uint8Array): number[] {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const count = Math.floor(bytes.byteLength / 2);
+  const out = new Array<number>(count);
+  for (let i = 0; i < count; i += 1) {
+    out[i] = halfToFloat(view.getUint16(i * 2, true));
+  }
+  return out;
+}
+
+function halfToFloat(half: number): number {
+  const sign = (half & 0x8000) >> 15;
+  const exponent = (half & 0x7c00) >> 10;
+  const fraction = half & 0x03ff;
+  if (exponent === 0) {
+    return (sign ? -1 : 1) * 2 ** -14 * (fraction / 1024);
+  }
+  if (exponent === 0x1f) {
+    return fraction ? Number.NaN : (sign ? -1 : 1) * Number.POSITIVE_INFINITY;
+  }
+  return (sign ? -1 : 1) * 2 ** (exponent - 15) * (1 + fraction / 1024);
 }
 
 class TribeOracle implements NeuralOracle {

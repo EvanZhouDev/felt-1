@@ -89,12 +89,23 @@ which becomes `EvaluatedOutput` after render + score; the judge produces a
 
 Set in `services/orchestrator/src/config.ts`:
 
-- `VOLTA_ORACLE` — `mock` (default) or `tribe`.
+- `VOLTA_ORACLE` — `mock` (default), `tribe` (local Python worker), or `http`
+  (hosted TRIBE at `VOLTA_TRIBE_URL`; no Python venv needed, returns real
+  20484-dim values).
+- `VOLTA_TRIBE_URL` — hosted TRIBE base URL (default `https://tribe.bryanhu.com`).
+- `VOLTA_FLUX_URL` — hosted Flux image API (default `https://images.bryanhu.com`).
+- `VOLTA_CANDIDATE_COUNT` — N candidates per iteration (default `2`).
+- `VOLTA_MAX_ITERATIONS` — M search iterations; loop feeds the judge's
+  `NextIterationSeed` forward and keeps the best-scoring iteration (default `1`).
+- `VOLTA_CANDIDATE_MODEL` / `VOLTA_JUDGE_MODEL` — model ids passed to the agent
+  backend's `AgentSpec` (unused by the deterministic backend; for the future
+  Codex/LLM backend).
 - `VOLTA_PORT` — HTTP port (default `8787`).
 - `VOLTA_DATABASE_PATH` — SQLite path (default `data/volta.sqlite`).
 - `VOLTA_RUNS_ROOT` — JSON artifacts + per-agent workspaces (default `.volta/runs`).
 - `VOLTA_PYTHON` — Python interpreter (default `vendor/tribev2/.venv/bin/python`).
-- `VOLTA_ORACLE_TIMEOUT_MS` — TRIBE request timeout (default 600000).
+- `VOLTA_ORACLE_TIMEOUT_MS` — TRIBE request timeout (default 600000; also the
+  job-poll deadline for the `http` oracle).
 
 ## State of the code (read before extending)
 
