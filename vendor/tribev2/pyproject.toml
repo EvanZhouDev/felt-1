@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tribev2"
+version = "0.1.0"
+description = "Deep multimodal brain encoding"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Meta Platforms, Inc."}]
+
+dependencies = [
+  "neuralset==0.0.2",
+  "neuraltrain==0.0.2",
+  "torch>=2.5.1,<2.7",
+  "numpy==2.2.6",
+  "torchvision>=0.20,<0.22",
+  "x_transformers==1.27.20",
+  "einops",
+  "pyyaml",
+  "moviepy>=2.2.1",
+  "huggingface_hub",
+  "gtts",
+  "langdetect",
+  "spacy",
+  "soundfile",
+  "pip",
+  "Levenshtein",
+  "julius",
+  "transformers"
+]
+
+[project.urls]
+Homepage = "https://github.com/facebookresearch/tribev2"
+Repository = "https://github.com/facebookresearch/tribev2"
+
+[project.optional-dependencies]
+  plotting = [
+    "nibabel",
+    "matplotlib",
+    "seaborn",
+    "colorcet",
+    "nilearn",
+    "scipy",
+    "pyvista",
+    "scikit-image",
+  ]
+  training = [
+    "nibabel",
+    "torchmetrics",
+    "wandb",
+    "lightning",  
+  ]
+  test = [
+    "pytest",
+  ]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.setuptools.packages.find]
+include = ["tribe*"]
