@@ -106,6 +106,13 @@ Set in `services/orchestrator/src/config.ts`:
 - `VOLTA_PYTHON` — Python interpreter (default `vendor/tribev2/.venv/bin/python`).
 - `VOLTA_ORACLE_TIMEOUT_MS` — TRIBE request timeout (default 600000; also the
   job-poll deadline for the `http` oracle).
+- `VOLTA_AGENT_BACKEND` — `codex` (default) or `deterministic`.
+- `VOLTA_CODEX_COMMAND` — Codex CLI command (default `codex`).
+- `VOLTA_CODEX_MODEL` / `VOLTA_CODEX_PROFILE` — optional Codex overrides.
+- `VOLTA_CODEX_TIMEOUT_MS` — Codex agent timeout (default 900000).
+- `VOLTA_SIMILARITY_THRESHOLD` — default neural similarity stop threshold (default 0.9).
+- `VOLTA_WEAVE_ENABLED` / `VOLTA_WEAVE_PROJECT` — enable Weave Evolution Journal tracing.
+- `VOLTA_WEAVE_CAPTURE_PAYLOADS` — include rawer payload details in Weave traces (default false).
 
 ## State of the code (read before extending)
 
@@ -119,12 +126,18 @@ What's **MVP only** right now:
 - Renderers (`render(payload)` dispatch, text/audio/image/code), code screenshot
   + still-video capture, and audio description are still mostly type signatures.
 - `packages/agent-sdk` has shared Candidate/Judge contracts, workspace creation,
-  and a deterministic backend; the real Codex SDK backend is not implemented.
-- The orchestrator runs one mock E2E candidate-score-judge iteration. It writes
-  a SQLite index row plus readable JSON artifacts under `.volta/runs/<runId>/`.
-- TRIBE scoring/ranking works through the oracle abstraction, but production
-  multi-iteration search, real renderers, Flux tools, and audio tools are not
-  implemented.
+  prompt templates, a deterministic backend, and a Codex CLI backend.
+- The orchestrator runs a configurable multi-iteration candidate-score-judge
+  loop. It writes a SQLite index row plus readable JSON artifacts under
+  `.volta/runs/<runId>/`, including per-iteration artifacts and
+  `evolution-journal.json`.
+- Completed runs can be resumed with `POST /runs/:id/resume`; the resume request
+  appends new iteration folders using the saved target activation and latest
+  `NextIterationSeed`. On resume, `loop.maxIterations` means additional
+  iterations.
+- TRIBE scoring/ranking works through the oracle abstraction, and Weave tracing
+  can observe the loop. Real renderers, Flux tools, and audio description tools
+  are still open implementation work.
 
 See the open-implementation checklist in `docs/IO_MODULES.md` (Scaffold Status).
 

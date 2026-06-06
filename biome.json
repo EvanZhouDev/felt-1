@@ -21,6 +21,7 @@
       "!**/vendor",
       "!**/tribev2.egg-info",
       "!**/cache",
+      "!**/.volta",
       "!**/runs",
       "!**/data/runs"
     ]

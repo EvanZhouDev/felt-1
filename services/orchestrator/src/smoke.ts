@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { InputObj, OutputObj } from "@volta/core";
 import { createOracle } from "./oracle.ts";
-import { executeRun } from "./run.ts";
+import { executeRun, resumeRun } from "./run.ts";
 import { RunStore } from "./storage.ts";
 
 const smokeRoot = await mkdtemp(join(tmpdir(), "volta-agent-smoke-"));
@@ -17,8 +17,18 @@ const oracle = createOracle({
   repoRoot: process.cwd(),
   tribeUrl: "https://tribe.bryanhu.com",
   fluxUrl: "https://images.bryanhu.com",
-  candidateCount: 2,
-  maxIterations: 1,
+  agentBackend: {
+    mode: "deterministic",
+  },
+  loop: {
+    maxIterations: 2,
+    similarityThreshold: 2,
+    candidateCount: 2,
+  },
+  weave: {
+    enabled: false,
+    capturePayloads: false,
+  },
 });
 
 const input: InputObj = {
@@ -52,8 +62,23 @@ await executeRun({
   store,
   oracle,
   runsRoot: join(smokeRoot, "runs"),
-  candidateCount: 2,
-  maxIterations: 1,
+  loop: {
+    maxIterations: 1,
+    similarityThreshold: 2,
+    candidateCount: 2,
+  },
+});
+
+await resumeRun({
+  id: run.id,
+  store,
+  oracle,
+  runsRoot: join(smokeRoot, "runs"),
+  loop: {
+    maxIterations: 1,
+    similarityThreshold: 2,
+    candidateCount: 2,
+  },
 });
 
 const completed = store.get(run.id);
@@ -72,6 +97,14 @@ if (!artifact?.result) {
 }
 
 const result = artifact.result as SmokeResult;
+if (result.stopReason !== "max_iterations") {
+  throw new Error(`Expected max_iterations, received ${result.stopReason}.`);
+}
+if (result.iterations.length !== 2) {
+  throw new Error(
+    `Expected 2 iterations, received ${result.iterations.length}.`,
+  );
+}
 if (result.candidates.length !== 2) {
   throw new Error(
     `Expected 2 candidates, received ${result.candidates.length}.`,
@@ -122,6 +155,9 @@ await assertExists(join(smokeRoot, "runs", run.id, "output-request.json"));
 await assertExists(join(smokeRoot, "runs", run.id, "run.json"));
 await assertExists(join(smokeRoot, "runs", run.id, "target.json"));
 await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "001", "target.json"),
+);
+await assertExists(
   join(smokeRoot, "runs", run.id, "iterations", "001", "candidates.json"),
 );
 await assertExists(
@@ -133,6 +169,28 @@ await assertExists(
 await assertExists(
   join(smokeRoot, "runs", run.id, "iterations", "001", "next-seed.json"),
 );
+await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "001", "iteration.json"),
+);
+await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "002", "target.json"),
+);
+await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "002", "candidates.json"),
+);
+await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "002", "scores.json"),
+);
+await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "002", "judge.json"),
+);
+await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "002", "next-seed.json"),
+);
+await assertExists(
+  join(smokeRoot, "runs", run.id, "iterations", "002", "iteration.json"),
+);
+await assertExists(join(smokeRoot, "runs", run.id, "evolution-journal.json"));
 
 console.log(
   JSON.stringify(
@@ -141,6 +199,8 @@ console.log(
       runId: run.id,
       selectedAgentId: result.judge.selectedAgentId,
       candidateCount: result.candidates.length,
+      iterationCount: result.iterations.length,
+      stopReason: result.stopReason,
       smokeRoot,
     },
     null,
@@ -149,6 +209,8 @@ console.log(
 );
 
 type SmokeResult = {
+  stopReason: string;
+  iterations: unknown[];
   candidates: Array<{
     agentId: string;
   }>;

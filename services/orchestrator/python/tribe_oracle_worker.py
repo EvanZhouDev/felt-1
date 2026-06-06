@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import math
+import os
 import sys
 import traceback
 from typing import Any
@@ -12,7 +13,7 @@ from tribev2 import TribeModel
 class TribeOracleWorker:
     def __init__(self) -> None:
         self.model: Any | None = None
-        self.model_key: tuple[str, str] | None = None
+        self.model_key: tuple[str, str, str] | None = None
 
     def encode(self, payload: dict[str, Any]) -> dict[str, Any]:
         stimulus = payload["stimulus"]
@@ -23,6 +24,7 @@ class TribeOracleWorker:
         return {
             "model": "tribev2",
             "shape": list(preds.shape),
+            "values": preds.tolist(),
             "summary": {
                 "mean": float(preds.mean()),
                 "std": float(preds.std()),
@@ -35,13 +37,15 @@ class TribeOracleWorker:
         text_feature_model = payload.get(
             "textFeatureModel", "unsloth/Llama-3.2-3B-bnb-4bit"
         )
-        model_key = (cache_folder, text_feature_model)
+        device = payload.get("device") or os.environ.get("VOLTA_TRIBE_DEVICE", "cpu")
+        model_key = (cache_folder, text_feature_model, device)
         if self.model is not None and self.model_key == model_key:
             return self.model
 
         self.model = TribeModel.from_pretrained(
             "facebook/tribev2",
             cache_folder=cache_folder,
+            device=device,
             config_update={
                 "data.num_workers": 0,
                 "data.batch_size": 1,
