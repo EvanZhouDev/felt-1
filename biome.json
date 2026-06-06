@@ -1,0 +1,28 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/.venv",
+      "!**/.venv-*",
+      "!**/.next",
+      "!**/node_modules",
+      "!**/vendor",
+      "!**/tribev2.egg-info",
+      "!**/cache",
+      "!**/runs",
+      "!**/data/runs"
+    ]
+  }
+}

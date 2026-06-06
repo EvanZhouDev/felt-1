@@ -1,0 +1,42 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+node_modules/
+.next/
+*.tsbuildinfo
+
+cache/
+data/runs/
+data/*.sqlite
+data/*.sqlite-*
+*.data
+*.pkl
+
+.ipynb_checkpoints/
+*.mp3
+
+# Environment / secrets
+.env
+.venv/
+.venv-*/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Training artifacts
+lightning_logs/
+wandb/
+
+# Testing / type-checking
+.pytest_cache/
+.mypy_cache/
+
+# OS
+.DS_Store

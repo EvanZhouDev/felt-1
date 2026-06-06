@@ -1,0 +1,26 @@
+{
+  "name": "project-volta",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "bun --filter @volta/orchestrator dev",
+    "dev:web": "bun --filter @volta/web dev",
+    "dev:api": "bun --filter @volta/orchestrator dev",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "check": "bun run lint && bun run typecheck",
+    "typecheck": "bun --filter '*' typecheck",
+    "smoke": "bun --filter @volta/orchestrator smoke",
+    "setup:tribe": "bash scripts/setup-tribe.sh",
+    "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.16",
+    "typescript": "^5.9.3"
+  }
+}
