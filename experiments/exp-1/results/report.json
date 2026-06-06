@@ -1,0 +1,38 @@
+{
+  "normalization": "zscore_then_l2",
+  "time_agg": "mean",
+  "n_pairs": 20,
+  "n_matched": 10,
+  "n_mismatched": 10,
+  "conditions": {
+    "1. raw cosine": {
+      "auc": 0.71,
+      "perm_p": 0.06139,
+      "mean_d_matched": 1.5116,
+      "mean_d_mismatched": 1.6521
+    },
+    "2. anatomical-mask (11820v)": {
+      "auc": 0.76,
+      "perm_p": 0.0261,
+      "mean_d_matched": 1.5091,
+      "mean_d_mismatched": 1.6673
+    },
+    "3. data-driven (LOPO-CV)": {
+      "auc": 0.67,
+      "perm_p": 0.11029,
+      "mean_d_matched": 1.3516,
+      "mean_d_mismatched": 1.4834
+    },
+    "4. CLIP cosine": {
+      "auc": 0.9,
+      "perm_p": 0.0006,
+      "mean_d_matched": 0.7191,
+      "mean_d_mismatched": 0.8302
+    }
+  },
+  "anatomical_kept_vertices": 11820,
+  "verdict": {
+    "light": "red",
+    "reason": "Best cross-validated brain metric AUC=0.76 (< 0.75). TRIBE's predicted geometry may not carry cross-modal vibe at this resolution. Next step is a learned alignment head BEFORE any generator work."
+  }
+}
