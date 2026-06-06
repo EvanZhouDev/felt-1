@@ -93,13 +93,20 @@ new masks/metrics without re-encoding.
 short-hold video clip (per spec). If that output is degenerate or duration-sensitive,
 fix image feeding before trusting any image numbers.
 
-### Image sizing
+### Image sizing & duration
 
 Images are rendered by Flux at `FLUX_WIDTH`×`FLUX_HEIGHT` (default 512×512) and the
-still→clip step caps the fed video at `CLIP_WIDTH`×`CLIP_HEIGHT` (default **600×400**,
-aspect-preserved with padding). Smaller clips keep TRIBE's video inference fast — it
-is the slow path (minutes per image on the MPS box, vs ~17 s for text). All four are
-env-overridable.
+still→clip step pads to `CLIP_WIDTH`×`CLIP_HEIGHT` (default **600×400**, aspect-
+preserved) for a fixed `CLIP_SECONDS` (default **0.5 s**). All env-overridable.
+
+Why these defaults — measured on the MPS box:
+
+- TRIBE emits ~1 timestep per second of media and runtime is ~linear in timesteps:
+  0.5 s → 1 step ≈ 32 s; 2 s → 2 steps ≈ 140 s; 3 s → 3 steps ≈ 181 s. Video is the
+  slow path (vs ~17 s for text).
+- The vector is **not stable across durations** (r(0.5 s, 2 s) ≈ 0.55), so we **fix
+  one duration for every image and never mix**. 0.5 s (1 timestep) is fastest and
+  consistent — for a still image one frame is all TRIBE needs.
 
 ## Layout
 

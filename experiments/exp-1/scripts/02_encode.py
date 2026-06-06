@@ -34,9 +34,14 @@ def resolve_path(item: str) -> Path:
 
 
 def preflight_still_image() -> None:
-    """§6: a static frame must give a sensible, STABLE vector. Encode the first
-    image twice (different short-hold clip durations) and check correlation."""
-    print("\n=== PRE-FLIGHT: still-image stability ===")
+    """§6: a static frame must give a sensible, reproducible vector.
+
+    The vector is NOT stable across clip DURATIONS (measured r(0.5s,2s)~0.55), so
+    the pipeline FIXES one duration (config.CLIP_SECONDS) for every image. This
+    pre-flight checks the two things that still matter at a fixed duration:
+    finite + non-degenerate, and reproducible (same clip encoded twice agrees)."""
+    print("\n=== PRE-FLIGHT: still-image at fixed duration "
+          f"({config.CLIP_SECONDS}s) ===")
     rows = list(csv.DictReader(open(config.PAIRS_CSV)))
     img = next((resolve_path(r["item_b"]) for r in rows
                 if r["modality_b"] == "image"), None)
@@ -44,11 +49,9 @@ def preflight_still_image() -> None:
         print("  no image available; skipping (generate pairs first)")
         return
 
-    # encode at 2 different hold lengths, bypassing cache, compare
-    clip_a = tribe.image_to_clip(img, seconds=2.0, fps=8)
-    clip_b = tribe.image_to_clip(img, seconds=3.0, fps=6)
-    ja = tribe._submit_file("predict/video", clip_a, "a.mp4")
-    jb = tribe._submit_file("predict/video", clip_b, "b.mp4")
+    clip = tribe.image_to_clip(img)  # fixed duration/size from config
+    ja = tribe._submit_file("predict/video", clip, "a.mp4")
+    jb = tribe._submit_file("predict/video", clip, "b.mp4")
     tribe._poll(ja); tribe._poll(jb)
     ra = tribe._aggregate_time(tribe._fetch_preds(ja))
     rb = tribe._aggregate_time(tribe._fetch_preds(jb))
@@ -57,15 +60,15 @@ def preflight_still_image() -> None:
     nonconst = ra.std() > 1e-6 and rb.std() > 1e-6
     corr = float(np.corrcoef(ra, rb)[0, 1])
     print(f"  finite: {finite}   non-degenerate: {nonconst}   "
-          f"stability r(2s,3s) = {corr:.3f}")
+          f"reproducibility r = {corr:.3f}")
     if not (finite and nonconst):
         print("  !! DEGENERATE still-image output — fix feeding before trusting "
               "image numbers (§6).")
-    elif corr < 0.8:
-        print("  !! LOW stability across hold lengths — image vector is "
-              "duration-sensitive; investigate before trusting numbers.")
+    elif corr < 0.95:
+        print("  !! Non-deterministic at fixed duration — investigate before "
+              "trusting image numbers.")
     else:
-        print("  OK: still image gives a stable, non-degenerate vector.")
+        print("  OK: still image gives a stable, reproducible vector.")
 
 
 def main() -> None:

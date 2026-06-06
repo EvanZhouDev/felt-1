@@ -115,7 +115,8 @@ def _aggregate_time(preds: np.ndarray) -> np.ndarray:
 
 
 # --- still image -> short-hold clip -------------------------------------------
-def image_to_clip(image_path: Path, *, seconds: float = 2.0, fps: int = 8,
+def image_to_clip(image_path: Path, *, seconds: float = config.CLIP_SECONDS,
+                  fps: int = config.CLIP_FPS,
                   width: int = config.CLIP_WIDTH, height: int = config.CLIP_HEIGHT
                   ) -> bytes:
     """Render a still image as a degenerate held video (mp4 bytes) via ffmpeg.

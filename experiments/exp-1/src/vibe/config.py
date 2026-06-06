@@ -33,10 +33,16 @@ FLUX_STEPS = int(os.environ.get("FLUX_STEPS", "4"))
 FLUX_WIDTH = int(os.environ.get("FLUX_WIDTH", "512"))
 FLUX_HEIGHT = int(os.environ.get("FLUX_HEIGHT", "512"))
 
-# Still image -> short-hold clip size for /predict/video. Capped at 600x400
+# Still image -> short-hold clip for /predict/video. Capped at 600x400
 # (smaller = much faster video inference on the MPS box).
 CLIP_WIDTH = int(os.environ.get("CLIP_WIDTH", "600"))
 CLIP_HEIGHT = int(os.environ.get("CLIP_HEIGHT", "400"))
+# Clip duration. TRIBE emits ~1 timestep/second and runtime is ~linear in
+# timesteps (0.5s->1 step ~32s; 2s->2 steps ~140s). The vector is NOT stable
+# across durations (r(0.5s,2s)~0.55), so we FIX one duration for every image and
+# never mix. 0.5s = 1 timestep = fastest and consistent.
+CLIP_SECONDS = float(os.environ.get("CLIP_SECONDS", "0.5"))
+CLIP_FPS = int(os.environ.get("CLIP_FPS", "8"))
 
 # --- TRIBE output facts (from /metadata, confirmed empirically) ---------------
 MESH = "fsaverage5"
