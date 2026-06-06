@@ -82,7 +82,13 @@ would otherwise lose.
 
 ## Current Scaffold
 
-The repo currently defines contracts and structure only. The new renderers,
-agents, judge, audio describer, and genetic loop are intentionally unimplemented
-until the next pass. See [IO Modules](./IO_MODULES.md#scaffold-status) for the
-open implementation checklist.
+The repo now has a minimal one-iteration MVP for the agent loop. It uses a
+deterministic agent backend, mock oracle scoring, isolated per-agent folders,
+and readable run artifacts under `.volta/runs/<runId>/`. SQLite is only the run
+index; full run data lives in JSON files such as `run.json`, `input.json`,
+`output-request.json`, and per-iteration `scores.json` / `judge.json`.
+
+The real Codex SDK backend, MCP tool gateway, Flux image generation, audio vibe
+description/cache, production renderers, and multi-iteration genetic loop are
+still open implementation work. See [IO Modules](./IO_MODULES.md#scaffold-status)
+for the broader checklist.

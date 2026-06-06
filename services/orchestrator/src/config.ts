@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 export type OrchestratorConfig = {
   port: number;
   databasePath: string;
+  runsRoot: string;
   oracleMode: "mock" | "tribe";
   pythonPath: string;
   repoRoot: string;
@@ -16,6 +17,7 @@ export function loadConfig(): OrchestratorConfig {
     port: Number(process.env.VOLTA_PORT ?? 8787),
     databasePath:
       process.env.VOLTA_DATABASE_PATH ?? join(repoRoot, "data/volta.sqlite"),
+    runsRoot: process.env.VOLTA_RUNS_ROOT ?? join(repoRoot, ".volta/runs"),
     oracleMode: process.env.VOLTA_ORACLE === "tribe" ? "tribe" : "mock",
     pythonPath:
       process.env.VOLTA_PYTHON ??

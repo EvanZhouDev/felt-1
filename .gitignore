@@ -13,6 +13,7 @@ cache/
 data/runs/
 data/*.sqlite
 data/*.sqlite-*
+.volta/runs/
 *.data
 *.pkl
 
