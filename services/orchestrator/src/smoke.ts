@@ -15,6 +15,10 @@ const oracle = createOracle({
   oracleMode: "mock",
   pythonPath: "python3",
   repoRoot: process.cwd(),
+  tribeUrl: "https://tribe.bryanhu.com",
+  fluxUrl: "https://images.bryanhu.com",
+  candidateCount: 2,
+  maxIterations: 1,
 });
 
 const input: InputObj = {
