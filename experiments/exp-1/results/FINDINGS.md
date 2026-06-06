@@ -35,6 +35,26 @@ complexity. Best brain metric = 0.80 < CLIP 0.90 → **RED** on text↔image.
 - Time-aggregation `max` (vs `mean`) was NOT swept (needs re-fetching per-timestep
   preds; only affects the 7-timestep text items, images are 1 timestep).
 
+## Modality probe — the key diagnostic (05_modality_probe.py)
+
+Tested directly whether the "TRIBE over-screams modality" worry is the right model:
+
+- **Modality separability AUC = 1.000** — text vs image vectors are perfectly
+  distinguishable. Modality IS loudly encoded.
+- **Modality = 55% of total variance** — over half the variation is just text-vs-image.
+- **BUT modality is NOT in sensory cortex.** The text-vs-image effect is spread almost
+  evenly across all 7 Yeo networks (Visual 0.0119 barely tops; Somatomotor 0.0087 is
+  the LOWEST; Frontoparietal/Attention/Limbic/DMN are all comparable). The spec's
+  assumption — that modality lives in Visual+Somatomotor and can be masked out — is
+  FALSE.
+
+Why this matters: masking never could have been the fix. It strips a sliver of an
+evenly-distributed signal (hence 0.71→0.80 nudge, not a rescue). You can't isolate a
+modality-free vertex subset because every region carries the fingerprint. A *linear
+mask* can't separate entangled modality/vibe directions — a *learned projection* can.
+This is the strongest argument yet for an alignment head and against masking, and it
+explains why the CV data-driven mask only hit 0.67.
+
 ## Implication
 
 Direction of the bet is right (masking helps, affective core best) but TRIBE's raw
