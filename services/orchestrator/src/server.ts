@@ -1,3 +1,4 @@
+import type { InputObj, OutputObj } from "@volta/core";
 import { loadConfig } from "./config.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun } from "./run.ts";
@@ -27,24 +28,24 @@ const server = Bun.serve({
 
     if (request.method === "POST" && url.pathname === "/runs") {
       const body = (await request.json()) as {
-        inputText?: string;
-        seed?: string;
+        input?: InputObj;
+        output?: OutputObj;
       };
-      if (!body.inputText?.trim() || !body.seed?.trim()) {
-        return json({ error: "inputText and seed are required." }, 400);
+      if (!body.input || !body.output) {
+        return json({ error: "input and output are required." }, 400);
       }
 
       const id = crypto.randomUUID();
       const record = store.create({
         id,
-        inputText: body.inputText,
-        seed: body.seed,
+        input: body.input,
+        output: body.output,
       });
 
       void executeRun({
         id,
-        inputText: body.inputText,
-        seed: body.seed,
+        input: body.input,
+        output: body.output,
         store,
         oracle,
       });

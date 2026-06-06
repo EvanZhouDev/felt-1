@@ -2,33 +2,37 @@
 
 Project Volta is an agentic neural-activation translation workbench.
 
-The system does not train TRIBE or optimize model weights. It searches over
-renderable output states. TRIBE stays frozen and acts as a neural oracle.
+TRIBE stays frozen and acts as the neural oracle. Volta owns the agentic layer
+around media payloads, renderers, scoring, and iteration.
+
+See [IO Modules](./IO_MODULES.md) for the concrete payload and node schema.
 
 ## Core Loop
 
 ```text
-input state -> input module render -> target activation
+InputObj.inputNode.payload -> render -> target activation
 
-seed -> output state -> output module render -> candidate activation
+InputObj + OutputObj + entropy -> agent outputs
+AgentOutput.outputNode.payload -> render -> candidate activation
 
-agent loop:
-  propose -> render -> encode -> score -> critique -> revise
+candidate activations -> score/rank -> judge reasoning -> next iteration seed
 ```
 
-The invariant is predicted neural activation, not literal text or pixels.
-The seed constrains what the output is about.
+The invariant is predicted neural activation, not literal text or pixels. The
+optional seed constrains what the output should be about.
 
 ## Boundaries
 
-- TypeScript owns the app, modules, scoring, job state, and agent orchestration.
+- TypeScript owns schemas, render contracts, scoring, job state, and agent
+  orchestration.
 - Python owns the TRIBE bridge because TRIBE is a Python/PyTorch package.
-- The oracle is pluggable: `mock` for fast development, `tribe` for real runs.
+- Nodes are thin `{ type, payload }` envelopes.
+- Render functions consume payloads directly.
+- Text and audio render directly to TRIBE artifacts.
+- Image and code render through short visual artifacts for TRIBE.
 
-## MVP
+## Current Scaffold
 
-Start with `TextInputModule -> TextOutputModule`.
-
-This avoids image/video generation costs while proving the core contract:
-both sides render stimuli, both are encoded by the same oracle, and the agent
-layer revises output content toward neural similarity.
+The repo currently defines contracts and structure only. The new renderers,
+agents, judge, audio describer, and genetic loop are intentionally unimplemented
+until the next pass.

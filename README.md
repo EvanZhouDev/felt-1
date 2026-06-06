@@ -6,7 +6,7 @@ Vibe transfer across any format. Our system takes the "vibe" of one artifact and
 
 The inspiration: someone built a system that generates text matching the feel of a specific song. We're generalizing that idea — any-to-any vibe transfer, not just song-to-text.
 
-How it works (at a high level): We use a neural-response model (Meta's TRIBE) as a shared "vibe space" — it predicts how the brain responds to sights, sounds, and language, which gives us one common representation across modalities. We capture the vibe of the input in that space, then run a loop of generator agents (LLMs, image, UI) that produce candidates and a scorer that keeps the ones whose vibe matches, refining over successive rounds.
+How it works (at a high level): We use a neural-response model (Meta's TRIBE) as a shared "vibe space" — it predicts how the brain responds to sights, sounds, and language, which gives us one common representation across modalities. We capture the vibe of the input in that space, then run a loop of generator agents that produce media payloads. A renderer turns each payload into a TRIBE-compatible artifact, the scorer ranks candidates by neural similarity, and a judge carries useful reasoning into the next iteration.
 
 That's the core: a common neural representation that lets "vibe" become portable between text, images, and UI.
 Want a one-line pitch version of this too?
@@ -15,8 +15,8 @@ Want a one-line pitch version of this too?
 
 The active codebase is the new monorepo scaffold:
 
-- `apps/web` - Next.js shell for the input/output module workflow.
-- `packages/core` - TypeScript contracts for modules, render outputs, activation traces, scoring, and search.
+- `apps/web` - Next.js shell for the input/output workflow.
+- `packages/core` - TypeScript contracts for payloads, nodes, render outputs, activation traces, agents, judging, and scoring.
 - `services/orchestrator` - Bun service that coordinates runs and bridges to TRIBE through Python.
 - `vendor/tribev2` - vendored Meta TRIBE v2 source used as the neural oracle.
 
@@ -30,18 +30,19 @@ bun run smoke
 bun run smoke:tribe
 ```
 
-`bun run smoke` uses the fast mock oracle. `bun run smoke:tribe` uses the
-vendored TRIBE environment at `vendor/tribev2/.venv/bin/python`. The first real
-TRIBE run downloads model weights into the ignored `vendor/tribev2/cache`
+`bun run smoke` currently verifies the scaffold entrypoint. `bun run smoke:tribe`
+will need to be rewired after the new renderer pipeline is implemented. The
+vendored TRIBE environment lives at `vendor/tribev2/.venv/bin/python`; first
+real TRIBE runs download model weights into the ignored `vendor/tribev2/cache`
 directory.
 
 ## Pipeline
 
 ```text
-input module -> render -> TRIBE activation
-seeded output module -> render -> TRIBE activation
-agent loop -> score -> critique -> revise
+InputObj.inputNode.payload -> render -> TRIBE activation
+OutputObj -> agents -> AgentOutput.outputNode.payload
+agent output -> render -> score -> judge -> next iteration seed
 ```
 
 TRIBE weights remain frozen. Volta owns the agentic layer around renderable
-input and output modules.
+media payloads.

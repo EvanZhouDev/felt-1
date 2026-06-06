@@ -1,12 +1,12 @@
 import { Database } from "bun:sqlite";
 import { dirname } from "node:path";
-import type { RunStatus } from "@volta/core";
+import type { InputObj, OutputObj, RunStatus } from "@volta/core";
 
 export type RunRecord = {
   id: string;
   status: RunStatus;
-  inputText: string;
-  seed: string;
+  input: InputObj;
+  output: OutputObj;
   resultJson: string | null;
   error: string | null;
   createdAt: string;
@@ -26,8 +26,8 @@ export class RunStore {
       create table if not exists runs (
         id text primary key,
         status text not null,
-        input_text text not null,
-        seed text not null,
+        input_json text not null,
+        output_json text not null,
         result_json text,
         error text,
         created_at text not null,
@@ -36,22 +36,29 @@ export class RunStore {
     `);
   }
 
-  create(args: { id: string; inputText: string; seed: string }): RunRecord {
+  create(args: { id: string; input: InputObj; output: OutputObj }): RunRecord {
     const now = new Date().toISOString();
     this.db
       .query(
         `insert into runs
-          (id, status, input_text, seed, result_json, error, created_at, updated_at)
+          (id, status, input_json, output_json, result_json, error, created_at, updated_at)
           values (?, ?, ?, ?, null, null, ?, ?)`,
       )
-      .run(args.id, "queued", args.inputText, args.seed, now, now);
+      .run(
+        args.id,
+        "queued",
+        JSON.stringify(args.input),
+        JSON.stringify(args.output),
+        now,
+        now,
+      );
     return this.get(args.id) as RunRecord;
   }
 
   get(id: string): RunRecord | null {
     const row = this.db
       .query<RunRow, [string]>(
-        `select id, status, input_text, seed, result_json, error, created_at, updated_at
+        `select id, status, input_json, output_json, result_json, error, created_at, updated_at
          from runs where id = ?`,
       )
       .get(id);
@@ -61,7 +68,7 @@ export class RunStore {
   list(): RunRecord[] {
     return this.db
       .query<RunRow, []>(
-        `select id, status, input_text, seed, result_json, error, created_at, updated_at
+        `select id, status, input_json, output_json, result_json, error, created_at, updated_at
          from runs order by created_at desc limit 50`,
       )
       .all()
@@ -94,8 +101,8 @@ export class RunStore {
 type RunRow = {
   id: string;
   status: RunStatus;
-  input_text: string;
-  seed: string;
+  input_json: string;
+  output_json: string;
   result_json: string | null;
   error: string | null;
   created_at: string;
@@ -106,8 +113,8 @@ function mapRow(row: RunRow): RunRecord {
   return {
     id: row.id,
     status: row.status,
-    inputText: row.input_text,
-    seed: row.seed,
+    input: JSON.parse(row.input_json) as InputObj,
+    output: JSON.parse(row.output_json) as OutputObj,
     resultJson: row.result_json,
     error: row.error,
     createdAt: row.created_at,

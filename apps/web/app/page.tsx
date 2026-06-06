@@ -15,44 +15,42 @@ export default function Home() {
         </div>
         <div className="panel stack">
           <strong>Architecture</strong>
-          <span>Input Module.render()</span>
+          <span>InputObj.inputNode.payload</span>
           <span>Frozen TRIBE Oracle</span>
-          <span>Output Module.render()</span>
-          <span>Agentic Search Loop</span>
+          <span>AgentOutput.outputNode.payload</span>
+          <span>Judge-Guided Agent Loop</span>
         </div>
       </aside>
       <section className="main">
         <div className="section grid">
           <div className="panel stack">
-            <h2>Input Module</h2>
+            <h2>Input Object</h2>
             <label htmlFor="input-text">Input text</label>
             <textarea id="input-text" defaultValue={defaultInput} />
             <p className="muted">
-              The text input module renders deterministic word events for the
-              neural oracle.
+              The input object contains the target node and an optional seed.
             </p>
           </div>
           <div className="panel stack">
-            <h2>Output Module</h2>
+            <h2>Output Spec</h2>
             <label htmlFor="seed">Seed content</label>
             <input id="seed" defaultValue={defaultSeed} />
             <p className="muted">
-              The seed constrains what the output should be about, while the
-              scorer optimizes neural similarity.
+              Agents generate output nodes for the requested medium, then the
+              renderer prepares them for TRIBE scoring.
             </p>
           </div>
         </div>
         <div className="section panel stack">
           <h2>Agentic Loop</h2>
-          <pre>{`target = oracle.encode(input.render())
-state = output.initialize(seed)
+          <pre>{`target = oracle.encode(render(input.inputNode.payload))
+outputs = agents.generate(input, output)
 
 repeat:
-  candidate = output.render(state)
-  activation = oracle.encode(candidate)
-  score = neural_similarity(target, activation)
-  critique = critic(score, seed, candidate)
-  state = output.revise(state, critique)`}</pre>
+  rendered = outputs.map((o) => render(o.outputNode.payload))
+  scores = rank_by_neural_similarity(target, rendered)
+  decision = judge(scores, input)
+  outputs = agents.generate(input, output, decision)`}</pre>
           <div>
             <button type="button">Run Mock Search</button>{" "}
             <button type="button" className="secondary">
