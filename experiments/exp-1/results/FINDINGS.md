@@ -24,12 +24,26 @@ complexity. Best brain metric = 0.80 < CLIP 0.90 → **RED** on text↔image.
   cortex; stripping sensory + association noise sharpens it. The spec's worry about
   over-pruning did NOT bite here — tighter won.
 
+## Exhaustive subset check (06_all_subsets.py) — the 0.80 is optimistic
+
+Swept ALL 127 non-empty Yeo-7 subsets, not just 6:
+- **In-sample winner: Limbic-only, 0.80** — genuinely the best of all 127 (next best
+  0.77; worst is Somatomotor-only 0.59). So "Limbic is best" is real, not an artifact
+  of a small hand-picked set. Affective-network story holds.
+- **Honest (leave-one-pair-out subset SELECTION): AUC 0.65, p=0.13 (n.s.).** When the
+  mask is chosen without seeing the test pair, performance drops below even raw cosine
+  (0.71) and loses significance. Limbic was chosen in 16/20 folds (consistent), but
+  even the genuinely-best mask only generalizes to ~0.65.
+
+=> The 0.80 must NOT be quoted as TRIBE's score; it's selection-optimism on 20 pairs.
+The honest masked-TRIBE number is ~0.65. We have now tried EVERY brain-region subset:
+none fixes it. Masking is exhausted as a strategy. (Consistent with the modality probe:
+the fingerprint is entangled in every network.)
+
 ## Caveats (small-N honesty)
 
-- 20 pairs. 0.80 comes from picking the best of 6 hand-chosen masks, so it's a
-  promising **upper bound**, not a proven number — selection over masks on 20 pairs
-  can flatter. The cross-validated data-driven mask only hit 0.67, so a fairly
-  *learned* mask does not yet reach 0.80.
+- 20 pairs — enough to spot a strong effect, not a fragile one. The headline masked
+  number is the cross-validated 0.65, not the in-sample 0.80.
 - Ground-truth labels visually confirmed clean by a human, so the ceiling is NOT
   label noise — it's the metric/geometry.
 - Time-aggregation `max` (vs `mean`) was NOT swept (needs re-fetching per-timestep
