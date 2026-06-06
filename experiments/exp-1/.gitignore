@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+
+# derived / generated artifacts (re-creatable by the scripts)
+cache/
+results/
+data/images/
+data/texts/
+data/pairs.csv
+
+# keep hand-authored specs (scripts/pair_specs.py) in git

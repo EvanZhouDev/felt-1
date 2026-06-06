@@ -1,0 +1,15 @@
+[project]
+name = "exp1-vibe-metric"
+version = "0.1.0"
+description = "Validation gate: does a TRIBE-based distance separate vibe-matched cross-modal pairs?"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "nilearn>=0.13.1",
+    "numpy>=2.4.6",
+    "open-clip-torch>=3.3.0",
+    "pillow>=12.2.0",
+    "requests>=2.34.2",
+    "scikit-learn>=1.9.0",
+    "scipy>=1.17.1",
+]
