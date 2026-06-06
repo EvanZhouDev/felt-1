@@ -305,6 +305,24 @@ Next iteration:
 InputObj + OutputObj + NextIterationSeed + entropy -> AgentOutput[]
 ```
 
+### API integration notes (verified live 2026-06-06)
+
+- **Do not batch TRIBE scoring.** `tribe.bryanhu.com` has a
+  `POST /predict/text/batch` (≤64 texts) endpoint, but its result omits the raw
+  per-vertex predictions: the batch job's `preds.norm.f16.bin` is empty and there
+  is no per-item binary route (all 404). `result.json` exposes only the 7
+  `yeo7_means` per item. Our cosine (`scoring/activation.ts`) runs over the full
+  pooled `R^20484` vector, so batching would silently collapse scoring to 7
+  dimensions — the same "cosine over a handful of scalars is noise" failure we
+  avoided by leaving the local Python `summary` path. The N-candidate scoring
+  loop therefore issues N single `POST /predict/text` jobs; `Promise.all` in
+  `run.ts` already overlaps them, and the server runs them in parallel (a 2-item
+  batch took ~32s vs ~27s for one, so there is no latency win to chase anyway).
+- **Flux has no batch endpoint.** `images.bryanhu.com` is one prompt per request
+  (`GET/POST /generate?prompt=...&model=klein&steps=4&seed=N`). When the agent
+  backend generates N image candidates, fire N **concurrent** `/generate`
+  requests (vary `seed`/`prompt`) rather than awaiting them serially.
+
 ## Hackathon Defaults
 
 ```tsx
