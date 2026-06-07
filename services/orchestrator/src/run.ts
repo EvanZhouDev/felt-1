@@ -20,8 +20,11 @@ import {
 } from "@volta/core";
 import {
   appendCandidateArchive,
+  appendTargetCandidateArchive,
   archivePromptContext,
   loadCandidateArchive,
+  loadTargetCandidateArchive,
+  mergeCandidateArchives,
 } from "./archive.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import {
@@ -414,7 +417,10 @@ async function executeIteration(
   );
   await mkdir(iterationPath, { recursive: true });
   await writeJson(join(iterationPath, "target.json"), args.target);
-  const archive = loadCandidateArchive(args.runPath);
+  const archive = mergeCandidateArchives(
+    loadTargetCandidateArchive(args.runsRoot, args.target.rendered.sha256),
+    loadCandidateArchive(args.runPath),
+  );
   const archiveContext = archivePromptContext(archive);
 
   args.store.updateStatus(args.id, "predicting");
@@ -483,6 +489,14 @@ async function executeIteration(
     runPath: args.runPath,
     iteration: args.iteration,
     rankedOutputs: evaluatedOutputs,
+    runId: args.id,
+  });
+  await appendTargetCandidateArchive({
+    runsRoot: args.runsRoot,
+    targetSha: args.target.rendered.sha256,
+    iteration: args.iteration,
+    rankedOutputs: evaluatedOutputs,
+    runId: args.id,
   });
 
   args.store.updateStatus(args.id, "judging");

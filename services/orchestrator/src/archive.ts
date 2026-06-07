@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type {
   CandidateArchiveContext,
   CandidateArchivePromptItem,
@@ -14,6 +14,7 @@ export type CandidateArchive = {
 };
 
 export type CandidateArchiveEntry = CandidateArchivePromptItem & {
+  runId?: string;
   outputType: OutputNode["type"];
   textLength?: number;
   descriptors: string[];
@@ -33,23 +34,66 @@ export async function appendCandidateArchive(args: {
   runPath: string;
   iteration: number;
   rankedOutputs: EvaluatedOutput[];
+  runId?: string;
 }): Promise<CandidateArchive> {
   const archive = loadCandidateArchive(args.runPath);
-  const entries = [
-    ...archive.entries,
-    ...args.rankedOutputs.map((output) => archiveEntry(args.iteration, output)),
-  ];
-  const updated: CandidateArchive = {
+  return writeArchive(
+    archivePath(args.runPath),
+    appendEntries(archive, args.iteration, args.rankedOutputs, args.runId),
+  );
+}
+
+export function loadTargetCandidateArchive(
+  runsRoot: string,
+  targetSha: string,
+): CandidateArchive {
+  const path = targetArchivePath(runsRoot, targetSha);
+  if (!existsSync(path)) {
+    return emptyArchive();
+  }
+  return JSON.parse(readFileSync(path, "utf8")) as CandidateArchive;
+}
+
+export async function appendTargetCandidateArchive(args: {
+  runsRoot: string;
+  targetSha: string;
+  iteration: number;
+  rankedOutputs: EvaluatedOutput[];
+  runId: string;
+}): Promise<CandidateArchive> {
+  const archive = loadTargetCandidateArchive(args.runsRoot, args.targetSha);
+  return writeArchive(
+    targetArchivePath(args.runsRoot, args.targetSha),
+    appendEntries(archive, args.iteration, args.rankedOutputs, args.runId),
+  );
+}
+
+export function mergeCandidateArchives(
+  ...archives: CandidateArchive[]
+): CandidateArchive {
+  const seen = new Set<string>();
+  const entries = [...archives.flatMap((archive) => archive.entries)].filter(
+    (entry) => {
+      const key = [
+        entry.runId ?? "local",
+        entry.iteration,
+        entry.agentId,
+        entry.behaviorKey,
+        entry.text,
+      ].join(":");
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    },
+  );
+
+  return {
     version: 1,
     updatedAt: new Date().toISOString(),
     entries,
   };
-  await writeFile(
-    archivePath(args.runPath),
-    `${JSON.stringify(updated, null, 2)}\n`,
-    "utf8",
-  );
-  return updated;
 }
 
 export function archivePromptContext(
@@ -88,9 +132,11 @@ export function archivePromptContext(
 function archiveEntry(
   iteration: number,
   output: EvaluatedOutput,
+  runId?: string,
 ): CandidateArchiveEntry {
   const behavior = behaviorDescriptor(output.outputNode);
   return {
+    runId,
     iteration,
     agentId: output.agentId,
     neuralSimilarity: output.score.neuralSimilarity,
@@ -100,6 +146,22 @@ function archiveEntry(
     text: textForNode(output.outputNode),
     textLength: textForNode(output.outputNode)?.length,
     descriptors: behavior.descriptors,
+  };
+}
+
+function appendEntries(
+  archive: CandidateArchive,
+  iteration: number,
+  rankedOutputs: EvaluatedOutput[],
+  runId?: string,
+): CandidateArchive {
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    entries: [
+      ...archive.entries,
+      ...rankedOutputs.map((output) => archiveEntry(iteration, output, runId)),
+    ],
   };
 }
 
@@ -234,6 +296,19 @@ function truncate(text: string, maxLength: number): string {
 
 function archivePath(runPath: string): string {
   return join(runPath, ARCHIVE_FILE);
+}
+
+function targetArchivePath(runsRoot: string, targetSha: string): string {
+  return join(runsRoot, "..", "target-archives", `${targetSha}.json`);
+}
+
+async function writeArchive(
+  path: string,
+  archive: CandidateArchive,
+): Promise<CandidateArchive> {
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(archive, null, 2)}\n`, "utf8");
+  return archive;
 }
 
 function emptyArchive(): CandidateArchive {

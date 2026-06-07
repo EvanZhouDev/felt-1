@@ -191,3 +191,25 @@ Interpretation:
 - Mutation strategies produced meaningfully different text forms, but none beat the old best `0.0446379915415347`.
 - Compact inventory is promising relative to the other fresh candidates, but still not enough.
 - New runs should not start from an empty archive for the same target. We need a target-specific archive or imported prior elite so repeated experiments exploit known good candidates immediately.
+
+## 2026-06-06 18:09 PDT - Target-Specific Archive Pass
+
+Changes in progress:
+
+- Extended candidate archives with optional `runId`.
+- Added target-specific archives under `<runsRoot>/../target-archives/<targetSha>.json`.
+- Candidate prompts now merge target-specific archive entries with the current run archive.
+- New scored candidates append to both the run archive and the target archive.
+
+Expected effect:
+
+- Repeated experiments on the same target can reuse prior elites immediately.
+- Mona Lisa experiments can begin with the known `0.0446379915415347` text in context instead of rediscovering it.
+- This is closer to AlphaEvolve's persistent program database, but scoped by target hash to avoid cross-target contamination.
+
+Validation:
+
+- `bun run smoke` passed.
+- Initial `bun run check` found formatter drift in `archive.ts`; fixed with Biome format.
+- `bun run check` passed after formatting.
+- Smoke artifact created a target-specific archive with 4 entries and `runId: smoke-run`.
