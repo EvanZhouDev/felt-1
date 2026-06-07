@@ -396,7 +396,8 @@ function operatorName(entry: CandidateArchiveEntry): string {
   if (entry.outputType === "image") {
     const imageMutation = entropyValue(entry.entropy, "imageMutation");
     if (imageMutation) {
-      return imageMutation;
+      const source = entropyValue(entry.entropy, "imageMutationSource");
+      return source ? `${imageMutation}@source=${source}` : imageMutation;
     }
   }
   return entropyValue(entry.entropy, "strategy") || "unknown";

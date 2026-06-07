@@ -308,6 +308,7 @@ type TargetFidelityMode =
   | "darker-crisp"
   | "hard-neutral"
   | "hard-neutral-sharp"
+  | "texture-propagate-right"
   | "hard-neutral-saturated";
 
 async function targetImageStyle(
@@ -346,6 +347,7 @@ function isTargetFidelityMode(
     mode === "darker-crisp" ||
     mode === "hard-neutral" ||
     mode === "hard-neutral-sharp" ||
+    mode === "texture-propagate-right" ||
     mode === "hard-neutral-saturated"
   );
 }
@@ -533,11 +535,14 @@ function createTargetFidelityImage(args: {
   if (!filter) {
     throw new Error(`Unsupported target fidelity mode: ${args.mode}`);
   }
+  const filterArg = isComplexTargetFidelityMode(args.mode)
+    ? "-filter_complex"
+    : "-vf";
   return runProcess("ffmpeg", [
     "-y",
     "-i",
     args.inputPath,
-    "-vf",
+    filterArg,
     filter,
     "-frames:v",
     "1",
@@ -569,9 +574,15 @@ function targetFidelityFilter(mode: TargetFidelityMode): string | undefined {
       return "eq=contrast=1.05:saturation=0.96:brightness=-0.015,unsharp=5:5:0.35:3:3:0.0";
     case "hard-neutral-sharp":
       return "eq=contrast=1.05:saturation=0.96:brightness=-0.015,unsharp=5:5:0.45:3:3:0.0";
+    case "texture-propagate-right":
+      return "[0:v]split=2[base][tex];[tex]crop=80:118:38:12,gblur=sigma=0.2,eq=saturation=0.9,scale=118:188[tex2];[base]crop=118:188:132:0[right];[right][tex2]blend=all_expr='A*0.82+B*0.18'[blend];[base][blend]overlay=132:0";
     case "hard-neutral-saturated":
       return "eq=contrast=1.05:saturation=1.00:brightness=-0.015,unsharp=5:5:0.35:3:3:0.0";
   }
+}
+
+function isComplexTargetFidelityMode(mode: TargetFidelityMode): boolean {
+  return mode === "texture-propagate-right";
 }
 
 function createStillVideo(args: {

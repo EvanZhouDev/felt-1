@@ -1539,6 +1539,7 @@ function imageMutationCandidateOutputs(args: {
         entropy: [
           candidate.entropy,
           `imageMutation=${variant.name}`,
+          variant.sourceKind ? `imageMutationSource=${variant.sourceKind}` : "",
           `parentAgentId=${candidate.agentId}`,
         ]
           .filter(Boolean)
@@ -1563,7 +1564,7 @@ function imageMutationCandidateOutputs(args: {
 function imageSeedVariants(
   uri: string,
   maxCount: number,
-): Array<{ name: string; uri: string }> {
+): ImageMutationVariant[] {
   const parsed = parseFluxMutationUri(uri);
   if (!parsed) {
     return [];
@@ -1583,7 +1584,7 @@ function imageLocalStyleVariants(
   uri: string,
   maxCount: number,
   archive?: CandidateArchive,
-): Array<{ name: string; uri: string }> {
+): ImageMutationVariant[] {
   const parsed = parseFluxMutationUri(uri);
   if (maxCount <= 0) {
     return [];
@@ -1600,6 +1601,7 @@ function imageLocalStyleVariants(
         return {
           name: `local-style-${variant}`,
           uri: url.toString(),
+          sourceKind: "flux",
         };
       });
   }
@@ -1610,19 +1612,46 @@ function imageLocalStyleVariants(
     return [];
   }
   const currentStyle = localStyle?.style ?? localImageStyleName(uri) ?? "";
-  return imageLocalStyleVariantOrder({ archive, currentStyle })
+  return imageLocalStyleVariantOrder({
+    archive,
+    currentStyle,
+    sourceKindForVariant: (variant) =>
+      localStyleVariantSourceKind({
+        variant,
+        currentUri: uri,
+        baseSourceUri: sourceUri,
+      }),
+  })
     .filter((variant) => variant !== currentStyle)
     .slice(0, maxCount)
     .map((variant) => {
+      const variantSourceUri = localStyleVariantSourceUri({
+        variant,
+        currentUri: uri,
+        baseSourceUri: sourceUri,
+      });
       const url = new URL("volta-style://image");
-      url.searchParams.set("src", sourceUri);
+      url.searchParams.set("src", variantSourceUri);
       url.searchParams.set("style", variant);
       return {
         name: `local-style-${variant}`,
         uri: url.toString(),
+        sourceKind: localStyleSourceKind({
+          sourceUri: variantSourceUri,
+          currentUri: uri,
+          baseSourceUri: sourceUri,
+        }),
       };
     });
 }
+
+type ImageMutationVariant = {
+  name: string;
+  uri: string;
+  sourceKind?: ImageMutationSourceKind;
+};
+
+type ImageMutationSourceKind = "base" | "current" | "derived" | "flux";
 
 function parseLocalImageStyleMutationUri(
   uri: string,
@@ -1709,6 +1738,7 @@ function cloneUrl(url: URL): URL {
 
 const IMAGE_LOCAL_STYLE_VARIANTS = [
   "hard-neutral-sharp",
+  "texture-propagate-right",
   "hard-neutral-saturated",
   "hard-neutral",
   "darker-crisp",
@@ -1725,8 +1755,14 @@ type ImageLocalStyleVariant = (typeof IMAGE_LOCAL_STYLE_VARIANTS)[number];
 function imageLocalStyleVariantOrder(args: {
   archive?: CandidateArchive;
   currentStyle?: string;
+  sourceKindForVariant?: (
+    variant: ImageLocalStyleVariant,
+  ) => ImageMutationSourceKind;
 }): ImageLocalStyleVariant[] {
-  const ranked = rankedArchiveLocalStyles(args.archive);
+  const ranked = rankedArchiveLocalStyles({
+    archive: args.archive,
+    sourceKindForVariant: args.sourceKindForVariant,
+  });
   if (ranked.length === 0) {
     return [...IMAGE_LOCAL_STYLE_VARIANTS];
   }
@@ -1740,17 +1776,74 @@ function imageLocalStyleVariantOrder(args: {
   return [...ranked, ...unranked];
 }
 
-function rankedArchiveLocalStyles(
-  archive: CandidateArchive | undefined,
-): ImageLocalStyleVariant[] {
-  if (!archive || archive.entries.length === 0) {
+function rankedArchiveLocalStyles(args: {
+  archive: CandidateArchive | undefined;
+  sourceKindForVariant?: (
+    variant: ImageLocalStyleVariant,
+  ) => ImageMutationSourceKind;
+}): ImageLocalStyleVariant[] {
+  if (!args.archive || args.archive.entries.length === 0) {
     return [];
   }
 
   return uniqueImageLocalStyleVariants(
-    operatorStats(archive.entries)
-      .map((stat) => stat.operator.match(/^local-style-(.+)$/)?.[1])
-      .filter(isImageLocalStyleVariant),
+    operatorStats(args.archive.entries)
+      .map((stat) => localStyleVariantFromOperator(stat.operator))
+      .filter((parsed): parsed is ParsedLocalStyleOperator => Boolean(parsed))
+      .filter((parsed) =>
+        isCompatibleLocalStyleOperator({
+          parsed,
+          sourceKindForVariant: args.sourceKindForVariant,
+        }),
+      )
+      .map((parsed) => parsed.variant),
+  );
+}
+
+type ParsedLocalStyleOperator = {
+  variant: ImageLocalStyleVariant;
+  sourceKind?: ImageMutationSourceKind;
+};
+
+function localStyleVariantFromOperator(
+  operator: string,
+): ParsedLocalStyleOperator | undefined {
+  const match = operator.match(/^local-style-([^@]+)(?:@source=(.+))?$/);
+  const variant = match?.[1];
+  if (!isImageLocalStyleVariant(variant)) {
+    return undefined;
+  }
+  const sourceKind = match?.[2];
+  return {
+    variant,
+    sourceKind: isImageMutationSourceKind(sourceKind) ? sourceKind : undefined,
+  };
+}
+
+function isCompatibleLocalStyleOperator(args: {
+  parsed: ParsedLocalStyleOperator;
+  sourceKindForVariant?: (
+    variant: ImageLocalStyleVariant,
+  ) => ImageMutationSourceKind;
+}): boolean {
+  const expected = args.sourceKindForVariant?.(args.parsed.variant);
+  if (!expected) {
+    return true;
+  }
+  if (args.parsed.sourceKind) {
+    return args.parsed.sourceKind === expected;
+  }
+  return !isSourceSensitiveLocalStyleVariant(args.parsed.variant);
+}
+
+function isImageMutationSourceKind(
+  value: string | undefined,
+): value is ImageMutationSourceKind {
+  return (
+    value === "base" ||
+    value === "current" ||
+    value === "derived" ||
+    value === "flux"
   );
 }
 
@@ -1773,6 +1866,52 @@ function isImageLocalStyleVariant(
   return Boolean(
     value && (IMAGE_LOCAL_STYLE_VARIANTS as readonly string[]).includes(value),
   );
+}
+
+function localStyleVariantSourceUri(args: {
+  variant: ImageLocalStyleVariant;
+  currentUri: string;
+  baseSourceUri: string;
+}): string {
+  if (
+    args.variant === "texture-propagate-right" &&
+    isLocalImageSourceUri(args.currentUri)
+  ) {
+    return args.currentUri;
+  }
+  return args.baseSourceUri;
+}
+
+function localStyleVariantSourceKind(args: {
+  variant: ImageLocalStyleVariant;
+  currentUri: string;
+  baseSourceUri: string;
+}): ImageMutationSourceKind {
+  return localStyleSourceKind({
+    sourceUri: localStyleVariantSourceUri(args),
+    currentUri: args.currentUri,
+    baseSourceUri: args.baseSourceUri,
+  });
+}
+
+function localStyleSourceKind(args: {
+  sourceUri: string;
+  currentUri: string;
+  baseSourceUri: string;
+}): ImageMutationSourceKind {
+  if (args.sourceUri === args.currentUri) {
+    return "current";
+  }
+  if (args.sourceUri === args.baseSourceUri) {
+    return "base";
+  }
+  return "derived";
+}
+
+function isSourceSensitiveLocalStyleVariant(
+  variant: ImageLocalStyleVariant,
+): boolean {
+  return variant === "texture-propagate-right";
 }
 
 function mutatedFluxSeed(seed: number, index: number): number {

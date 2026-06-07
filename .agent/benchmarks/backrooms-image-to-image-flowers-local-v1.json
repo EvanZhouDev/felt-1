@@ -1,0 +1,101 @@
+{
+  "createdAt": "2026-06-07T15:05:18.568Z",
+  "scenarioId": "backrooms-flowers-local-image-to-image",
+  "runId": "backrooms-flowers-local-image-to-image-ecfec948",
+  "description": "Backrooms image target to image output with seed topic flowers, using local Flux.2 Klein generation through the Volta pipeline.",
+  "tags": [
+    "image",
+    "backrooms",
+    "flowers",
+    "seeded",
+    "same-medium",
+    "local-flux"
+  ],
+  "oracleMode": "tribe",
+  "backend": "codex",
+  "fluxUrl": "http://127.0.0.1:8799",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 2,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "imageSeedMutations": 0,
+    "imageLocalMutations": 5,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/volta.sqlite",
+  "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948",
+  "result": {
+    "status": "completed",
+    "bestScore": 0.8097070607382202,
+    "bestAdjustedSimilarity": 0.7839688153219917,
+    "bestNeuralSimilarity": 0.9822184478297239,
+    "iterationCount": 1,
+    "selectedAgentId": "candidate-a",
+    "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a/c34c6a94a276c274-target-fidelity.png"
+  },
+  "topScores": [
+    {
+      "agentId": "candidate-a",
+      "total": 0.8097070607382202,
+      "adjusted": 0.7839688153219917,
+      "neural": 0.9822184478297239,
+      "entropy": "iteration=1 | strategy=image visual reconstruction | inputType=image | outputType=image | Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted",
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a/c34c6a94a276c274-target-fidelity.png"
+    },
+    {
+      "agentId": "candidate-a-image-5",
+      "total": 0.8074869252566731,
+      "adjusted": 0.7815507078950408,
+      "neural": 0.9901468540859516,
+      "entropy": "iteration=1 | strategy=image visual reconstruction | inputType=image | outputType=image | Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | imageMutation=local-style-darker-crisp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=darker-crisp",
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a-image-5/c34c6a94a276c274-target-darker-crisp.png"
+    },
+    {
+      "agentId": "candidate-a-image-2",
+      "total": 0.801399564234463,
+      "adjusted": 0.7756454509183996,
+      "neural": 0.9779357129567336,
+      "entropy": "iteration=1 | strategy=image visual reconstruction | inputType=image | outputType=image | Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | imageMutation=local-style-texture-propagate-right | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=texture-propagate-right",
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a-image-2/c34c6a94a276c274-target-texture-propagate-right.png"
+    },
+    {
+      "agentId": "candidate-a-image-3",
+      "total": 0.7951879246322054,
+      "adjusted": 0.7692546960555167,
+      "neural": 0.9898127077193494,
+      "entropy": "iteration=1 | strategy=image visual reconstruction | inputType=image | outputType=image | Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | imageMutation=local-style-hard-neutral-saturated | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=hard-neutral-saturated",
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a-image-3/c34c6a94a276c274-target-hard-neutral-saturated.png"
+    },
+    {
+      "agentId": "candidate-a-image-4",
+      "total": 0.7890099703246765,
+      "adjusted": 0.7630640511756671,
+      "neural": 0.9887013791186459,
+      "entropy": "iteration=1 | strategy=image visual reconstruction | inputType=image | outputType=image | Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | imageMutation=local-style-hard-neutral | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=hard-neutral",
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a-image-4/c34c6a94a276c274-target-hard-neutral.png"
+    },
+    {
+      "agentId": "candidate-a-image-1",
+      "total": 0.7831883935263416,
+      "adjusted": 0.7572631875442083,
+      "neural": 0.9891548618873425,
+      "entropy": "iteration=1 | strategy=image visual reconstruction | inputType=image | outputType=image | Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=hard-neutral-sharp",
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a-image-1/c34c6a94a276c274-target-hard-neutral-sharp.png"
+    },
+    {
+      "agentId": "candidate-b",
+      "total": 0.7484705275592721,
+      "adjusted": 0.7254363508462631,
+      "neural": 0.9719734676065839,
+      "entropy": "iteration=1 | strategy=image composition lock | inputType=image | outputType=image | Create a Flux prompt that locks onto the target's layout: main subject position, body scale, wall/door/opening geometry, foreground/background balance, depth of field, lighting, dominant colors, and low-level camera quality. Avoid abstract mood-only prompts and avoid polished stock-photo detail. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted",
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-b/6643d288f73b3f28-target-fidelity.png"
+    }
+  ]
+}

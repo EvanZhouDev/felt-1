@@ -3534,3 +3534,64 @@ Validation:
 Verification:
 
 - `bun run check`
+
+## 2026-06-07 08:06 PDT - Seeded Image-to-Image with Local Flux
+
+Goal:
+
+- Test image-to-image transfer with a real seed topic: backrooms target image,
+  output image, seed prompt `flowers`.
+
+Setup:
+
+- Hosted Flux failed for the seeded run:
+  - candidate prompts were generated correctly by Codex and included visible
+    flowers in a backrooms-like room.
+  - `images.bryanhu.com` returned Cloudflare `502` during the pipeline run and
+    `403` on a tiny direct health check.
+- Added a local Flux-compatible HTTP adapter:
+  `services/orchestrator/python/local_flux_server.py`.
+  - It serves `/generate?prompt=...&model=klein&steps=...&seed=...`.
+  - It uses the cached local `black-forest-labs/FLUX.2-klein-4B` model through
+    the existing legacy Python environment.
+  - Volta still uses the normal pipeline path: Codex emits `flux://generate`,
+    `materializeGeneratedImageCandidate` calls `VOLTA_FLUX_URL`, generated
+    images are rendered to 0.5s videos, and local TRIBE scores them.
+
+Run:
+
+- Run id: `backrooms-flowers-local-image-to-image-ecfec948`
+- Report:
+  `.agent/benchmarks/backrooms-image-to-image-flowers-local-v1.json`
+- Contact sheet:
+  `.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/flowers-seeded-score-sheet.png`
+
+Results:
+
+- Best selected candidate: `candidate-a`
+  - adjusted similarity: `0.7839688153219917`
+  - raw neural similarity: `0.9822184478297239`
+  - total: `0.8097070607382202`
+  - output:
+    `.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a/c34c6a94a276c274-target-fidelity.png`
+- Runner-up `candidate-a-image-5`:
+  - adjusted similarity: `0.7815507078950408`
+  - raw neural similarity: `0.9901468540859516`
+  - total: `0.8074869252566731`
+- Candidate B was more composition-locked but weaker:
+  - adjusted similarity: `0.7254363508462631`
+  - raw neural similarity: `0.9719734676065839`
+
+Takeaways:
+
+- The seeded image pipeline works locally end-to-end with real local image
+  generation and real local TRIBE scoring.
+- The generated images visibly include flowers while preserving the backrooms
+  layout and lighting, so the seed prompt is being obeyed by the generator.
+- This is far below the unseeded backrooms self-reconstruction result
+  (`0.9114808770377502` adjusted), which is expected: the seed asks the output
+  to depart semantically from the target.
+- The current scorer still optimizes only target activation; seed adherence is
+  prompt-side, not objective-side. The next architecture improvement should add
+  an explicit seed-adherence/constraint score for seeded transfers so the search
+  cannot silently trade off the seed topic against target activation.
