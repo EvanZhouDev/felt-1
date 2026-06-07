@@ -1057,7 +1057,15 @@ function isEliteStalled(iterations: IterationResult[]): boolean {
 
 function outputTypeInstruction(outputType: OutputObj["outputType"]): string {
   if (outputType === "text") {
-    return "For text output, encode the candidate as compact descriptive prose or comma-separated semantic units. Keep it short unless the operator explicitly asks for a syntax reset.";
+    // TRIBE predicts the reader's emotional/perceptual neural response, not
+    // semantic accuracy: flat description ("there is a village, the sky is
+    // blue") scores worst. The register that scores best is TARGET-DEPENDENT
+    // (a turbulent scene rewards charged prose; a calm one rewards stillness),
+    // so we do NOT prescribe one form — we ask the agent to evoke the target's
+    // felt vibe and let the optimizer select the register that scores. Do not
+    // default to comma-separated keyword lists; write language that makes a
+    // reader FEEL the target.
+    return "For text output, write language that makes a reader FEEL the target's vibe — its emotional charge, energy, and atmosphere — rather than cataloguing what is in it. Match the target's register: a turbulent, intense target wants charged, moving prose; a calm, still target wants quiet, restrained language. Avoid flat description and avoid comma-separated keyword lists unless the operator explicitly calls for a syntax reset. Keep it short and high-signal.";
   }
   if (outputType === "image") {
     return "For image output, express the operator through image-generation intent: composition, subject anchors, light/color, texture, camera/framing, and atmosphere.";
