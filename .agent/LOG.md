@@ -367,3 +367,41 @@ Interpretation:
   caption-preserving refinement policy is working.
 - The path is still far below `0.9`, but we now have a real search direction
   worth scaling to more turns.
+
+## 2026-06-06 18:39 PDT - Elite Preservation Patch
+
+Resume experiment:
+
+- Resumed run `6d78538a-99ae-4db4-a770-2f2e722dc950` for additional turns.
+- Iteration 3 regressed: best `0.2628201513071159`.
+- Iteration 4 also regressed: best `0.2565110465731476`.
+- The global best remains iteration 2 `candidate-b` at
+  `0.3656164165710571`.
+
+Issue:
+
+- The pipeline used the latest judge-selected seed for the next iteration even
+  when that iteration underperformed the global best.
+- This lets search walk away from a good elite after a local regression.
+- Final reporting already kept the best overall output, but future turns did not
+  necessarily seed from it.
+
+Change:
+
+- `bestOverallOutput` now ranks by `score.neuralSimilarity`, not total score.
+- Stop checks use the best neural similarity seen so far.
+- After a regression, the loop overwrites `next-seed.json` and the in-memory
+  `nextIterationSeed` with the global neural elite.
+- Resume now starts from the global neural elite across completed iterations
+  instead of blindly using the last iteration seed.
+
+Validation:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+
+Next:
+
+- Run a fresh bounded cold run with the caption population plus elite
+  preservation. The expected behavior is that later turns do not drift away from
+  a high-scoring iteration-2-style caption.

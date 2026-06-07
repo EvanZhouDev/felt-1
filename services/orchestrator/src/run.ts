@@ -240,6 +240,11 @@ async function executeRunLoop(
 
   for (let completed = 0; completed < args.loop.maxIterations; completed += 1) {
     const iteration = startIteration + completed;
+    const iterationPath = join(
+      args.runPath,
+      "iterations",
+      iterationId(iteration),
+    );
     const iterationResult = await executeIteration({
       ...args,
       iteration,
@@ -247,20 +252,27 @@ async function executeRunLoop(
       previous,
       target,
     });
+    const bestBefore = bestOverallOutput(iterations);
     const best = iterationResult.rankedOutputs[0];
+    const bestAfter = bestOutput(bestBefore, best);
+    if (shouldPreserveElite(bestBefore, best)) {
+      iterationResult.nextIterationSeed = seedFromElite({
+        elite: bestBefore,
+        currentBest: best,
+      });
+      await writeJson(
+        join(iterationPath, "next-seed.json"),
+        iterationResult.nextIterationSeed,
+      );
+    }
     const stopReason = getStopReason({
-      bestNeuralSimilarity: best?.score.neuralSimilarity,
+      bestNeuralSimilarity: bestAfter?.score.neuralSimilarity,
       iterationsCompleted: completed + 1,
       loop: args.loop,
     });
     iterationResult.stopReason = stopReason;
     await writeJson(
-      join(
-        args.runPath,
-        "iterations",
-        iterationId(iteration),
-        "iteration.json",
-      ),
+      join(iterationPath, "iteration.json"),
       iterationSummary({
         iteration,
         previous,
@@ -785,9 +797,14 @@ function loadResumeState(args: ResumeRunArgs): ResumeState {
     ? diskIterations
     : artifactIterations;
   const lastIteration = existingIterations.at(-1);
-  const previous = shouldUseDiskIterations
-    ? lastIteration?.nextIterationSeed
-    : (result.nextIterationSeed ?? lastIteration?.nextIterationSeed);
+  const elite = bestOverallOutput(existingIterations);
+  const previous = elite
+    ? seedFromElite({
+        elite,
+      })
+    : shouldUseDiskIterations
+      ? lastIteration?.nextIterationSeed
+      : (result.nextIterationSeed ?? lastIteration?.nextIterationSeed);
   if (!lastIteration || !previous) {
     throw new Error(`Run ${args.id} has no next iteration seed.`);
   }
@@ -870,7 +887,52 @@ function bestOverallOutput(
 ): EvaluatedOutput | undefined {
   return iterations
     .flatMap((iteration) => iteration.rankedOutputs)
-    .sort((left, right) => right.score.total - left.score.total)[0];
+    .sort(
+      (left, right) =>
+        right.score.neuralSimilarity - left.score.neuralSimilarity,
+    )[0];
+}
+
+function bestOutput(
+  left: EvaluatedOutput | undefined,
+  right: EvaluatedOutput | undefined,
+): EvaluatedOutput | undefined {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return left.score.neuralSimilarity >= right.score.neuralSimilarity
+    ? left
+    : right;
+}
+
+function shouldPreserveElite(
+  elite: EvaluatedOutput | undefined,
+  currentBest: EvaluatedOutput | undefined,
+): elite is EvaluatedOutput {
+  if (!elite) {
+    return false;
+  }
+  if (!currentBest) {
+    return true;
+  }
+  return elite.score.neuralSimilarity > currentBest.score.neuralSimilarity;
+}
+
+function seedFromElite(args: {
+  elite: EvaluatedOutput;
+  currentBest?: EvaluatedOutput;
+}): NextIterationSeed {
+  const current = args.currentBest
+    ? ` Current iteration best was ${args.currentBest.agentId} at ${args.currentBest.score.neuralSimilarity}.`
+    : "";
+  return {
+    type: "selected-output-with-reasoning",
+    node: args.elite.outputNode,
+    reasoning: `Preserve global neural elite ${args.elite.agentId} at ${args.elite.score.neuralSimilarity}.${current} Use this as the next seed unless a later candidate improves the neural similarity.`,
+  };
 }
 
 function iterationId(iteration: number): string {
