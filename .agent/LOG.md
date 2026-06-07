@@ -1456,3 +1456,50 @@ Interpretation:
   generic dog text candidate.
 - Local MPS works and is usable for real TRIBE testing, but first-load latency
   is still significant.
+
+## 2026-06-06 23:45 PDT - Full Agentic Dog Pipeline Smoke
+
+Command:
+
+`VOLTA_TRIBE_DEVICE=mps VOLTA_DOG_IMAGE=/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-256.jpg VOLTA_DOG_VIDEO=/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-256-0.5s.mp4 VOLTA_ORACLE_TIMEOUT_MS=900000 VOLTA_CODEX_TIMEOUT_MS=900000 bun services/orchestrator/src/benchmark-cold.ts --scenario dog-image-to-text --oracle tribe --backend codex --max-iterations 2 --candidate-count 2 --scoring-concurrency 1 --text-probe-count 0 --text-micro-mutations 0 --out /tmp/volta-dog-agentic-local-v1.json`
+
+Result:
+
+- Run id: `dog-image-to-text-dedb4f9c`.
+- Completed in about `6m57s`.
+- This was a real end-to-end agentic path: Codex candidate agents, local TRIBE
+  scoring, Codex judge, and a second iteration seeded from iteration 1.
+- Target was the resized dog video, encoded locally as `tribev2` with shape
+  `[1, 20484]`.
+
+Generated candidates:
+
+- Iteration 1 candidate A:
+  `still softness, direct gaze, green hush, close distance, central warmth, faint uncertainty`
+- Iteration 1 candidate B:
+  `soft attentive stillness, mild warmth, sparse green hush, close gaze, fuzzy light, gentle uncertainty`
+- Iteration 2 candidate A:
+  `soft attentive stillness, mild warmth, sparse green hush, close gaze, fuzzy fur, gentle uncertainty`
+- Iteration 2 candidate B:
+  `soft attentive stillness, mild warmth, sparse green hush, close gaze, pale downy texture, gentle uncertainty`
+
+Scores:
+
+- Best overall was iteration 1 candidate B:
+  - raw `neuralSimilarity`: `0.166480`
+  - `adjustedSimilarity`: `-0.233446`
+  - `total`: `-0.208446`
+- Iteration 2 did not improve:
+  - candidate A adjusted `-0.254300`
+  - candidate B adjusted `-0.271567`
+
+Interpretation:
+
+- We are far enough for the pipeline to run end-to-end on real local TRIBE.
+- We are not far enough on quality. The generated texts are plausible human
+  dog-image descriptors, but TRIBE does not rate them as close.
+- Local TRIBE currently has almost no same-model calibration bank, because most
+  previous calibration data is hosted `tribev2-http` and is correctly filtered
+  out. The next high-leverage step is to build a small local `tribev2`
+  calibration bank for dog/backrooms/Mona/anonymous negatives, then rerun the
+  same agentic test.
