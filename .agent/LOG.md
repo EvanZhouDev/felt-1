@@ -2972,3 +2972,69 @@ Verification:
 - `bun run check` passed.
 - `bun run smoke` passed; smoke now reports `candidateCount: 3` because
   refinement includes `elite-replay`.
+
+## 2026-06-07 06:10 PDT - Cross-Modal Text Scoring Signal
+
+Goal:
+
+- Investigate why image-to-text matching stayed at adjusted `0` despite
+  plausible captions, and restore a real optimization signal without pretending
+  cross-modal text is near 90%.
+
+Run:
+
+- `backrooms-image-to-text-99b32f0f`
+  - 3 candidates, 1 iteration, real local TRIBE, Codex backend
+  - best before scorer fix:
+    - `candidate-a`
+    - raw `0.27045467076671204`
+    - adjusted `0`
+    - total `0.025`
+  - best raw candidate was actually `candidate-b`:
+    - text:
+      `An empty fluorescent-lit room opens into beige carpeted corridors with pale patterned wallpaper.`
+    - raw `0.3200514004023118`
+    - adjusted `0`
+
+Diagnosis:
+
+- The adjusted scorer was hiding all image-to-text progress.
+- Text candidates had raw image-target similarity around `0.27-0.32`, but the
+  contrast bank included text outputs. Those text contrasts had similarity
+  around `0.90+` against any text candidate, so target specificity and calibrated
+  retrieval collapsed to `0`.
+- Re-scoring the saved activations with raw adjusted similarity gives usable
+  rankings:
+  - `candidate-b`: adjusted `0.3200514004023118`
+  - `candidate-c`: adjusted `0.30016405583244027`
+  - `candidate-a-micro-1`: adjusted `0.29207848344665427`
+  - `candidate-a`: adjusted `0.27045467076671204`
+
+Raw prompt probe:
+
+- Stopped early after enough signal to avoid wasting TRIBE compute.
+- Best manual probe:
+  - `An empty fluorescent room opens into yellow carpeted corridors with patterned walls.`
+  - raw `0.36505096903429735`
+- Other probes:
+  - `A vacant yellow hallway opens into carpeted rooms under flat fluorescent ceiling lights.`
+    raw `0.3430135039527386`
+  - comma-fragment caption raw `0.29634674170639586`
+  - `Empty yellow rooms recede...` raw `0.19995159694698894`
+  - abstract fragment raw `0.2014979741385558`
+
+Changes:
+
+- Added `useRawAdjustedSimilarity` to `scoreActivations`.
+- The orchestrator enables raw adjusted similarity when input and output
+  modalities differ. Same-medium runs still use the calibrated/residual path.
+- `probe-texts.ts` now uses raw adjusted similarity for non-text targets.
+- Added an image-to-text `spatial relation caption` strategy and tightened the
+  perceptual-caption instruction around visible openings/relations.
+
+Interpretation:
+
+- Cross-modal image-to-text is not close to 90; the honest current raw range is
+  more like `0.32-0.37` on backrooms.
+- The important fix is that the loop now has a nonzero, monotonic signal for
+  text evolution instead of choosing among all-zero adjusted scores.

@@ -14,6 +14,7 @@ export function scoreActivations(args: {
   diversity?: number;
   penalty?: number;
   useResidualAdjustedSimilarity?: boolean;
+  useRawAdjustedSimilarity?: boolean;
 }): ScoreBundle {
   const targetVector = flattenTrace(args.target);
   const candidateVector = flattenTrace(args.candidate);
@@ -50,9 +51,13 @@ export function scoreActivations(args: {
     args.useResidualAdjustedSimilarity && residualSimilarity !== undefined
       ? clamp01(residualSimilarity)
       : undefined;
+  const rawAdjustedSimilarity = args.useRawAdjustedSimilarity
+    ? clamp01(neuralSimilarity)
+    : undefined;
   const adjustedSimilarity = Math.max(
     calibratedAdjustedSimilarity,
     residualAdjustedSimilarity ?? Number.NEGATIVE_INFINITY,
+    rawAdjustedSimilarity ?? Number.NEGATIVE_INFINITY,
   );
   const seedAdherence = args.seedAdherence ?? 0.5;
   const coherence = args.coherence ?? 0.5;
@@ -70,6 +75,7 @@ export function scoreActivations(args: {
     neuralSimilarity,
     adjustedSimilarity,
     calibratedSimilarity: calibrated?.calibratedSimilarity,
+    rawAdjustedSimilarity,
     contrastSimilarity,
     discriminativeSimilarity: calibrated?.discriminativeSimilarity,
     residualSimilarity,

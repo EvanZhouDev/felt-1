@@ -90,6 +90,7 @@ try {
         candidate: activation,
         contrastTargets,
         diversity: 0.5,
+        useRawAdjustedSimilarity: target.rendered?.kind !== "text",
       });
       results.push({
         id,

@@ -801,6 +801,8 @@ async function evaluateCandidate(
         penalty: scoringPriors.penalty,
         useResidualAdjustedSimilarity:
           args.input.inputNode.type === args.output.outputType,
+        useRawAdjustedSimilarity:
+          args.input.inputNode.type !== args.output.outputType,
       }),
     output: scoreSummary,
   });
@@ -2330,7 +2332,12 @@ const imageTextColdStartStrategies: MutationStrategy[] = [
   {
     name: "perceptual caption",
     instruction:
-      "Create one natural caption sentence, 10-20 words, that names the main visible subject and preserves attention, distance, light, texture, and setting. Keep it literal and grounded; do not list every detail.",
+      "Create one natural caption sentence, 10-20 words, that names the main visible subject and preserves attention, distance, light, texture, setting, and the clearest spatial relation or opening. Keep it literal and grounded; do not list every detail.",
+  },
+  {
+    name: "spatial relation caption",
+    instruction:
+      "Create one short caption sentence, 8-18 words, centered on the target's strongest visible spatial relation: opens into, sits against, faces, rests on, stretches across, or recedes through. Include simple color/setting words when visible. Prefer a concrete scene description over abstract mood words.",
   },
   {
     name: "caption with context",

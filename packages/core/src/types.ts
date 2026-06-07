@@ -154,6 +154,7 @@ export type ScoreBundle = {
   neuralSimilarity: number;
   adjustedSimilarity: number;
   calibratedSimilarity?: number;
+  rawAdjustedSimilarity?: number;
   contrastSimilarity?: number;
   discriminativeSimilarity?: number;
   residualSimilarity?: number;

@@ -133,6 +133,7 @@ export function scoreSummary(score: ScoreBundle) {
     neuralSimilarity: score.neuralSimilarity,
     adjustedSimilarity: score.adjustedSimilarity,
     calibratedSimilarity: score.calibratedSimilarity,
+    rawAdjustedSimilarity: score.rawAdjustedSimilarity,
     contrastSimilarity: score.contrastSimilarity,
     discriminativeSimilarity: score.discriminativeSimilarity,
     residualSimilarity: score.residualSimilarity,
