@@ -174,3 +174,20 @@ Validation:
 - `bun run check` passed.
 - `bun run smoke` passed.
 - Smoke artifacts include per-candidate score snapshots for both iterations.
+
+## 2026-06-06 18:05 PDT - Salvaged Candidate Probe From Stuck Run
+
+Instead of launching new Codex generations, salvaged the four generated candidates from stuck run `353ee43a-86b2-45d4-823b-efaa43747d04` and scored them sequentially with `bun run probe:texts`.
+
+Results:
+
+- `candidate-b` compact visual inventory: `0.017743644507674988`.
+- `candidate-a` restrained portrait prose: `-0.011906040739213029`.
+- `candidate-d` affect/energy prose: `-0.024936240237532242`.
+- `candidate-c` spatial composition prose: `-0.08631622091198896`.
+
+Interpretation:
+
+- Mutation strategies produced meaningfully different text forms, but none beat the old best `0.0446379915415347`.
+- Compact inventory is promising relative to the other fresh candidates, but still not enough.
+- New runs should not start from an empty archive for the same target. We need a target-specific archive or imported prior elite so repeated experiments exploit known good candidates immediately.
