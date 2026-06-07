@@ -3410,3 +3410,38 @@ Verification:
 
 - `bun run check`
 - `bun run smoke`
+
+## 2026-06-07 07:19 PDT - Archive-Ranked Image Local Mutation Ordering
+
+Goal:
+
+- Make local image mutation selection generic and target-adaptive instead of
+  always trying the same global style order.
+
+Change:
+
+- The image micro-mutation path now receives the current candidate archive.
+- Local image style variants are ordered by corrected archive `operatorStats`
+  when a target has evidence for local-style operators.
+- If the current elite already uses the top archive-ranked local style, the
+  next mutation tries unscored local styles before known lower-scoring styles.
+  This preserves exploitation while avoiding repeated TRIBE spend on already
+  inferior local neighborhoods.
+- Cold starts without archive evidence still use the global default portfolio.
+
+Validation:
+
+- Ran a temporary mock image-to-image run with a seeded archive where
+  `local-style-flat-cool` had the best `total`.
+- The generated mutation was:
+  - `candidate-a-image-1`
+  - `imageMutation=local-style-flat-cool`
+  - URI:
+    `volta-style://image?...&style=flat-cool`
+- This proves the mutation order is driven by target/archive evidence rather
+  than the hard-neutral global default.
+
+Verification:
+
+- `bun run check`
+- `bun run smoke`

@@ -616,6 +616,7 @@ async function executeIteration(
     candidates: microParentCandidates,
     inputType: args.input.inputNode.type,
     outputType: args.output.outputType,
+    archive,
     imageSeedMutations: effectiveImageSeedMutationCount({
       configured: args.loop.imageSeedMutations,
       inputType: args.input.inputNode.type,
@@ -1447,6 +1448,7 @@ function microMutationCandidateOutputs(args: {
   candidates: CandidateOutput[];
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
+  archive?: CandidateArchive;
   imageSeedMutations: number;
   imageLocalMutations: number;
   textMicroMutations: number;
@@ -1502,6 +1504,7 @@ function imageMutationCandidateOutputs(args: {
   candidates: CandidateOutput[];
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
+  archive?: CandidateArchive;
   imageSeedMutations: number;
   imageLocalMutations: number;
 }): CandidateOutput[] {
@@ -1522,6 +1525,7 @@ function imageMutationCandidateOutputs(args: {
       ...imageLocalStyleVariants(
         candidate.outputNode.payload.source.uri,
         args.imageLocalMutations,
+        args.archive,
       ),
       ...imageSeedVariants(
         candidate.outputNode.payload.source.uri,
@@ -1578,6 +1582,7 @@ function imageSeedVariants(
 function imageLocalStyleVariants(
   uri: string,
   maxCount: number,
+  archive?: CandidateArchive,
 ): Array<{ name: string; uri: string }> {
   const parsed = parseFluxMutationUri(uri);
   if (maxCount <= 0) {
@@ -1586,9 +1591,8 @@ function imageLocalStyleVariants(
 
   if (parsed) {
     const currentStyle = parsed.url.searchParams.get("voltaStyle") ?? "";
-    return IMAGE_LOCAL_STYLE_VARIANTS.filter(
-      (variant) => variant !== currentStyle,
-    )
+    return imageLocalStyleVariantOrder({ archive, currentStyle })
+      .filter((variant) => variant !== currentStyle)
       .slice(0, maxCount)
       .map((variant) => {
         const url = cloneUrl(parsed.url);
@@ -1606,9 +1610,8 @@ function imageLocalStyleVariants(
     return [];
   }
   const currentStyle = localStyle?.style ?? localImageStyleName(uri) ?? "";
-  return IMAGE_LOCAL_STYLE_VARIANTS.filter(
-    (variant) => variant !== currentStyle,
-  )
+  return imageLocalStyleVariantOrder({ archive, currentStyle })
+    .filter((variant) => variant !== currentStyle)
     .slice(0, maxCount)
     .map((variant) => {
       const url = new URL("volta-style://image");
@@ -1716,6 +1719,61 @@ const IMAGE_LOCAL_STYLE_VARIANTS = [
   "flat-cool",
   "soft-muted-strong",
 ] as const;
+
+type ImageLocalStyleVariant = (typeof IMAGE_LOCAL_STYLE_VARIANTS)[number];
+
+function imageLocalStyleVariantOrder(args: {
+  archive?: CandidateArchive;
+  currentStyle?: string;
+}): ImageLocalStyleVariant[] {
+  const ranked = rankedArchiveLocalStyles(args.archive);
+  if (ranked.length === 0) {
+    return [...IMAGE_LOCAL_STYLE_VARIANTS];
+  }
+
+  const unranked = IMAGE_LOCAL_STYLE_VARIANTS.filter(
+    (variant) => !ranked.includes(variant),
+  );
+  if (args.currentStyle && ranked[0] === args.currentStyle) {
+    return [...unranked, ...ranked];
+  }
+  return [...ranked, ...unranked];
+}
+
+function rankedArchiveLocalStyles(
+  archive: CandidateArchive | undefined,
+): ImageLocalStyleVariant[] {
+  if (!archive || archive.entries.length === 0) {
+    return [];
+  }
+
+  return uniqueImageLocalStyleVariants(
+    operatorStats(archive.entries)
+      .map((stat) => stat.operator.match(/^local-style-(.+)$/)?.[1])
+      .filter(isImageLocalStyleVariant),
+  );
+}
+
+function uniqueImageLocalStyleVariants(
+  variants: ImageLocalStyleVariant[],
+): ImageLocalStyleVariant[] {
+  const seen = new Set<ImageLocalStyleVariant>();
+  return variants.filter((variant) => {
+    if (seen.has(variant)) {
+      return false;
+    }
+    seen.add(variant);
+    return true;
+  });
+}
+
+function isImageLocalStyleVariant(
+  value: string | undefined,
+): value is ImageLocalStyleVariant {
+  return Boolean(
+    value && (IMAGE_LOCAL_STYLE_VARIANTS as readonly string[]).includes(value),
+  );
+}
 
 function mutatedFluxSeed(seed: number, index: number): number {
   return (seed + 7_919 * (index + 1)) % 1_000_000;
