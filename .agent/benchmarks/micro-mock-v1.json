@@ -1,0 +1,31 @@
+{
+  "createdAt": "2026-06-07T03:56:53.398Z",
+  "updatedAt": "2026-06-07T03:56:53.409Z",
+  "oracleMode": "mock",
+  "backend": "deterministic",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 2,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 2
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "seeded-text-to-text-dog",
+      "runId": "seeded-text-to-text-dog-35aba236",
+      "status": "completed",
+      "description": "Transfer a terse cold text target into dog-topic prose without copying the target topic.",
+      "tags": ["text", "seeded", "topic-transfer", "cold-start"],
+      "outputType": "text",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/seeded-text-to-text-dog-35aba236",
+      "bestScore": 0.3433579524555609,
+      "bestNeuralSimilarity": 0.2583685035079441,
+      "iterationCount": 1,
+      "selectedAgentId": "candidate-a"
+    }
+  ]
+}

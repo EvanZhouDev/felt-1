@@ -318,7 +318,7 @@ function bestPerBehavior(
   return [...best.values()];
 }
 
-function operatorStats(entries: CandidateArchiveEntry[]) {
+export function operatorStats(entries: CandidateArchiveEntry[]) {
   const byOperator = new Map<
     string,
     {

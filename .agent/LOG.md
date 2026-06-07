@@ -964,3 +964,67 @@ Interpretation:
 - This is an architecture refinement, not just more iterations. The next real
   test should be a short cold run with a fresh runs root and no target archive
   reuse, so the result measures whether the productive operators arrive early.
+
+## 2026-06-06 21:01 PDT - Memetic Text Micro-Mutations
+
+Problem:
+
+- A short real TRIBE validation of the compact scheduler did not improve enough:
+  `.agent/benchmarks/mona-http-codex-schedule-v1.json`
+  - setup: hosted TRIBE, Codex backend, Mona image-to-text, 4 candidates x 4
+    iterations, fresh runs root, no target archive reuse
+  - best neural similarity: `0.222097`
+  - best text:
+    `calm tension, slow gaze, aged warmth, intimate distance, muted cool haze, ambiguous light, heavy stillness`
+- That confirms the user's concern: moving operators earlier helps structure the
+  search, but it is not aggressive enough by itself.
+
+Change:
+
+- Added an opt-in memetic layer for text outputs:
+  - config: `VOLTA_TEXT_MICRO_MUTATIONS`
+  - benchmark flag: `--text-micro-mutations`
+  - default: `0`, so normal runs do not silently spend extra TRIBE jobs
+- When enabled, each generated text candidate can spawn deterministic offspring
+  that are scored and judged like normal candidates.
+- Current offspring operators:
+  - syntax inversion (`slow gaze` -> `gaze slowed`)
+  - priority-targeted axis replacement (`held gaze` -> `gaze quieted`)
+  - slot priority reordering
+  - density compression
+- Added `generated-candidates.json` so artifacts distinguish LLM parents from
+  expanded scored populations.
+- Tightened plateau escape: from iteration 3 onward, if the latest completed
+  turn did not set the best score, the final text candidate becomes a moonshot
+  basin-jump operator.
+
+Verification:
+
+- `bun run format && bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+- Mock micro benchmark passed:
+  `bun run benchmark:cold -- --backend deterministic --oracle mock --scenario seeded-text-to-text-dog --max-iterations 1 --candidate-count 2 --text-micro-mutations 2 --out .agent/benchmarks/micro-mock-v1.json`
+  - candidate population expanded from 2 parents to 4 scored candidates.
+
+Real TRIBE evidence:
+
+- Started `.agent/benchmarks/mona-http-codex-memetic-v1.json` with hosted
+  TRIBE, Codex backend, Mona image-to-text, 3 candidates, 2 micro-mutations per
+  parent, and no target archive reuse.
+- Stopped after the first generation because it did not beat the plain
+  scheduler baseline:
+  - best parent: `0.199875`
+  - best micro-offspring: `0.210725`
+  - plain scheduler baseline to beat: `0.222097`
+- The stopped run was still useful: syntax inversion improved two parent
+  candidates, while naive first-slot axis replacement hurt badly. I fixed axis
+  replacement to target the highest-priority perceptual slot instead of the
+  earliest matching slot.
+
+Interpretation:
+
+- Memetic expansion is promising only if the deterministic child operators are
+  high precision. The next real trial should use the fixed priority-targeted
+  axis replacement and stop quickly if first-generation offspring do not beat
+  `0.222097`.

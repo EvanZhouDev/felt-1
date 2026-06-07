@@ -22,9 +22,11 @@ import {
   appendCandidateArchive,
   appendTargetCandidateArchive,
   archivePromptContext,
+  type CandidateArchive,
   loadCandidateArchive,
   loadTargetCandidateArchive,
   mergeCandidateArchives,
+  operatorStats,
 } from "./archive.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import {
@@ -182,12 +184,14 @@ type RunLoopArgs = ExecuteRunArgs & {
 type IterationResult = {
   iteration: number;
   previous: NextIterationSeed;
-  candidateOutputs: Awaited<ReturnType<typeof runCandidateAgent>>[];
+  candidateOutputs: CandidateOutput[];
   rankedOutputs: EvaluatedOutput[];
   judge: Awaited<ReturnType<typeof runJudgeAgent>>;
   nextIterationSeed: NextIterationSeed;
   stopReason?: StopReason;
 };
+
+type CandidateOutput = Awaited<ReturnType<typeof runCandidateAgent>>;
 
 type StopReason = "threshold" | "max_iterations";
 
@@ -438,13 +442,14 @@ async function executeIteration(
   const archiveContext = archivePromptContext(archive);
 
   args.store.updateStatus(args.id, "predicting");
-  const candidateOutputs = await Promise.all(
+  const generatedCandidateOutputs = await Promise.all(
     args.candidateSpecs.map(async (spec, index) => {
       const entropy = mutationStrategy({
         iteration: args.iteration,
         index,
         candidateCount: args.loop.candidateCount,
         outputType: args.output.outputType,
+        archive,
       });
       const workspace = await createAgentWorkspace({
         runsRoot: args.runsRoot,
@@ -484,6 +489,15 @@ async function executeIteration(
         output: candidateSummary,
       });
     }),
+  );
+  const candidateOutputs = expandCandidateOutputs({
+    candidates: generatedCandidateOutputs,
+    outputType: args.output.outputType,
+    textMicroMutations: args.loop.textMicroMutations,
+  });
+  await writeJson(
+    join(iterationPath, "generated-candidates.json"),
+    generatedCandidateOutputs,
   );
   await writeJson(join(iterationPath, "candidates.json"), candidateOutputs);
 
@@ -574,7 +588,7 @@ async function executeIteration(
 async function evaluateCandidate(
   args: RunLoopArgs & {
     iteration: number;
-    candidate: Awaited<ReturnType<typeof runCandidateAgent>>;
+    candidate: CandidateOutput;
     targetActivation: RunLoopResult["target"]["activation"];
   },
 ): Promise<EvaluatedOutput> {
@@ -643,6 +657,267 @@ async function evaluateCandidate(
     score,
   };
 }
+
+function expandCandidateOutputs(args: {
+  candidates: CandidateOutput[];
+  outputType: OutputObj["outputType"];
+  textMicroMutations: number;
+}): CandidateOutput[] {
+  if (args.outputType !== "text" || args.textMicroMutations <= 0) {
+    return args.candidates;
+  }
+
+  const expanded: CandidateOutput[] = [...args.candidates];
+  for (const candidate of args.candidates) {
+    if (candidate.outputNode.type !== "text") {
+      continue;
+    }
+    const variants = textMicroVariants(
+      candidate.outputNode.payload.text,
+      args.textMicroMutations,
+    );
+    for (const [index, variant] of variants.entries()) {
+      expanded.push({
+        ...candidate,
+        agentId: `${candidate.agentId}-micro-${index + 1}`,
+        entropy: [
+          candidate.entropy,
+          `microMutation=${variant.name}`,
+          `parentAgentId=${candidate.agentId}`,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        outputNode: {
+          ...candidate.outputNode,
+          payload: {
+            ...candidate.outputNode.payload,
+            text: variant.text,
+          },
+        },
+      });
+    }
+  }
+  return expanded;
+}
+
+type TextMicroVariant = {
+  name: string;
+  text: string;
+};
+
+function textMicroVariants(text: string, maxCount: number): TextMicroVariant[] {
+  const slots = textSlots(text);
+  if (slots.length === 0) {
+    return [];
+  }
+
+  return uniqueTextVariants(
+    [
+      syntaxInversionVariant(slots),
+      axisReplacementVariant(slots),
+      slotOrderVariant(slots),
+      densityCompressionVariant(slots),
+    ].filter((variant): variant is TextMicroVariant => Boolean(variant)),
+    text,
+  ).slice(0, maxCount);
+}
+
+function textSlots(text: string): string[] {
+  return text
+    .split(",")
+    .map((slot) => slot.trim())
+    .filter(Boolean);
+}
+
+function syntaxInversionVariant(slots: string[]): TextMicroVariant | undefined {
+  const mutated = slots.map((slot) => {
+    const words = slot.split(/\s+/).filter(Boolean);
+    if (words.length !== 2) {
+      return slot;
+    }
+    const [modifier, noun] = words;
+    const transformedModifier = INVERTED_MODIFIERS[modifier.toLowerCase()];
+    if (!transformedModifier) {
+      return slot;
+    }
+    return `${noun} ${transformedModifier}`;
+  });
+  if (mutated.every((slot, index) => slot === slots[index])) {
+    return undefined;
+  }
+  return {
+    name: "syntax-inversion",
+    text: mutated.join(", "),
+  };
+}
+
+function axisReplacementVariant(slots: string[]): TextMicroVariant | undefined {
+  const options: {
+    slotIndex: number;
+    slot: string;
+    axis: (typeof TEXT_AXIS_REPLACEMENTS)[number];
+  }[] = [];
+  for (const [slotIndex, slot] of slots.entries()) {
+    for (const axis of TEXT_AXIS_REPLACEMENTS) {
+      if (!axis.pattern.test(slot)) {
+        continue;
+      }
+      options.push({
+        slotIndex,
+        slot,
+        axis,
+      });
+    }
+  }
+  const selected = options.sort(
+    (left, right) =>
+      slotPriority(left.slot) - slotPriority(right.slot) ||
+      left.slotIndex - right.slotIndex,
+  )[0];
+  if (!selected) {
+    return undefined;
+  }
+
+  const replacement =
+    selected.axis.replacements[
+      selected.slotIndex % selected.axis.replacements.length
+    ];
+  const mutated = [...slots];
+  mutated[selected.slotIndex] = replacement;
+  return {
+    name: `axis-replacement-${selected.axis.name}`,
+    text: mutated.join(", "),
+  };
+}
+
+function slotOrderVariant(slots: string[]): TextMicroVariant | undefined {
+  const ordered = [...slots].sort(
+    (left, right) => slotPriority(left) - slotPriority(right),
+  );
+  if (ordered.every((slot, index) => slot === slots[index])) {
+    return undefined;
+  }
+  return {
+    name: "slot-priority-order",
+    text: ordered.join(", "),
+  };
+}
+
+function densityCompressionVariant(
+  slots: string[],
+): TextMicroVariant | undefined {
+  if (slots.length < 6) {
+    return undefined;
+  }
+  const kept = slots.filter((slot, index) => {
+    const priority = slotPriority(slot);
+    return priority <= 5 || index < 5;
+  });
+  const compressed = kept.slice(0, 7);
+  if (compressed.length === slots.length) {
+    return undefined;
+  }
+  return {
+    name: "density-compression",
+    text: compressed.join(", "),
+  };
+}
+
+function slotPriority(slot: string): number {
+  const lower = slot.toLowerCase();
+  const priorities = [
+    /gaze|attention|salience|focus/,
+    /warm|amber|ochre|light|temperature/,
+    /edge|soft|feather|surface|texture|contrast/,
+    /center|central|figure|anchor|presence/,
+    /still|motion|slow|rhythm|poise/,
+    /distance|depth|space|near|far|reced/,
+    /calm|ambiguous|uncertain|tension|mood/,
+    /haze|air|atmosphere|density|veil/,
+  ];
+  const index = priorities.findIndex((pattern) => pattern.test(lower));
+  return index === -1 ? priorities.length : index;
+}
+
+function uniqueTextVariants(
+  variants: TextMicroVariant[],
+  original: string,
+): TextMicroVariant[] {
+  const seen = new Set([normalizeTextVariant(original)]);
+  return variants.filter((variant) => {
+    const key = normalizeTextVariant(variant.text);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeTextVariant(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+const INVERTED_MODIFIERS: Record<string, string> = {
+  aged: "aged",
+  ambiguous: "ambiguous",
+  calm: "calmed",
+  central: "centered",
+  dense: "dense",
+  direct: "held",
+  distant: "distant",
+  heavy: "weighted",
+  hushed: "hushed",
+  intimate: "intimate",
+  low: "lowered",
+  muted: "muted",
+  quiet: "quieted",
+  receding: "receding",
+  slow: "slowed",
+  soft: "softened",
+  softened: "softened",
+  still: "stilled",
+  uncertain: "uncertain",
+  veiled: "veiled",
+  warm: "warmed",
+};
+
+const TEXT_AXIS_REPLACEMENTS: {
+  name: string;
+  pattern: RegExp;
+  replacements: string[];
+}[] = [
+  {
+    name: "attention",
+    pattern: /gaze|attention|focus|salience/i,
+    replacements: ["gaze quieted", "attention held", "focus suspended"],
+  },
+  {
+    name: "temperature",
+    pattern: /warm|amber|ochre|gold|light|temperature/i,
+    replacements: ["ochre age-warmth", "muted warmth", "amber age-warmth"],
+  },
+  {
+    name: "surface",
+    pattern: /edge|soft|surface|texture|contrast|crack|patina/i,
+    replacements: ["edges feathered", "surface muted", "contrast lowered"],
+  },
+  {
+    name: "space",
+    pattern: /distance|depth|space|near|far|intimate|reced/i,
+    replacements: ["distance receding", "depth softened", "space held near"],
+  },
+  {
+    name: "affect",
+    pattern: /calm|ambiguous|uncertain|tension|mood|poise/i,
+    replacements: ["calm uncertain", "tension hushed", "poise withheld"],
+  },
+  {
+    name: "atmosphere",
+    pattern: /haze|air|atmosphere|dense|veil/i,
+    replacements: ["dense air", "haze softened", "veil thinned"],
+  },
+];
 
 function attachActivationDiagnostics(args: {
   candidate: Awaited<ReturnType<NeuralOracle["encode"]>>;
@@ -825,6 +1100,29 @@ const refinementStrategies: MutationStrategy[] = [
   },
 ];
 
+const textMoonshotStrategies: MutationStrategy[] = [
+  {
+    name: "latent-axis reset",
+    instruction:
+      "Make a basin-jump child. Do not preserve the elite wording. Reconstruct a new compact activation code from latent axes only: energy, attention, density, distance, texture, centrality, ambiguity. Keep at most one elite slot if it is clearly essential.",
+  },
+  {
+    name: "orthogonal-niche jump",
+    instruction:
+      "Make a MAP-Elites-style niche jump. Choose a behavior niche that is missing or weak in the archive, then generate a compact slot code that preserves the target feel through different perceptual variables instead of local synonym edits.",
+  },
+  {
+    name: "contrastive-projection jump",
+    instruction:
+      "Build an intentionally contrastive internal sketch on one axis, then project it back toward the target activation. The final output must be a compact comma-separated code, but it should escape the current elite's wording basin.",
+  },
+  {
+    name: "diagnostic-manifold jump",
+    instruction:
+      "Use judge reasoning, score gaps, and any diagnostics as weak hints to jump to a different manifold of wording. Replace most slots with lower-level perceptual states while preserving only the strongest one or two target-aligned traits.",
+  },
+];
+
 const textRefinementLeadStrategyNames = [
   "syntax-order exploit",
   "slot-library exploit",
@@ -850,6 +1148,7 @@ function mutationStrategy(args: {
   index: number;
   candidateCount: number;
   outputType: OutputObj["outputType"];
+  archive?: CandidateArchive;
 }): string {
   const strategy = selectMutationStrategy(args);
   return [
@@ -866,6 +1165,7 @@ function selectMutationStrategy(args: {
   index: number;
   candidateCount: number;
   outputType: OutputObj["outputType"];
+  archive?: CandidateArchive;
 }): MutationStrategy {
   if (args.iteration === 1) {
     return rotatingStrategy(coldStartStrategies, args.index);
@@ -882,18 +1182,90 @@ function selectTextRefinementStrategy(args: {
   iteration: number;
   index: number;
   candidateCount: number;
+  archive?: CandidateArchive;
 }): MutationStrategy {
-  const leadCount = Math.min(
-    args.candidateCount,
-    textRefinementLeadStrategies.length,
+  const moonshotCount = shouldInjectMoonshot(args) ? 1 : 0;
+  const exploitCandidateCount = Math.max(
+    1,
+    args.candidateCount - moonshotCount,
   );
-  if (args.index < leadCount) {
-    return textRefinementLeadStrategies[args.index];
+  if (args.index >= exploitCandidateCount) {
+    return rotatingStrategy(
+      textMoonshotStrategies,
+      Math.max(0, args.iteration - 3),
+    );
   }
-  const tailWidth = Math.max(1, args.candidateCount - leadCount);
+
+  const leadStrategies = uniqueStrategies([
+    ...adaptiveTextLeadStrategies(args.archive),
+    ...textRefinementLeadStrategies,
+  ]);
+  const leadCount = Math.min(exploitCandidateCount, leadStrategies.length);
+  if (args.index < leadCount) {
+    return leadStrategies[args.index];
+  }
+  const tailWidth = Math.max(1, exploitCandidateCount - leadCount);
   const generationOffset = Math.max(0, args.iteration - 2) * tailWidth;
   const tailIndex = generationOffset + args.index - leadCount;
   return rotatingStrategy(textRefinementTailStrategies, tailIndex);
+}
+
+function adaptiveTextLeadStrategies(
+  archive: CandidateArchive | undefined,
+): MutationStrategy[] {
+  if (!archive || archive.entries.length === 0) {
+    return [];
+  }
+  return operatorStats(archive.entries)
+    .map((stat) =>
+      refinementStrategies.find((item) => item.name === stat.operator),
+    )
+    .filter((strategy): strategy is MutationStrategy => Boolean(strategy))
+    .slice(0, 2);
+}
+
+function shouldInjectMoonshot(args: {
+  iteration: number;
+  candidateCount: number;
+  archive?: CandidateArchive;
+}): boolean {
+  if (args.iteration < 3 || args.candidateCount < 3 || !args.archive) {
+    return false;
+  }
+  return turnsSinceBest(args.archive) >= 1;
+}
+
+function turnsSinceBest(archive: CandidateArchive): number {
+  const best = archive.entries.reduce<
+    { iteration: number; neuralSimilarity: number } | undefined
+  >((current, entry) => {
+    if (!current || entry.neuralSimilarity > current.neuralSimilarity) {
+      return {
+        iteration: entry.iteration,
+        neuralSimilarity: entry.neuralSimilarity,
+      };
+    }
+    return current;
+  }, undefined);
+  if (!best) {
+    return 0;
+  }
+  const latestIteration = archive.entries.reduce(
+    (latest, entry) => Math.max(latest, entry.iteration),
+    best.iteration,
+  );
+  return latestIteration - best.iteration;
+}
+
+function uniqueStrategies(strategies: MutationStrategy[]): MutationStrategy[] {
+  const seen = new Set<string>();
+  return strategies.filter((strategy) => {
+    if (seen.has(strategy.name)) {
+      return false;
+    }
+    seen.add(strategy.name);
+    return true;
+  });
 }
 
 function rotatingStrategy(
@@ -1011,9 +1383,9 @@ function loadCompletedIterationsFromDisk(runPath: string): IterationResult[] {
     const summary = readOptionalJson<{ stopReason?: StopReason }>(
       join(iterationPath, "iteration.json"),
     );
-    const candidateOutputs = readOptionalJson<
-      Awaited<ReturnType<typeof runCandidateAgent>>[]
-    >(join(iterationPath, "candidates.json"));
+    const candidateOutputs = readOptionalJson<CandidateOutput[]>(
+      join(iterationPath, "candidates.json"),
+    );
     const rankedOutputs = readOptionalJson<EvaluatedOutput[]>(
       join(iterationPath, "scores.json"),
     );

@@ -37,6 +37,7 @@ export type LoopConfig = {
   candidateCount: number;
   scoringConcurrency: number;
   reuseTargetArchive: boolean;
+  textMicroMutations: number;
 };
 
 export type WeaveConfig = {
@@ -69,6 +70,7 @@ export function loadConfig(): OrchestratorConfig {
       candidateCount: numberFromEnv("VOLTA_CANDIDATE_COUNT", 2),
       scoringConcurrency: numberFromEnv("VOLTA_SCORING_CONCURRENCY", 1),
       reuseTargetArchive: process.env.VOLTA_REUSE_TARGET_ARCHIVE === "true",
+      textMicroMutations: integerFromEnv("VOLTA_TEXT_MICRO_MUTATIONS", 0),
     }),
     weave: {
       enabled: process.env.VOLTA_WEAVE_ENABLED === "true",
@@ -87,6 +89,7 @@ export function normalizeLoopConfig(
     candidateCount: positiveInteger(config?.candidateCount, 2),
     scoringConcurrency: positiveInteger(config?.scoringConcurrency, 1),
     reuseTargetArchive: config?.reuseTargetArchive === true,
+    textMicroMutations: nonNegativeInteger(config?.textMicroMutations, 0),
   };
 }
 
@@ -124,11 +127,26 @@ function numberFromEnv(name: string, fallback: number): number {
   return finiteNumber(Number(value), fallback);
 }
 
+function integerFromEnv(name: string, fallback: number): number {
+  const value = process.env[name];
+  if (!value) {
+    return fallback;
+  }
+  return nonNegativeInteger(Number(value), fallback);
+}
+
 function positiveInteger(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
   return Math.max(1, Math.floor(value));
+}
+
+function nonNegativeInteger(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(0, Math.floor(value));
 }
 
 function finiteNumber(value: unknown, fallback: number): number {

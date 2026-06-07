@@ -58,6 +58,8 @@ const loop = normalizeLoopConfig({
   scoringConcurrency:
     args.scoringConcurrency ?? baseConfig.loop.scoringConcurrency,
   reuseTargetArchive: args.reuseTargetArchive ?? false,
+  textMicroMutations:
+    args.textMicroMutations ?? baseConfig.loop.textMicroMutations,
 });
 const backendConfig = args.backend
   ? backendConfigFromMode(args.backend, baseConfig.agentBackend)
@@ -335,6 +337,7 @@ function parseArgs(argv: string[]): {
   maxIterations?: number;
   candidateCount?: number;
   scoringConcurrency?: number;
+  textMicroMutations?: number;
   reuseTargetArchive?: boolean;
   runsRoot?: string;
   databasePath?: string;
@@ -380,6 +383,9 @@ function parseArgs(argv: string[]): {
     } else if (flag === "--scoring-concurrency") {
       parsed.scoringConcurrency = positiveInteger(value, flag);
       index += 1;
+    } else if (flag === "--text-micro-mutations") {
+      parsed.textMicroMutations = nonNegativeInteger(value, flag);
+      index += 1;
     } else if (flag === "--runs-root") {
       parsed.runsRoot = value;
       index += 1;
@@ -397,6 +403,14 @@ function positiveInteger(value: string, name: string): number {
   const number = Number(value);
   if (!Number.isInteger(number) || number < 1) {
     throw new Error(`${name} must be a positive integer.`);
+  }
+  return number;
+}
+
+function nonNegativeInteger(value: string, name: string): number {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0) {
+    throw new Error(`${name} must be a non-negative integer.`);
   }
   return number;
 }

@@ -33,6 +33,7 @@ const oracle = createOracle({
     candidateCount: 3,
     scoringConcurrency: 1,
     reuseTargetArchive: false,
+    textMicroMutations: 0,
   },
   weave: {
     enabled: false,

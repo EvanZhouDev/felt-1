@@ -63,6 +63,7 @@ export function runSummary(args: {
     candidateCount: number;
     scoringConcurrency: number;
     reuseTargetArchive: boolean;
+    textMicroMutations: number;
   };
 }) {
   return {
