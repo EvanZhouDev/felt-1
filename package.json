@@ -22,6 +22,7 @@
     "probe:evolve-texts": "bun services/orchestrator/src/probe-evolve-texts.ts",
     "probe:yeo": "bun services/orchestrator/src/probe-yeo.ts",
     "audit:similarity": "bun services/orchestrator/src/audit-similarity.ts",
+    "calibration:images": "bun services/orchestrator/src/build-image-calibration.ts",
     "setup:tribe": "bash scripts/setup-tribe.sh",
     "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts"
   },

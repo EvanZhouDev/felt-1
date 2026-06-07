@@ -2158,3 +2158,100 @@ Verification:
 - Mona v3 completed: `/tmp/volta-mona-agentic-adaptive-micro-v3.json`.
 - Mona v4 completed: `/tmp/volta-mona-agentic-adaptive-micro-v4.json`.
 - Mona v5 completed: `/tmp/volta-mona-agentic-adaptive-micro-v5.json`.
+
+## 2026-06-07 03:07 PDT - Local Image Calibration Bank and First Calibrated Jump
+
+Built a reusable local image calibration path:
+
+- Added `services/orchestrator/src/build-image-calibration.ts`.
+- Added root script `bun run calibration:images`.
+- The builder renders `.volta/calibration-assets/images/*` with matching
+  `.volta/calibration-assets/videos/*-0.5s.mp4`, encodes them through the chosen
+  oracle, and writes target-cache artifacts under
+  `.volta/calibration-local/target-cache`.
+
+Why:
+
+- Previous extra calibration images existed only as `tribev2-http` activations.
+- Local runs use model `tribev2`, so the local scorer filtered the hosted
+  calibration targets out.
+- Local image-to-text scoring was therefore still running with only a sparse
+  local image contrast bank and could not use calibrated retrieval/CSLS.
+
+Real local TRIBE calibration build:
+
+- Encoded 8 generic image/video targets locally:
+  abstract, beach, city, food, forest, interior, mountain, portrait.
+- Target-pair audit now reports `calibrationTargetCount: 11` for Mona/dog/
+  backrooms image targets.
+- Unrelated image pairs still have raw cosine near `0.86-0.95`, but calibrated
+  adjusted similarity is `0`, which is the behavior we want.
+
+Mona calibrated-bank probe:
+
+- Target: `.volta/benchmarks/runs/mona-image-to-text-b30173e7/target.json`
+- `portrait-micro`:
+  `A dark-haired woman in a dark dress sits with folded hands before a hazy blue-green landscape, facing the viewer with a faint smile.`
+  - raw `-0.010559`
+  - adjusted `0.186812`
+  - total `0.208326`
+  - contrast target count `10`
+- `simple-portrait`:
+  `A dark-haired woman sits before a hazy landscape, facing the viewer.`
+  - adjusted `0.045413`
+- `A dog.` control:
+  - adjusted `0`
+- `An empty yellow room.` control:
+  - adjusted `0.031071`
+
+Live Mona calibrated-bank run:
+
+- Run `mona-image-to-text-3071cd1e`.
+- Parent:
+  `A dark-haired woman faces forward in a portrait against a muted green landscape.`
+  - adjusted `0.049085`
+  - total `0.094430`
+  - calibration target count `11`
+- Selected adaptive portrait micro-child:
+  `A dark-haired woman in a dark dress sits with folded hands before a hazy blue-green landscape, facing the viewer with a faint smile.`
+  - raw `-0.010559`
+  - adjusted `0.186812`
+  - total `0.224326`
+  - calibration target count `11`
+
+Remaining issue:
+
+- Dog calibrated-bank control probe showed:
+  - `A dog.` adjusted `0.079068`, total `0.102159`
+  - `An empty yellow room.` adjusted `0.075527`, total `0.097287`
+  - `A puppy sits in green grass.` adjusted `0`
+- That means image-target calibration alone is not sufficient for image-to-text
+  outputs. We still need candidate-side text hubness controls or a clean generic
+  text-control calibration bank that is independent of per-target generated
+  candidates. Do not treat dog scoring as solved yet.
+
+Interpretation:
+
+- This is the largest legitimate improvement so far: Mona moved from adjusted
+  `0.030773` under sparse margins to adjusted `0.186812` under calibrated image
+  retrieval.
+- The path toward high scores is now clearer: improve calibration geometry and
+  candidate-side hubness controls, then continue adaptive generation.
+- The `0.9` target should not be interpreted literally until this calibrated
+  score is stable across controls; otherwise we risk optimizing another broken
+  scale.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run calibration:images -- --oracle mock --limit 2 --out-root /tmp/volta-calibration-mock-test`
+  passed.
+- `VOLTA_TRIBE_DEVICE=mps VOLTA_ORACLE_TIMEOUT_MS=900000 bun run calibration:images -- --oracle tribe --out-root .volta/calibration-local`
+  encoded 8 local calibration targets.
+- Target-pair audit passed with `calibrationTargetCount: 11`.
+- Mona calibrated-bank probe completed:
+  `/tmp/volta-mona-calibrated-bank-probe-v1.json`.
+- Mona calibrated-bank run completed:
+  `/tmp/volta-mona-agentic-calibrated-bank-v1.json`.
+- Dog calibrated-bank control probe completed:
+  `/tmp/volta-dog-calibrated-bank-probe-v1.json`.
