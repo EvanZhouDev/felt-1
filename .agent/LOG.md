@@ -2018,3 +2018,81 @@ Verification:
 - Real local TRIBE backrooms canary passed via
   `/tmp/volta-backrooms-sparse-residual-fix-probe.json`.
 - Target-pair audit passed with target-kind-filtered calibration.
+
+## 2026-06-07 02:35 PDT - Adaptive Image-to-Text Micro-Search
+
+Changed the image-to-text search architecture from blind pre-score expansion to
+adaptive local search:
+
+- The loop now scores generated visual captions first.
+- It selects the strongest scored parents.
+- It applies deterministic caption micro-mutations only to those elite parents.
+- Image-to-text gets a default effective micro-search budget of `4` even when
+  `VOLTA_TEXT_MICRO_MUTATIONS` is unset; this is recorded in
+  `evolution-journal.json` as `effectiveLoop.textMicroMutations`.
+
+Why:
+
+- The previous expansion path wasted TRIBE calls on weak branches.
+- The default config had `textMicroMutations: 0`, so the best dog/backrooms
+  improvements only appeared when manually passing benchmark flags.
+- User asked to move faster toward large matching-rate improvements without
+  giving up quality.
+
+Code changes:
+
+- `executeIteration` now performs staged scoring:
+  1. generate Codex candidate captions,
+  2. score base candidates,
+  3. mutate only scored elite parents,
+  4. score micro-candidates,
+  5. rank the combined population.
+- Added a complete-sentence guard for image-to-text prompts and scoring priors.
+- Added `caption-subject-setting-compression` for dog-like subject/setting
+  captions.
+- Added `caption-direct-scene-normalization` for room/hallway scene captions,
+  including camera/meta phrase stripping and relation cleanup.
+
+Real local TRIBE validation:
+
+- Dog adaptive run `dog-image-to-text-2e19caca`:
+  - parent:
+    `A cream puppy sits on green grass, looking toward the camera in a close frame.`
+    adjusted `-0.138424`
+  - selected adaptive micro-child:
+    `A puppy sits in green grass.`
+    raw `0.481451`, adjusted `0.042371`, total `0.052371`
+- Backrooms adaptive run `backrooms-image-to-text-fef83137`:
+  - parent:
+    `A front view shows an empty yellow room opening to patterned walls and beige carpet.`
+    adjusted `-0.050647`
+  - first micro-child:
+    `An empty yellow room opening to patterned walls and beige carpet.`
+    adjusted `-0.027684`, but lost total score because it lacked a simple finite
+    verb under the quality guard.
+  - probe-confirmed fix:
+    `An empty yellow room opens to patterned walls and beige carpet.`
+    adjusted `-0.018743`, better than the participial form and higher quality.
+
+Interpretation:
+
+- This is a bigger improvement path than hand-tuning one caption: first score
+  what the visual agent actually sees, then spend local search budget only
+  around the strongest visual parent.
+- The quality guard prevented a reward-hacky participial fragment from winning
+  by total score; the follow-up rewrite preserved the improved adjusted score
+  while making the output a real caption sentence.
+- Next step: run Mona through the adaptive path and use the same probe-first
+  discipline to add any high-impact portrait/painting caption operators.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed before the relation cleanup; `bun run check` passed
+  again after it.
+- Real local TRIBE dog run completed:
+  `/tmp/volta-dog-agentic-adaptive-micro-v1.json`.
+- Real local TRIBE backrooms run completed:
+  `/tmp/volta-backrooms-agentic-adaptive-micro-v1.json`.
+- Real local TRIBE relation probe completed:
+  `/tmp/volta-backrooms-opens-probe-v1.json`.

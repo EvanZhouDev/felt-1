@@ -200,6 +200,8 @@ type CandidateOutput = Awaited<ReturnType<typeof runCandidateAgent>>;
 
 type StopReason = "threshold" | "max_iterations";
 
+const DEFAULT_IMAGE_TEXT_MICRO_MUTATIONS = 4;
+
 type RunLoopResult = {
   runId: string;
   stopReason: StopReason;
@@ -342,6 +344,13 @@ async function executeRunLoop(
     runId: args.id,
     target: targetSummary(target),
     loop: args.loop,
+    effectiveLoop: {
+      textMicroMutations: effectiveTextMicroMutationCount({
+        configured: args.loop.textMicroMutations,
+        inputType: args.input.inputNode.type,
+        outputType: args.output.outputType,
+      }),
+    },
     stopReason: result.stopReason,
     bestScore: result.bestScore,
     bestNeuralSimilarity: result.bestNeuralSimilarity,
@@ -525,36 +534,65 @@ async function executeIteration(
       });
     }),
   );
-  const candidateOutputs = expandCandidateOutputs({
-    candidates: generatedCandidateOutputs,
-    inputType: args.input.inputNode.type,
-    outputType: args.output.outputType,
-    textMicroMutations: args.loop.textMicroMutations,
-  });
   await writeJson(
     join(iterationPath, "generated-candidates.json"),
     generatedCandidateOutputs,
   );
-  await writeJson(join(iterationPath, "candidates.json"), candidateOutputs);
 
   args.store.updateStatus(args.id, "scoring");
   await mkdir(join(iterationPath, "scores"), { recursive: true });
-  const evaluatedCandidateOutputs = await mapWithConcurrency(
-    candidateOutputs,
-    args.loop.scoringConcurrency,
-    async (candidate) => {
-      const evaluated = await evaluateCandidate({
-        ...args,
-        candidate,
-        target: args.target,
-      });
-      await writeJson(
-        join(iterationPath, "scores", `${candidate.agentId}.json`),
-        evaluated,
-      );
-      return evaluated;
-    },
+  const scoreCandidateOutputs = (candidates: CandidateOutput[]) =>
+    mapWithConcurrency(
+      candidates,
+      args.loop.scoringConcurrency,
+      async (candidate) => {
+        const evaluated = await evaluateCandidate({
+          ...args,
+          candidate,
+          target: args.target,
+        });
+        await writeJson(
+          join(iterationPath, "scores", `${candidate.agentId}.json`),
+          evaluated,
+        );
+        return evaluated;
+      },
+    );
+  const evaluatedBaseOutputs = await scoreCandidateOutputs(
+    generatedCandidateOutputs,
   );
+  const microParentCandidates = selectMicroMutationParents({
+    evaluatedOutputs: evaluatedBaseOutputs,
+    inputType: args.input.inputNode.type,
+    outputType: args.output.outputType,
+    textMicroMutations: effectiveTextMicroMutationCount({
+      configured: args.loop.textMicroMutations,
+      inputType: args.input.inputNode.type,
+      outputType: args.output.outputType,
+    }),
+  });
+  const microCandidateOutputs = microMutationCandidateOutputs({
+    candidates: microParentCandidates,
+    inputType: args.input.inputNode.type,
+    outputType: args.output.outputType,
+    textMicroMutations: effectiveTextMicroMutationCount({
+      configured: args.loop.textMicroMutations,
+      inputType: args.input.inputNode.type,
+      outputType: args.output.outputType,
+    }),
+  });
+  const candidateOutputs = [
+    ...generatedCandidateOutputs,
+    ...microCandidateOutputs,
+  ];
+  await writeJson(join(iterationPath, "candidates.json"), candidateOutputs);
+  const evaluatedMicroOutputs = await scoreCandidateOutputs(
+    microCandidateOutputs,
+  );
+  const evaluatedCandidateOutputs = [
+    ...evaluatedBaseOutputs,
+    ...evaluatedMicroOutputs,
+  ];
   const evaluatedOutputs = [...probeElites, ...evaluatedCandidateOutputs];
   evaluatedOutputs.sort((left, right) => right.score.total - left.score.total);
   await writeJson(join(iterationPath, "scores.json"), evaluatedOutputs);
@@ -917,10 +955,15 @@ function naturalCaptionScoringPriors(text: string): {
     sentenceCount === 0 ? 0.04 : sentenceCount > 2 ? 0.06 : 0;
   const inventoryPenalty =
     commaCount >= 4 ? Math.min(0.12, commaCount * 0.02) : 0;
+  const verbPenalty = hasCaptionVerb(text) ? 0 : 0.08;
   const grammarPenalty = hasMalformedCaptionEnding(text) ? 0.15 : 0;
   const penalty = Math.min(
     0.25,
-    wordPenalty + sentencePenalty + inventoryPenalty + grammarPenalty,
+    wordPenalty +
+      sentencePenalty +
+      inventoryPenalty +
+      verbPenalty +
+      grammarPenalty,
   );
 
   return {
@@ -951,6 +994,12 @@ function captionSentenceCount(text: string): number {
 function hasMalformedCaptionEnding(text: string): boolean {
   return /\b(in|with|at|on|toward|towards|of|for|to)\s*[.!?]?$/i.test(
     text.trim(),
+  );
+}
+
+function hasCaptionVerb(text: string): boolean {
+  return /\b(sits?|stands?|lies?|looks?|faces?|opens?|shines?|rests?|holds?|wears?|shows?|fills?|hangs?|leans?|gazes?|smiles?|is|are)\b/i.test(
+    text,
   );
 }
 
@@ -1193,17 +1242,63 @@ const TEXT_PROBE_LIBRARY = [
   "low contrast, old warmth, feathered boundary, hidden expression",
 ];
 
-function expandCandidateOutputs(args: {
+function effectiveTextMicroMutationCount(args: {
+  configured: number;
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+}): number {
+  if (args.configured > 0) {
+    return args.configured;
+  }
+  return args.inputType === "image" && args.outputType === "text"
+    ? DEFAULT_IMAGE_TEXT_MICRO_MUTATIONS
+    : 0;
+}
+
+function selectMicroMutationParents(args: {
+  evaluatedOutputs: EvaluatedOutput[];
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+  textMicroMutations: number;
+}): CandidateOutput[] {
+  if (args.outputType !== "text" || args.textMicroMutations <= 0) {
+    return [];
+  }
+
+  const parentLimit =
+    args.inputType === "image" && args.outputType === "text"
+      ? Math.min(2, args.evaluatedOutputs.length)
+      : args.evaluatedOutputs.length;
+
+  return [...args.evaluatedOutputs]
+    .sort(
+      (left, right) => outputSelectionScore(right) - outputSelectionScore(left),
+    )
+    .slice(0, parentLimit)
+    .map(candidateFromEvaluatedOutput);
+}
+
+function candidateFromEvaluatedOutput(
+  output: EvaluatedOutput,
+): CandidateOutput {
+  return {
+    agentId: output.agentId,
+    outputNode: output.outputNode,
+    entropy: output.entropy,
+  };
+}
+
+function microMutationCandidateOutputs(args: {
   candidates: CandidateOutput[];
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
   textMicroMutations: number;
 }): CandidateOutput[] {
   if (args.outputType !== "text" || args.textMicroMutations <= 0) {
-    return args.candidates;
+    return [];
   }
 
-  const expanded: CandidateOutput[] = [...args.candidates];
+  const expanded: CandidateOutput[] = [];
   for (const candidate of args.candidates) {
     if (candidate.outputNode.type !== "text") {
       continue;
@@ -1300,9 +1395,58 @@ const captionTransforms: TextTransform[] = [
             /\band looks\s+(?:gently\s+)?toward the camera\b/gi,
             ", looking at the camera",
           )
+          .replace(
+            /\band looks at the camera in a close frame\b/gi,
+            ", looking at the camera",
+          )
           .replace(/\band looks at the camera\b/gi, ", looking at the camera")
           .replace(/\bis sitting\b/gi, "sits")
           .replace(/\b(gently|calmly|quietly|softly)\s+/gi, ""),
+      ),
+  },
+  {
+    name: "caption-subject-setting-compression",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(
+            /\s+and looks?\s+(?:at|toward) the camera(?:\s+in\s+a\s+close\s+frame)?/gi,
+            "",
+          )
+          .replace(
+            /,\s*looking\s+(?:at|toward) the camera(?:\s+in\s+a\s+close\s+frame)?/gi,
+            "",
+          )
+          .replace(/\s+facing the camera\b/gi, "")
+          .replace(/,\s*framed close(?:\s+with\s+[^.]+)?/gi, "")
+          .replace(/\s+in a close frame\b/gi, "")
+          .replace(/\b(?:on|upon) green grass\b/gi, "in green grass")
+          .replace(/\b(?:on|upon) grass\b/gi, "in grass")
+          .replace(
+            /\b(?:small|little|tiny|fluffy|cream-colored|cream|white|light-colored|pale-colored)\s+(puppy|dog)\b/gi,
+            "$1",
+          ),
+      ),
+  },
+  {
+    name: "caption-direct-scene-normalization",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(
+            /^A (?:wide|front|close) view shows empty yellow carpeted rooms under fluorescent lights(?: with no one inside)?\.?$/i,
+            "Fluorescent lights shine over empty yellow carpeted rooms.",
+          )
+          .replace(/^A front view shows an?\s+/i, "A ")
+          .replace(/^A wide view shows an?\s+/i, "A ")
+          .replace(/^A close view shows an?\s+/i, "A ")
+          .replace(/^The image shows an?\s+/i, "A ")
+          .replace(/\b(room|hallway) opening to\b/gi, "$1 opens to")
+          .replace(/\b(rooms|hallways) opening to\b/gi, "$1 open to")
+          .replace(/\bpale yellow\b/gi, "yellow")
+          .replace(/\byellow empty (hallway|room)\b/gi, "empty yellow $1")
+          .replace(/\bwith carpet\b/gi, "with beige carpet")
+          .replace(/^A empty\b/i, "An empty"),
       ),
   },
   {
@@ -1784,7 +1928,7 @@ const imageTextColdStartStrategies: MutationStrategy[] = [
   {
     name: "grounded natural caption",
     instruction:
-      "Create one concise natural sentence that directly describes the visible image. Use ordinary caption grammar, 8-18 words, and simple visible anchors: subject, common color, setting, gaze, and framing. Avoid vague mood adverbs and comma-separated activation-code fragments.",
+      "Create one concise natural sentence that directly describes the visible image. Use ordinary caption grammar, 8-18 words, and simple visible anchors: subject, common color, setting, gaze, and framing. Include a simple verb or relation; do not return a label-only phrase. Avoid vague mood adverbs and comma-separated activation-code fragments.",
   },
   {
     name: "perceptual caption",
@@ -1799,12 +1943,12 @@ const imageTextColdStartStrategies: MutationStrategy[] = [
   {
     name: "caption detail probe",
     instruction:
-      "Create one concise natural caption sentence that includes two specific visual details likely to matter neurally, such as subject, common color, gaze, texture, background, or framing. Avoid exact category labels unless visually obvious.",
+      "Create one concise natural caption sentence that includes two specific visual details likely to matter neurally, such as subject, common color, gaze, texture, background, or framing. Include a simple verb or relation; avoid exact category labels unless visually obvious.",
   },
   {
     name: "minimal literal caption",
     instruction:
-      "Create the simplest accurate natural-language caption for the image. Avoid poetic wording, labels, metadata, and comma inventories.",
+      "Create the simplest accurate natural-language caption for the image as a complete subject-verb sentence. Avoid poetic wording, label-only phrases, metadata, and comma inventories.",
   },
 ];
 
@@ -2172,7 +2316,7 @@ function outputTypeInstruction(
 ): string {
   if (outputType === "text") {
     if (inputType === "image") {
-      return "For image-to-text output, prefer one concise natural caption sentence that directly describes the visible target with simple subject, color, setting, gaze, and framing anchors. Avoid vague mood adverbs, over-specific labels, comma-separated phrase fragments, and abstract activation codes.";
+      return "For image-to-text output, prefer one concise natural caption sentence that directly describes the visible target with simple subject, verb or visible relation, color, setting, gaze, and framing anchors. Avoid label-only phrases, vague mood adverbs, over-specific labels, comma-separated phrase fragments, and abstract activation codes.";
     }
     return "For text output, use compact comma-separated semantic units by default: 6-8 phrase fragments, 10-18 words total, no full sentence, no labels, no proper names, no explanatory prose.";
   }
