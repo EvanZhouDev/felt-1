@@ -792,51 +792,61 @@ type MutationStrategy = {
   instruction: string;
 };
 
+// Cold-start operators are EMOTIONAL REGISTERS, not feature checklists. TRIBE
+// scores the predicted emotional/perceptual response, so the first generation's
+// job is to span distinct affective stances toward the SAME target and let the
+// optimizer keep whichever the target rewards. (In a Starry-Night sweep these
+// registers ranged ~0.65-0.67 and beat the old feature-extractor genotypes,
+// which all collapsed into one descriptive voice ~0.61.) Each register is
+// target-agnostic: read the target's actual vibe THROUGH the register — a calm
+// target read with "awe" yields quiet awe, not forced intensity. Keep them
+// medium-agnostic: the stance shapes a text's voice, an image's mood, or a
+// scene's feel alike.
 const coldStartStrategies: MutationStrategy[] = [
   {
-    name: "broad gestalt genotype",
+    name: "sublime-dread register",
     instruction:
-      "Create a first-generation candidate from the target's broad perceptual genotype: dominant energy level, attention or salience pattern, spatial/compositional feel, sensory texture, and affect. Use only anchors supported by the input.",
+      "Inhabit the sublime: awe fused with dread before something vast and indifferent. Render the target as overwhelming and a little terrifying — magnificence that does not care about the viewer. Match this to the target's real scale and intensity; do not force it onto a small or gentle target.",
   },
   {
-    name: "affect-energy genotype",
+    name: "intimate-tender register",
     instruction:
-      "Create a first-generation candidate emphasizing affect and energy: calm/tense, fast/slow, dense/sparse, intimate/distant, warm/cool, certain/ambiguous. Keep concrete details sparse unless they are central to the input.",
+      "Inhabit tenderness and longing: an intimate, emotionally exposed reading of the target, close and aching. Let warmth, vulnerability, and quiet yearning shape the output rather than detached observation.",
   },
   {
-    name: "sensory-texture genotype",
+    name: "visceral-bodily register",
     instruction:
-      "Create a first-generation candidate emphasizing modality-neutral sensory texture: brightness, contrast, rhythm, edge quality, surface/timbre, color or tone, and softness/sharpness.",
+      "Inhabit the body: render the target as felt physical sensation — breath, pulse, pressure, temperature, the gut. Make the reader feel it in the nerves, not understand it in the head.",
   },
   {
-    name: "structure-space genotype",
+    name: "ecstatic-rapturous register",
     instruction:
-      "Create a first-generation candidate emphasizing structure and space: foreground/background weight, density, symmetry/asymmetry, proximity, scale, repetition, and compositional balance.",
+      "Inhabit rapture: overwhelmed, exalted, on the edge of weeping with the intensity of the target. Let joy or wonder swell past control. Scale the intensity to what the target actually supports.",
   },
   {
-    name: "sparse latent code",
+    name: "naive-wonder register",
     instruction:
-      "Create a compact latent-code candidate rather than an explanatory description. Prefer a small set of high-signal perceptual states over object inventory, plot summary, proper names, or facts.",
+      "Inhabit fresh, naive wonder, as if encountering the target for the first time with no prior names for it. Simple, sensory, emotionally direct, slightly awed by the bigness or strangeness of what is there.",
   },
   {
-    name: "concrete-anchor genotype",
+    name: "desolate-still register",
     instruction:
-      "Create a first-generation candidate with a few concrete anchors from the input, then bind them to generic perceptual variables such as motion, space, contrast, rhythm, texture, and affect.",
+      "Inhabit quiet, restrained feeling: stillness, solitude, hush, the emotional charge of absence and waiting. Use sparse, low-amplitude language. This is the register a calm or empty target rewards.",
   },
   {
-    name: "novelty-seeking genotype",
+    name: "lyric-incantatory register",
     instruction:
-      "Create a deliberately different first-generation candidate that explores an underrepresented region of the behavior space while preserving the input's likely perceptual feel.",
+      "Inhabit high lyric voice: musical, incantatory, heightened. Address the target directly if it helps. Let rhythm and cadence carry the feeling. Avoid proper names and facts; pursue the felt vibe through sound and image.",
   },
   {
-    name: "contrastive genotype",
+    name: "contrastive-tension register",
     instruction:
-      "Create a first-generation candidate organized around contrast pairs visible or inferable from the input: warm/cool, near/far, still/active, dense/open, clear/ambiguous, bright/dark.",
+      "Inhabit the central emotional TENSION of the target: the pull between its opposed forces — still vs. active, warm vs. cold, intimate vs. vast, safe vs. exposed. Build the output around that felt contradiction.",
   },
   {
-    name: "anti-literal genotype",
+    name: "anti-literal perceptual register",
     instruction:
-      "Avoid labels, proper names, metadata, genre facts, and exhaustive inventory. Search the target's predicted neural vibe through perceptual experience, not literal identification.",
+      "Avoid labels, proper names, metadata, genre facts, and exhaustive inventory. Reach the target's predicted neural vibe through raw perceptual and emotional experience, not literal identification of what the thing is.",
   },
 ];
 
@@ -964,7 +974,7 @@ function planOperators(args: {
       index,
       operator:
         coldStartStrategies[index % coldStartStrategies.length]?.name ??
-        "broad gestalt genotype",
+        coldStartStrategies[0].name,
       ucb: 0,
       meanNeuralSimilarity: null,
       count: 0,
