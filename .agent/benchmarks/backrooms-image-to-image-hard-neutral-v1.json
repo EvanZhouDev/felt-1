@@ -1,0 +1,45 @@
+{
+  "createdAt": "2026-06-07T13:51:17.000Z",
+  "oracleMode": "tribe",
+  "backend": "deterministic",
+  "runId": "backrooms-image-to-image-f42a6a6b",
+  "resumeIteration": 8,
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 1,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "imageSeedMutations": 0,
+    "imageLocalMutations": 1,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "probe": {
+    "report": ".agent/benchmarks/backrooms-image-filtergrid-v1.json",
+    "bestProbeId": "hard-neutral",
+    "bestProbeAdjustedSimilarity": 0.8731173793959961,
+    "bestProbeScore": 0.8939631585087834,
+    "controlAdjustedSimilarity": 0.8646997460750855,
+    "controlScore": 0.8852964432632499
+  },
+  "result": {
+    "status": "completed",
+    "selectedAgentId": "elite-replay-image-1",
+    "previousBestAdjustedSimilarity": 0.8646997460750855,
+    "bestAdjustedSimilarity": 0.8731173793959961,
+    "bestScore": 0.8989631585087834,
+    "bestNeuralSimilarity": 0.9970000296085073,
+    "iterationCount": 8,
+    "outputImage": ".volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/elite-replay-image-1/9c1908ab4807044a-target-hard-neutral.png"
+  },
+  "notes": [
+    "Added a reusable image probe CLI and used it for a calibrated local filter grid against the backrooms target.",
+    "The raw spatial probe was rejected because zoom/pan variants improved raw cosine while lowering residual adjusted similarity.",
+    "The filter grid found hard-neutral as the strongest local operator, and the production resume validated the same adjusted score in the actual pipeline.",
+    "This is a legitimate local image mutation: it transforms the current elite, does not copy target pixels, and preserves a plausible backrooms-like output."
+  ]
+}

@@ -3147,3 +3147,78 @@ Verification:
 
 - Report:
   `.agent/benchmarks/backrooms-image-to-image-crisp-warm-v1.json`
+
+## 2026-06-07 06:51 PDT - Hard-Neutral Local Filter Grid
+
+Goal:
+
+- Move faster on the hard backrooms image-to-image case by testing stronger
+  local image mutations with real local TRIBE, without relying on hosted Flux.
+
+Tooling:
+
+- Added `probe:images`, a reusable image-probe CLI that scores prepared
+  image/video candidates against a saved target with the same oracle and
+  `scoreActivations` path as the production loop.
+
+Experiments:
+
+- Spatial probe:
+  - Tested base, horizontal flip, zoom, and pan variants from the current
+    backrooms elite.
+  - Raw cosine misleadingly improved for some zooms, but calibrated/residual
+    scoring rejected them:
+    - base adjusted `0.8646997460750855`
+    - best spatial adjusted `0.850740472905265`
+  - Decision: do not add spatial operators yet.
+- Filter grid:
+  - Tested 12 local filters from the normalized target-style elite source.
+  - Best probe:
+    - `hard-neutral`
+    - adjusted `0.8731173793959961`
+    - total `0.8939631585087834`
+  - Runner-up:
+    - `darker-crisp`
+    - adjusted `0.8720510024164707`
+    - total `0.8927727159268865`
+  - Control:
+    - `crisp-warm`
+    - adjusted `0.8646997460750855`
+    - total `0.8852964432632499`
+
+Change:
+
+- Added `hard-neutral` and `darker-crisp` as first-class local image
+  target-fidelity modes.
+- Ordered local image mutations as `hard-neutral`, `darker-crisp`,
+  `crisp-warm`, then older variants.
+- Generalized local style filename base recovery so future `target-*` style
+  outputs can map back to their normalized `target-style` source.
+
+Validation run:
+
+- Resumed `backrooms-image-to-image-f42a6a6b` for one additional local-only
+  iteration with real local TRIBE.
+- Iteration `008`
+- Selected `elite-replay-image-1`
+- Previous best adjusted `0.8646997460750855`
+- New best adjusted `0.8731173793959961`
+- New best total `0.8989631585087834`
+- Raw neural similarity `0.9970000296085073`
+- Output:
+  `.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/elite-replay-image-1/9c1908ab4807044a-target-hard-neutral.png`
+
+Interpretation:
+
+- This is the largest local-only improvement since the Flux-generated elite:
+  `+0.0084176333209106` adjusted over the previous best.
+- The hard backrooms case is now close to 0.9 total score, but adjusted
+  similarity is still `0.8731`; further legitimate progress likely needs
+  either stronger generated layout diversity or a larger learned/local operator
+  library.
+
+Verification:
+
+- Reports:
+  - `.agent/benchmarks/backrooms-image-filtergrid-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-hard-neutral-v1.json`

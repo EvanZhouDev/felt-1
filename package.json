@@ -18,6 +18,7 @@
     "smoke": "bun --filter @volta/orchestrator smoke",
     "smoke:generic": "bun services/orchestrator/src/smoke-generic.ts",
     "benchmark:cold": "bun services/orchestrator/src/benchmark-cold.ts",
+    "probe:images": "bun services/orchestrator/src/probe-images.ts",
     "probe:texts": "bun services/orchestrator/src/probe-texts.ts",
     "probe:evolve-texts": "bun services/orchestrator/src/probe-evolve-texts.ts",
     "probe:yeo": "bun services/orchestrator/src/probe-yeo.ts",

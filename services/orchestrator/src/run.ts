@@ -1671,7 +1671,7 @@ function localStyleBaseSourceUri(uri: string): string {
     return uri;
   }
   const targetStylePath = localPath.replace(
-    /-target(?:-fidelity|-style-only|-soft-muted-strong|-flat-warm|-flat-cool|-crisp-neutral|-crisp-warm)?\.png$/,
+    /-target(?:-fidelity|-[a-z0-9-]+)?\.png$/,
     "-target-style.png",
   );
   if (targetStylePath !== localPath && existsSync(targetStylePath)) {
@@ -1705,6 +1705,8 @@ function cloneUrl(url: URL): URL {
 }
 
 const IMAGE_LOCAL_STYLE_VARIANTS = [
+  "hard-neutral",
+  "darker-crisp",
   "crisp-warm",
   "crisp-neutral",
   "flat-warm",
