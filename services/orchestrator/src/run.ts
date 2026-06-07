@@ -443,6 +443,7 @@ async function executeIteration(
       const entropy = mutationStrategy({
         iteration: args.iteration,
         index,
+        candidateCount: args.loop.candidateCount,
         outputType: args.output.outputType,
       });
       const workspace = await createAgentWorkspace({
@@ -772,11 +773,17 @@ const refinementStrategies: MutationStrategy[] = [
 function mutationStrategy(args: {
   iteration: number;
   index: number;
+  candidateCount: number;
   outputType: OutputObj["outputType"];
 }): string {
   const strategies =
     args.iteration === 1 ? coldStartStrategies : refinementStrategies;
-  const strategy = strategies[args.index % strategies.length];
+  const generationOffset =
+    args.iteration === 1
+      ? 0
+      : Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
+  const strategy =
+    strategies[(generationOffset + args.index) % strategies.length];
   return [
     `iteration=${args.iteration}`,
     `strategy=${strategy.name}`,

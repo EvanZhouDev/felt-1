@@ -675,3 +675,29 @@ Interpretation:
 - This is still mock-oracle coverage, not a real Flux/TRIBE image-to-image
   success. It does make the generic operator schedule exercise the image output
   path explicitly while hosted scoring is unhealthy.
+
+## 2026-06-06 19:27 PDT - Operator Cycling for Small Populations
+
+Problem:
+
+- With `candidateCount=2`, refinement turns previously reused the first two
+  refinement operators every generation.
+- That means crossover, novelty injection, ablation, and representation reset
+  could be skipped forever unless the population was large.
+
+Change:
+
+- The mutation/operator scheduler now offsets by iteration and candidate count.
+- A small population rotates through the full operator list across turns instead
+  of repeatedly sampling only the first operators.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Interpretation:
+
+- This is a better default for 10-turn convergence: even two candidates per turn
+  can cover multiple evolutionary operator families over time.
