@@ -92,6 +92,27 @@ const scenarios: Scenario[] = [
       outputType: "code",
     },
   },
+  {
+    id: "image-to-image",
+    input: {
+      inputNode: {
+        type: "image",
+        payload: {
+          type: "image",
+          source: {
+            uri: "asset://generic-smoke/second-source-image.png",
+            mime: "image/png",
+          },
+          timing: {
+            durationSec: 0.5,
+          },
+        },
+      },
+    },
+    output: {
+      outputType: "image",
+    },
+  },
 ];
 
 for (const scenario of scenarios) {

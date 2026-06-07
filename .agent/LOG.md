@@ -650,3 +650,28 @@ Interpretation:
 - This keeps future Mona Lisa, text, image, or audio benchmarks honest: a cold
   run is really cold unless the experiment intentionally enables old-state
   reuse.
+
+## 2026-06-06 19:24 PDT - Generic Smoke Adds Image-to-Image
+
+Change:
+
+- Added an `image-to-image` scenario to `smoke:generic`.
+- Updated `docs/IO_MODULES.md` so the live API notes match the new scorer
+  throttle: TRIBE text scoring is not batched, and evaluation concurrency is
+  controlled by `loop.scoringConcurrency`.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke:generic` passed with four scenarios:
+  - text-to-text,
+  - text-to-image,
+  - image-to-code,
+  - image-to-image.
+- `bun run smoke` passed.
+
+Interpretation:
+
+- This is still mock-oracle coverage, not a real Flux/TRIBE image-to-image
+  success. It does make the generic operator schedule exercise the image output
+  path explicitly while hosted scoring is unhealthy.
