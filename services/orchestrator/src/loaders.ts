@@ -2,11 +2,16 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AssetRef, AudioNode, RenderTiming } from "@volta/core";
+import type { AssetRef, AudioNode, ImageNode, RenderTiming } from "@volta/core";
 
 // Default still-frame timing shared with the renderers (IO_MODULES Hackathon
 // Defaults). Audio is uploaded as-is; timing only annotates the stimulus event.
 const DEFAULT_AUDIO_TIMING: RenderTiming = {
+  durationSec: 0.5,
+  fps: 10,
+};
+
+const DEFAULT_IMAGE_TIMING: RenderTiming = {
   durationSec: 0.5,
   fps: 10,
 };
@@ -18,7 +23,14 @@ const AUDIO_MIME: Record<string, string> = {
   ".ogg": "audio/ogg",
 };
 
-export type LoadAudioOptions = {
+const IMAGE_MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+
+export type LoadAssetOptions = {
   timing?: RenderTiming;
 };
 
@@ -27,25 +39,45 @@ export type LoadAudioOptions = {
 // through untouched (the http oracle fetches them at encode time).
 export async function loadAudioNode(
   source: string,
-  options: LoadAudioOptions = {},
+  options: LoadAssetOptions = {},
 ): Promise<AudioNode> {
-  const timing = options.timing ?? DEFAULT_AUDIO_TIMING;
-  const ref = await resolveAudioAsset(source);
+  const ref = await resolveAsset(source, AUDIO_MIME, "audio");
   return {
     type: "audio",
     payload: {
       type: "audio",
       source: ref,
-      timing,
+      timing: options.timing ?? DEFAULT_AUDIO_TIMING,
     },
   };
 }
 
-async function resolveAudioAsset(source: string): Promise<AssetRef> {
+// Resolve a local path or http(s) URL into an ImageNode. Same node the loop
+// uses for any image target — it renders to a still video for TRIBE.
+export async function loadImageNode(
+  source: string,
+  options: LoadAssetOptions = {},
+): Promise<ImageNode> {
+  const ref = await resolveAsset(source, IMAGE_MIME, "image");
+  return {
+    type: "image",
+    payload: {
+      type: "image",
+      source: ref,
+      timing: options.timing ?? DEFAULT_IMAGE_TIMING,
+    },
+  };
+}
+
+async function resolveAsset(
+  source: string,
+  mimeByExt: Record<string, string>,
+  label: string,
+): Promise<AssetRef> {
   if (source.startsWith("http://") || source.startsWith("https://")) {
     return {
       uri: source,
-      mime: mimeForExtension(extname(new URL(source).pathname)),
+      mime: mimeByExt[extname(new URL(source).pathname).toLowerCase()],
     };
   }
 
@@ -56,10 +88,10 @@ async function resolveAudioAsset(source: string): Promise<AssetRef> {
       : resolve(process.cwd(), source);
 
   const suffix = extname(localPath).toLowerCase();
-  if (!(suffix in AUDIO_MIME)) {
+  if (!(suffix in mimeByExt)) {
     throw new Error(
-      `Unsupported audio extension '${suffix}'. Expected one of ${Object.keys(
-        AUDIO_MIME,
+      `Unsupported ${label} extension '${suffix}'. Expected one of ${Object.keys(
+        mimeByExt,
       ).join(", ")}.`,
     );
   }
@@ -67,11 +99,7 @@ async function resolveAudioAsset(source: string): Promise<AssetRef> {
   const bytes = await readFile(localPath);
   return {
     uri: pathToFileURL(localPath).href,
-    mime: AUDIO_MIME[suffix],
+    mime: mimeByExt[suffix],
     sha256: createHash("sha256").update(bytes).digest("hex"),
   };
-}
-
-function mimeForExtension(ext: string): string | undefined {
-  return AUDIO_MIME[ext.toLowerCase()];
 }

@@ -128,9 +128,12 @@ class HttpTribeOracle implements NeuralOracle {
       return this.asJob(response, "POST /predict/text");
     }
 
-    // image targets are fed as a short still-hold mp4 via /predict/video
-    // (the multipart /predict/image route is broken server-side).
-    const endpoint = stimulus.kind === "audio" ? "audio" : "video";
+    // A still image renders with kind "video" (it becomes a still-hold clip for
+    // TRIBE) but carries an "Image" stimulus event and no pre-built mp4. The
+    // hosted /predict/image route ingests a raw image directly (verified live
+    // 2026-06-07), so route those there; only genuine pre-rendered video/code
+    // clips go to /predict/video.
+    const endpoint = endpointForStimulus(stimulus);
     const file = await this.readArtifact(stimulus);
     const form = new FormData();
     form.append("file", file.blob, file.name);
@@ -263,6 +266,26 @@ class HttpTribeOracle implements NeuralOracle {
       yeo7Means: result.yeo7_means,
     };
   }
+}
+
+const IMAGE_ARTIFACT_EXT = /\.(png|jpe?g|webp)$/i;
+
+// Pick the hosted predict endpoint for a non-text stimulus. Audio is explicit.
+// A still image renders with kind "video" but carries an "Image" event (and an
+// image-extension artifact) and no pre-built mp4 — those go to /predict/image.
+// Anything else with kind "video" is a real rendered clip → /predict/video.
+function endpointForStimulus(
+  stimulus: EncoderStimulus,
+): "audio" | "image" | "video" {
+  if (stimulus.kind === "audio") {
+    return "audio";
+  }
+  const isStillImage =
+    stimulus.events.some((event) => event.type === "Image") ||
+    (stimulus.artifactPath
+      ? IMAGE_ARTIFACT_EXT.test(stimulus.artifactPath)
+      : false);
+  return isStillImage ? "image" : "video";
 }
 
 function delay(ms: number): Promise<void> {

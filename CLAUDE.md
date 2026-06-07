@@ -44,6 +44,7 @@ bun run lint             # biome check .
 bun run format           # biome format --write .
 bun run smoke            # end-to-end run with the fast MOCK oracle (text input)
 bun run smoke:audio      # end-to-end run with an AUDIO input node (mock oracle)
+bun run smoke:image      # end-to-end run with an IMAGE input node (mock oracle)
 bun run dev              # watch the orchestrator service
 bun run dev:web          # Next.js dev (Turbopack)
 
@@ -51,16 +52,44 @@ bun run dev:web          # Next.js dev (Turbopack)
 bun run setup:tribe      # create vendor/tribev2/.venv, install TRIBE
 bun run smoke:tribe      # end-to-end run with the REAL TRIBE oracle
 bun run smoke:audio:tribe # audio input via the hosted (http) TRIBE oracle + describer
+bun run smoke:image:tribe # image input via the hosted (http) TRIBE oracle
 ```
-
-`smoke:audio` proves the loop is medium-agnostic: it drives the same
-`executeRun` with an `AudioNode` target (fixture `services/orchestrator/fixtures/
-tone.wav`). Output medium is a free parameter — `VOLTA_SMOKE_OUTPUT=image` (or
-`code`/`text`) and `VOLTA_SMOKE_AUDIO=<path|url>` override it. Audio needs the
-`http` oracle (or the patched local `tribe` worker) for real activations.
 
 Use `bun run smoke` (mock) for fast iteration; reach for `smoke:tribe` only when
 you need real activations.
+
+## Running on your own input
+
+The loop is **medium-agnostic** — `executeRun` never branches on input/output
+type, so "run Volta on X" is always the same run with a different input `Node`.
+The `smoke:audio` / `smoke:image` scripts are the front door for that; both take
+an arbitrary file or URL and a chosen output medium.
+
+```bash
+# Image → text vibe transfer, scored by REAL TRIBE (image goes to /predict/image):
+VOLTA_ORACLE=http VOLTA_SMOKE_IMAGE=path/to/photo.jpg bun run smoke:image
+
+# Audio → image, real TRIBE + audio description:
+VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true \
+  VOLTA_SMOKE_AUDIO=path/to/song.mp3 VOLTA_SMOKE_OUTPUT=image bun run smoke:audio
+```
+
+Knobs (all optional; sensible defaults):
+
+- `VOLTA_SMOKE_IMAGE` / `VOLTA_SMOKE_AUDIO` — input file path or http(s) URL.
+  Defaults are the fixtures under `services/orchestrator/fixtures/`
+  (`swatch.png`, `tone.wav`).
+- `VOLTA_SMOKE_OUTPUT` — output medium: `text` (default), `image`, or `code`.
+- `VOLTA_ORACLE` — `mock` (default, fast/offline) or `http` (real hosted TRIBE).
+  Use `http` for a real run; mock only proves the wiring.
+- `VOLTA_MAX_ITERATIONS` / `VOLTA_CANDIDATE_COUNT` — search depth/width (the
+  smoke entrypoints pin these low; raise for a real search).
+
+Each run writes readable artifacts under a temp `smokeRoot` (printed on exit):
+`target.json`, per-iteration `operator-plan.json` / `scores.json` / `judge.json`,
+and `evolution-journal.json` (includes the operator-fitness curve). For a
+long-lived service instead of a one-shot, `bun run dev` then
+`POST /runs` with an `{ input: InputObj, output: OutputObj }` body.
 
 ## Conventions
 
