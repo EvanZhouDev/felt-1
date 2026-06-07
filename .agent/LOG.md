@@ -1023,3 +1023,22 @@ grief-longing, ecstatic-rapture, child-wonder, lonely-insomniac, lyric-romantic,
 dread-sublime, sensory-synesthete) -> 48 emotion-targeting candidates. Scoring
 all 48 vs the image target with the blended metric (in progress). First result:
 visceral-fear candidate = 0.6421, already above the v2 loop's best (0.6270).
+
+## 2026-06-07 - Design principle: register is TARGET-dependent, not global
+
+Course-correction (user): do NOT hardcode "emotional prose beats word-soup" into
+the loop. That just swaps one rigid bias for another. The orchestration agent +
+optimizer loop exist precisely so the system DISCOVERS, per target, which
+register/style scores - Starry Night rewards turbulent-emotional first-person;
+a calm minimalist photo or a technical diagram would reward something else.
+
+Implications for the loop changes:
+- outputTypeInstruction (run.ts:1060) currently PRESCRIBES "comma-separated
+  semantic units" = word-soup. Fix = REMOVE the prescription and instead invite
+  diverse-register exploration; let the judge/optimizer select per target. Do
+  NOT replace it with "always write visceral first-person".
+- The 8-persona fan-out is valuable as a LOOP CAPABILITY (seed the population
+  with diverse registers each cold start), not as a one-shot answer. The
+  optimizer then exploits whichever register scores for THIS target.
+- The style sweep's real lesson is "register matters and varies", evidenced by
+  the spread across personas - not "register X is best".
