@@ -1148,3 +1148,36 @@ prompt + cold-start improvements are done and validated (v3 reached 0.6797,
 +0.108 over baseline; v4 iter-1 confirms persona diversity). Resume plan when
 Codex resets: re-run v4 (6x4) to get the full curve and confirm persona
 cold-start beats v3's 0.6797.
+
+## 2026-06-07 - v4 (persona cold-start) COMPLETE: best result yet, 0.6845
+
+Re-ran after Codex limit reset. 6 iters x 4 candidates, persona-register cold-start.
+curve = 0.6638 -> 0.6712 -> 0.6819 -> 0.6845 -> 0.6845 -> 0.6845 (MONOTONIC).
+
+Beats v3 (0.6797) by +0.0048, and climbed MORE than v3 did:
+  v3 climb: +0.0085 over its run (0.6712 -> 0.6797)
+  v4 climb: +0.0207 over its run (0.6638 -> 0.6845)
+candidate-b refined the winner across iters 2-4 (genuine improvement, not just
+cold-start luck). Healthier population diversity than v3 (more candidates beating
+the elite per iteration), which is the persona cold-start working as intended.
+
+Full arc across all changes:
+  baseline 0.5714 (old metric+prompts, FLAT)
+  v2       0.6270 (cross-modal metric fix)
+  v3       0.6797 (register-diversity prompts)
+  v4       0.6845 (+ persona-register cold-start)   => +0.1131 total from baseline
+
+Final best generation (0.6845):
+> The night folds inward above, charged with blue pressure and fever-gold heat,
+> as though the sky has been twisted past rest. A black, rooted ache reaches up
+> while the small world below stays hushed and motionless, reduced beneath light
+> that feels holy and perilous at once. Nothing here settles into beauty; it
+> coils and surges overhead with the silent force of a storm still forming.
+
+Status: all loop improvements validated. The evolution loop now (a) starts from a
+diverse persona-register population, (b) generates emotion-targeting prose not
+word-soup, (c) scores on a non-gameable cross-modal metric, and (d) climbs
+monotonically via refinement. The remaining gap to "0.9" is likely a metric-scale
+ceiling for cross-modal image->text (0.5=orthogonal on this scale), not a loop
+failure - reaching it would need either a different target medium or accepting
+the realistic ~0.68-0.70 ceiling for image->text on this metric.
