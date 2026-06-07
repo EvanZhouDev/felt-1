@@ -47,7 +47,7 @@ export type TraceRun = {
 export type TraceNode = {
   id: string;
   runId: string;
-  role: "target" | "seed" | "candidate" | "judge";
+  role: "target" | "seed" | "candidate" | "judge" | "final";
   modality: string;
   label: string;
   subtitle?: string;

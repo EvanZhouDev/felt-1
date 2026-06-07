@@ -137,7 +137,6 @@ h3 {
 }
 
 .stat-grid,
-.score-strip,
 .score-table {
   display: grid;
   gap: 0.5rem;
@@ -145,11 +144,6 @@ h3 {
 
 .stat-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.score-strip {
-  grid-template-columns: repeat(5, minmax(54px, 1fr));
-  min-width: 0;
 }
 
 .score-table {
@@ -239,7 +233,7 @@ h3 {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .run-header {
@@ -283,33 +277,11 @@ h3 {
 
 .run-header-actions {
   display: flex;
-  flex: 3 1 420px;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: 0.65rem;
   min-width: 0;
-}
-
-.run-header .score-strip {
-  flex: 1 1 300px;
-}
-
-.run-header .metric {
-  gap: 0.06rem;
-  min-width: 0;
-  padding: 0.28rem 0.42rem;
-}
-
-.run-header .metric span {
-  font-size: 0.62rem;
-}
-
-.run-header .metric strong {
-  overflow: hidden;
-  font-size: 0.82rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .graph-canvas {
@@ -399,39 +371,6 @@ h3 {
   font-size: 0.78rem;
   font-weight: 800;
   text-align: right;
-}
-
-.graph-nav {
-  display: flex;
-  gap: 0.32rem;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--line);
-  background: #f8f5ed;
-  padding: 0.36rem 0.55rem;
-  scrollbar-gutter: stable;
-}
-
-.graph-nav a {
-  flex: 0 0 auto;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: #fffdf8;
-  color: var(--foreground);
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 0.32rem 0.48rem;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.graph-nav a:hover {
-  border-color: var(--line-strong);
-}
-
-.graph-nav a.active {
-  border-color: #191917;
-  background: #191917;
-  color: #fffdf8;
 }
 
 .static-graph-spacer,
@@ -567,6 +506,11 @@ h3 {
 
 .trace-node.role-judge {
   border-top: 5px solid var(--judge);
+}
+
+.trace-node.role-final {
+  border-top: 5px solid #171715;
+  background: #fffefa;
 }
 
 .trace-handle {
@@ -868,7 +812,6 @@ h3 {
     justify-content: stretch;
   }
 
-  .score-strip,
   .inspector-content {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -879,9 +822,5 @@ h3 {
 }
 
 .trace-shell.sidebar-collapsed .run-header {
-  flex-wrap: nowrap;
-}
-
-.trace-shell.sidebar-collapsed .run-header-actions {
   flex-wrap: nowrap;
 }

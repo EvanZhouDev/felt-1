@@ -217,11 +217,19 @@ export default async function Home({ searchParams }: PageProps) {
     filteredRuns.find((run) => run.id === paramValue(params?.run)) ??
     filteredRuns[0] ??
     graph.runs[0];
-  const nodes = graph.nodes.filter((node) => node.runId === activeRun.id);
+  const runNodes = graph.nodes.filter((node) => node.runId === activeRun.id);
+  const finalNode = finalImageNode(activeRun, runNodes);
+  const nodes = finalNode ? [...runNodes, finalNode] : runNodes;
   const nodeIds = new Set(nodes.map((node) => node.id));
-  const edges = graph.edges.filter(
-    (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
-  );
+  const finalEdge = finalNode
+    ? finalImageEdge(activeRun, runNodes, finalNode)
+    : undefined;
+  const edges = [
+    ...graph.edges.filter(
+      (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
+    ),
+    ...(finalEdge ? [finalEdge] : []),
+  ];
   const selectedNode =
     nodes.find((node) => node.id === paramValue(params?.node)) ??
     nodes.find((node) => node.id === activeRun.bestNodeId) ??
@@ -312,22 +320,6 @@ export default async function Home({ searchParams }: PageProps) {
             </div>
           </div>
           <div className="run-header-actions">
-            <div className="score-strip">
-              <Metric
-                label="Adjusted"
-                value={scoreText(activeRun.bestAdjustedSimilarity)}
-              />
-              <Metric
-                label="Neural"
-                value={scoreText(activeRun.bestNeuralSimilarity)}
-              />
-              <Metric label="Total" value={scoreText(activeRun.bestScore)} />
-              <Metric label="Turns" value={activeRun.iterationCount} />
-              <Metric
-                label="Candidates"
-                value={activeRun.candidateCount ?? candidateNodes.length}
-              />
-            </div>
             <div
               aria-label="Graph zoom controls"
               className="graph-tools"
@@ -363,25 +355,6 @@ export default async function Home({ searchParams }: PageProps) {
             </div>
           </div>
         </div>
-
-        <nav className="graph-nav" aria-label="Graph nodes">
-          {positionedNodes.map(({ node }) => (
-            <a
-              aria-current={node.id === selectedNode?.id ? "true" : undefined}
-              className={node.id === selectedNode?.id ? "active" : undefined}
-              data-node-link-id={node.id}
-              href={`${pageHref({
-                node: node.id,
-                q: query,
-                run: activeRun.id,
-              })}#${nodeDomId(node.id)}`}
-              key={node.id}
-            >
-              {node.role}
-              {node.rank ? ` #${node.rank}` : ""}
-            </a>
-          ))}
-        </nav>
 
         <div className="static-graph-scroll" data-pan-zoom-graph>
           <div
@@ -743,10 +716,73 @@ function candidateRanking(nodes: TraceNode[]): TraceNode[] {
     });
 }
 
+function finalImageNode(
+  run: TraceRun,
+  nodes: TraceNode[],
+): TraceNode | undefined {
+  const source = finalImageSourceNode(run, nodes);
+  if (source?.media?.kind !== "image") {
+    return undefined;
+  }
+  return {
+    id: `${run.id}:final`,
+    runId: run.id,
+    role: "final",
+    modality: "image",
+    label: "Final Image",
+    subtitle: "Best output for this run",
+    iteration: source.iteration,
+    agentId: source.agentId,
+    media: source.media,
+    score: source.score,
+  };
+}
+
+function finalImageEdge(
+  run: TraceRun,
+  nodes: TraceNode[],
+  finalNode: TraceNode,
+): TraceEdge | undefined {
+  const source = finalImageSourceNode(run, nodes);
+  if (!source) {
+    return undefined;
+  }
+  return {
+    id: `${source.id}->${finalNode.id}`,
+    source: source.id,
+    target: finalNode.id,
+    kind: "summary",
+    label: "final",
+  };
+}
+
+function finalImageSourceNode(
+  run: TraceRun,
+  nodes: TraceNode[],
+): TraceNode | undefined {
+  const bestNode = nodes.find((node) => node.id === run.bestNodeId);
+  if (bestNode?.media?.kind === "image") {
+    return bestNode;
+  }
+  const selectedNode = nodes.find(
+    (node) => node.selected && node.media?.kind === "image",
+  );
+  if (selectedNode) {
+    return selectedNode;
+  }
+  return candidateRanking(nodes).find((node) => node.media?.kind === "image");
+}
+
 function positionNodes(
   nodes: TraceNode[],
 ): { node: TraceNode; position: { x: number; y: number } }[] {
   const candidateCountsByIteration = new Map<number, number>();
+  const maxIteration = Math.max(
+    1,
+    ...nodes
+      .map((node) => node.iteration)
+      .filter((iteration): iteration is number => iteration !== undefined),
+  );
   for (const node of nodes) {
     if (node.role !== "candidate") {
       continue;
@@ -759,7 +795,7 @@ function positionNodes(
   }
   return nodes.map((node) => ({
     node,
-    position: nodePosition(node, candidateCountsByIteration),
+    position: nodePosition(node, candidateCountsByIteration, maxIteration),
   }));
 }
 
@@ -768,16 +804,28 @@ const candidateColumnGap = 960;
 const candidateRowY = 40;
 const candidateRowGap = 340;
 const judgeOffsetX = 520;
+const finalOffsetX = 500;
 
 function nodePosition(
   node: TraceNode,
   candidateCountsByIteration: Map<number, number>,
+  maxIteration: number,
 ): { x: number; y: number } {
   if (node.role === "target") {
     return { x: 40, y: 180 };
   }
   if (node.role === "seed") {
     return { x: 40, y: 520 };
+  }
+  if (node.role === "final") {
+    return {
+      x:
+        candidateColumnX +
+        (maxIteration - 1) * candidateColumnGap +
+        judgeOffsetX +
+        finalOffsetX,
+      y: 180,
+    };
   }
   const iteration = node.iteration ?? 1;
   const iterationX = candidateColumnX + (iteration - 1) * candidateColumnGap;
