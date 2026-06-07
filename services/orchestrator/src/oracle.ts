@@ -87,15 +87,18 @@ class HttpTribeOracle implements NeuralOracle {
 
   async encode(stimulus: EncoderStimulus): Promise<ActivationTrace> {
     let lastError: unknown;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
         return await this.encodeOnce(stimulus);
       } catch (error) {
         lastError = error;
-        if (!isRetryableTribeError(error) || attempt === 3) {
+        if (!isRetryableTribeError(error) || attempt === maxAttempts) {
           throw error;
         }
-        await delay(TRIBE_POLL_INTERVAL_MS * attempt);
+        // Exponential backoff: the hosted TRIBE is a slow async job API that
+        // restarts and returns transient 5xx/Cloudflare 502s mid-run.
+        await delay(TRIBE_POLL_INTERVAL_MS * 2 ** (attempt - 1));
       }
     }
 
@@ -338,9 +341,11 @@ function isRetryableTribeError(error: unknown): boolean {
     message.includes("resubmitted as new job") ||
     message.includes("timed out") ||
     message.includes("aborted") ||
-    message.includes(" 502 ") ||
-    message.includes(" 503 ") ||
-    message.includes(" 504 ")
+    // Match 5xx by status digits anywhere, not " 502 " with surrounding spaces:
+    // the thrown errors read "...failed: 502" (no trailing space), so the old
+    // whitespace match let transient bad-gateways kill a whole run.
+    /\b50[234]\b/.test(message) ||
+    message.includes("Bad Gateway")
   );
 }
 
