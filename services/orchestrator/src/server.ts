@@ -100,9 +100,11 @@ const server = Bun.serve({
       if (!existing) {
         return json({ error: "Run not found." }, 404);
       }
-      if (existing.status !== "completed") {
+      if (!["completed", "failed"].includes(existing.status)) {
         return json(
-          { error: `Run must be completed before resume: ${existing.status}.` },
+          {
+            error: `Run must be completed or failed before resume: ${existing.status}.`,
+          },
           409,
         );
       }

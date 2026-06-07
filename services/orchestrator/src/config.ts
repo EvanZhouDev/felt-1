@@ -37,6 +37,8 @@ export type LoopConfig = {
   maxIterations: number;
   similarityThreshold: number;
   candidateCount: number;
+  scoringConcurrency: number;
+  reuseTargetArchive: boolean;
 };
 
 export type WeaveConfig = {
@@ -69,6 +71,8 @@ export function loadConfig(): OrchestratorConfig {
       maxIterations: numberFromEnv("VOLTA_MAX_ITERATIONS", 1),
       similarityThreshold: numberFromEnv("VOLTA_SIMILARITY_THRESHOLD", 0.9),
       candidateCount: numberFromEnv("VOLTA_CANDIDATE_COUNT", 2),
+      scoringConcurrency: numberFromEnv("VOLTA_SCORING_CONCURRENCY", 1),
+      reuseTargetArchive: process.env.VOLTA_REUSE_TARGET_ARCHIVE === "true",
     }),
     weave: {
       enabled: process.env.VOLTA_WEAVE_ENABLED === "true",
@@ -85,6 +89,8 @@ export function normalizeLoopConfig(
     maxIterations: positiveInteger(config?.maxIterations, 1),
     similarityThreshold: finiteNumber(config?.similarityThreshold, 0.9),
     candidateCount: positiveInteger(config?.candidateCount, 2),
+    scoringConcurrency: positiveInteger(config?.scoringConcurrency, 1),
+    reuseTargetArchive: config?.reuseTargetArchive === true,
   };
 }
 

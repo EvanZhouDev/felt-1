@@ -139,6 +139,10 @@ export type ActivationTrace = {
   shape: [number, number];
   artifactPath?: string;
   values?: number[][];
+  diagnostics?: {
+    yeo7Means?: Record<string, number>;
+    yeo7DeltaFromTarget?: Record<string, number>;
+  };
   summary: {
     mean: number;
     std: number;

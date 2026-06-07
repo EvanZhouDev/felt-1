@@ -50,6 +50,8 @@ const config: OrchestratorConfig = {
     maxIterations: 1,
     similarityThreshold: 2,
     candidateCount: 2,
+    scoringConcurrency: 1,
+    reuseTargetArchive: false,
   },
   weave: {
     enabled: false,

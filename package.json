@@ -17,6 +17,11 @@
     "typecheck": "bun --filter '*' typecheck",
     "smoke": "bun --filter @volta/orchestrator smoke",
     "smoke:audio": "bun --filter @volta/orchestrator smoke:audio",
+    "smoke:generic": "bun services/orchestrator/src/smoke-generic.ts",
+    "benchmark:cold": "bun services/orchestrator/src/benchmark-cold.ts",
+    "probe:texts": "bun services/orchestrator/src/probe-texts.ts",
+    "probe:evolve-texts": "bun services/orchestrator/src/probe-evolve-texts.ts",
+    "probe:yeo": "bun services/orchestrator/src/probe-yeo.ts",
     "setup:tribe": "bash scripts/setup-tribe.sh",
     "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts",
     "smoke:audio:tribe": "VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true bun services/orchestrator/src/smoke-audio.ts"

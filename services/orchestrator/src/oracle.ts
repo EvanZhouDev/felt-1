@@ -52,6 +52,7 @@ class MockOracle implements NeuralOracle {
 // time into one R^20484 vector that `scoreActivations` can compare with cosine.
 const TRIBE_VERTEX_COUNT = 20484;
 const TRIBE_POLL_INTERVAL_MS = 1500;
+const TRIBE_REQUEST_TIMEOUT_MS = 30_000;
 
 type TribeJob = {
   job_id: string;
@@ -73,9 +74,29 @@ class HttpTribeOracle implements NeuralOracle {
   }
 
   async encode(stimulus: EncoderStimulus): Promise<ActivationTrace> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return await this.encodeOnce(stimulus);
+      } catch (error) {
+        lastError = error;
+        if (!isRetryableTribeError(error) || attempt === 3) {
+          throw error;
+        }
+        await delay(TRIBE_POLL_INTERVAL_MS * attempt);
+      }
+    }
+
+    throw lastError;
+  }
+
+  private async encodeOnce(
+    stimulus: EncoderStimulus,
+  ): Promise<ActivationTrace> {
     const job = await this.submit(stimulus);
     await this.waitForJob(job.job_id);
     const values = await this.fetchPooledValues(job.job_id);
+    const diagnostics = await this.fetchDiagnostics(job.job_id);
 
     const flat = values[0];
     const mean = flat.reduce((sum, value) => sum + value, 0) / flat.length;
@@ -87,6 +108,7 @@ class HttpTribeOracle implements NeuralOracle {
       model: "tribev2-http",
       shape: [1, flat.length],
       values,
+      diagnostics,
       summary: { mean, std: Math.sqrt(variance), norm },
     };
   }
@@ -94,11 +116,15 @@ class HttpTribeOracle implements NeuralOracle {
   private async submit(stimulus: EncoderStimulus): Promise<TribeJob> {
     if (stimulus.kind === "text") {
       const text = stimulus.text ?? "";
-      const response = await fetch(`${this.baseUrl}/predict/text`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, 5000) }),
-      });
+      const response = await fetchWithTimeout(
+        `${this.baseUrl}/predict/text`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text: text.slice(0, 5000) }),
+        },
+        "POST /predict/text",
+      );
       return this.asJob(response, "POST /predict/text");
     }
 
@@ -108,10 +134,14 @@ class HttpTribeOracle implements NeuralOracle {
     const file = await this.readArtifact(stimulus);
     const form = new FormData();
     form.append("file", file.blob, file.name);
-    const response = await fetch(`${this.baseUrl}/predict/${endpoint}`, {
-      method: "POST",
-      body: form,
-    });
+    const response = await fetchWithTimeout(
+      `${this.baseUrl}/predict/${endpoint}`,
+      {
+        method: "POST",
+        body: form,
+      },
+      `POST /predict/${endpoint}`,
+    );
     return this.asJob(response, `POST /predict/${endpoint}`);
   }
 
@@ -125,7 +155,7 @@ class HttpTribeOracle implements NeuralOracle {
       );
     }
     if (path.startsWith("http://") || path.startsWith("https://")) {
-      const response = await fetch(path);
+      const response = await fetchWithTimeout(path, undefined, "GET artifact");
       if (!response.ok) {
         throw new Error(`Failed to fetch artifact ${path}: ${response.status}`);
       }
@@ -158,7 +188,11 @@ class HttpTribeOracle implements NeuralOracle {
   private async waitForJob(jobId: string): Promise<void> {
     const deadline = Date.now() + this.timeoutMs;
     while (Date.now() < deadline) {
-      const response = await fetch(`${this.baseUrl}/jobs/${jobId}`);
+      const response = await fetchWithTimeout(
+        `${this.baseUrl}/jobs/${jobId}`,
+        undefined,
+        `GET /jobs/${jobId}`,
+      );
       if (!response.ok) {
         throw new Error(`GET /jobs/${jobId} failed: ${response.status}`);
       }
@@ -177,8 +211,10 @@ class HttpTribeOracle implements NeuralOracle {
   }
 
   private async fetchPooledValues(jobId: string): Promise<number[][]> {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${this.baseUrl}/jobs/${jobId}/preds.norm.f16.bin`,
+      undefined,
+      `GET /jobs/${jobId}/preds.norm.f16.bin`,
     );
     if (!response.ok) {
       throw new Error(
@@ -205,12 +241,79 @@ class HttpTribeOracle implements NeuralOracle {
     }
     return [pooled];
   }
+
+  private async fetchDiagnostics(
+    jobId: string,
+  ): Promise<ActivationTrace["diagnostics"] | undefined> {
+    const response = await fetchWithTimeout(
+      `${this.baseUrl}/jobs/${jobId}/result.json`,
+      undefined,
+      `GET /jobs/${jobId}/result.json`,
+    ).catch(() => undefined);
+    if (!response?.ok) {
+      return undefined;
+    }
+    const result = (await response.json().catch(() => undefined)) as
+      | { yeo7_means?: Record<string, number> }
+      | undefined;
+    if (!result?.yeo7_means) {
+      return undefined;
+    }
+    return {
+      yeo7Means: result.yeo7_means,
+    };
+  }
 }
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function isRetryableTribeError(error: unknown): boolean {
+  const message = String(error);
+  return (
+    message.includes("Server restarted while job was in flight") ||
+    message.includes("resubmitted as new job") ||
+    message.includes("timed out") ||
+    message.includes("aborted") ||
+    message.includes(" 502 ") ||
+    message.includes(" 503 ") ||
+    message.includes(" 504 ")
+  );
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit | undefined,
+  label: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutError = `${label} timed out after ${TRIBE_REQUEST_TIMEOUT_MS}ms.`;
+  let timeout: Timer | undefined;
+  try {
+    const request = fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    const deadline = new Promise<Response>((_, reject) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(new Error(timeoutError));
+      }, TRIBE_REQUEST_TIMEOUT_MS);
+    });
+    return await Promise.race([request, deadline]);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(timeoutError);
+    }
+    throw error;
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 // Decode a little-endian IEEE 754 half-precision (float16) byte array.

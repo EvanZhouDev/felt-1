@@ -1,0 +1,10 @@
+{
+  "target": "/Users/evan/Desktop/project-volta-2/.volta/target-cache/2ec115cc02085ae979b7130fc6400c1df8474480a633497fcf0dd6f73a49cfa4.json",
+  "texts": ".agent/probes/mona-lisa-caption-microsearch-v1-remaining.json",
+  "oracleMode": "http",
+  "createdAt": "2026-06-07T01:58:35.839Z",
+  "updatedAt": "2026-06-07T01:58:40.426Z",
+  "status": "failed",
+  "error": "Probe folded-hands failed: Error: TRIBE job 0e8ce054f28d failed: [Errno 24] Too many open files",
+  "results": []
+}

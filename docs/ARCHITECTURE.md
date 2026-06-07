@@ -48,8 +48,11 @@ optional seed constrains what the output should be about.
 The loop behaves like a genetic algorithm over output states, repeating until a
 fixed number of iterations or a similarity threshold (~90%). Layer A agents see
 only the input node and seed; later layers may also receive the previous best
-output and the judge's reasoning. Each agent carries a source of entropy (a
-random word, a Wikipedia page) so candidates vary.
+output, archive population, and the judge's reasoning. Each agent carries an
+assigned evolutionary operator — for example elite preservation, point mutation,
+crossover, ablation, novelty injection, diagnostic-axis correction, or
+representation reset — so candidates explore different behavior regions without
+hard-coding a particular target artifact.
 
 ```mermaid
 flowchart TD
@@ -60,8 +63,8 @@ flowchart TD
     InputNode --> Agents
     subgraph Iteration["One iteration (repeats up to N times)"]
         Agents["Layer A agents<br>take input node (incl. seed)<br>generate output in target medium"]
-        Entropy["Entropy source<br>random word / Wikipedia page"]
-        Entropy -.-> Agents
+        Operator["Evolutionary operator<br>mutation / crossover / novelty / reset"]
+        Operator -.-> Agents
         Agents --> Payload["Output payload"]
         Payload --> Render["Render function"]
         Render --> Tribe["TRIBE v2<br>brain-similarity vs. target"]

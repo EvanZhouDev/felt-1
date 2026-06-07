@@ -1,0 +1,56 @@
+{
+  "createdAt": "2026-06-07T02:56:07.123Z",
+  "updatedAt": "2026-06-07T02:56:07.162Z",
+  "oracleMode": "mock",
+  "backend": "deterministic",
+  "loop": {
+    "maxIterations": 2,
+    "similarityThreshold": 0.9,
+    "candidateCount": 3,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "seeded-text-to-text-dog",
+      "runId": "seeded-text-to-text-dog-79a78ffd",
+      "status": "completed",
+      "description": "Transfer a terse cold text target into dog-topic prose without copying the target topic.",
+      "tags": ["text", "seeded", "topic-transfer", "cold-start"],
+      "outputType": "text",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/seeded-text-to-text-dog-79a78ffd",
+      "bestScore": 0.5287074456572629,
+      "bestNeuralSimilarity": 0.5231534937960899,
+      "iterationCount": 2,
+      "selectedAgentId": "candidate-a"
+    },
+    {
+      "scenarioId": "mona-image-to-text",
+      "runId": "mona-image-to-text-074e9942",
+      "status": "completed",
+      "description": "Use the Mona Lisa image target as an image-to-text cold benchmark.",
+      "tags": ["image", "text", "mona-lisa", "cold-start"],
+      "outputType": "text",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/mona-image-to-text-074e9942",
+      "bestScore": 0.40029470116361665,
+      "bestNeuralSimilarity": 0.3397067159480239,
+      "iterationCount": 2,
+      "selectedAgentId": "candidate-a"
+    },
+    {
+      "scenarioId": "mona-image-to-image",
+      "runId": "mona-image-to-image-f76ae9e5",
+      "status": "completed",
+      "description": "Use the Mona Lisa image target as an image-to-image schema benchmark.",
+      "tags": ["image", "mona-lisa", "seeded", "cold-start"],
+      "outputType": "image",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/mona-image-to-image-f76ae9e5",
+      "bestScore": 0.3546904144655951,
+      "bestNeuralSimilarity": 0.2745577349508502,
+      "iterationCount": 2,
+      "selectedAgentId": "candidate-c"
+    }
+  ]
+}
