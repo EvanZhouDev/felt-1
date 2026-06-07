@@ -88,6 +88,7 @@ function archiveInstructions(invocation: CandidateAgentInvocation): string {
     "Search archive:",
     stableJson(invocation.archive),
     "Use the archive as the evolving population. Consider each entry's score, behavior key, and entropy/operator lineage. Do not copy archive text verbatim; generate a child candidate that follows your assigned operator.",
+    "If top entries come from text-probe-calibration, treat them as freshly scored basis vectors for this target. A probe-elite operator should preserve the best probe's strongest slots and mutate or inherit only the assigned slot.",
   ].join("\n\n");
 }
 

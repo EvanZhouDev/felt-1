@@ -1242,6 +1242,24 @@ const coldStartStrategies: MutationStrategy[] = [
   },
 ];
 
+const textProbeColdStartStrategies: MutationStrategy[] = [
+  {
+    name: "probe-elite point mutation",
+    instruction:
+      "Use the top text-probe-calibration archive entry as the elite parent. Preserve its slot count, syntax, and strongest slots exactly, then mutate one weak slot using another high-scoring probe axis. Do not invent a new description from scratch.",
+  },
+  {
+    name: "probe-elite crossover",
+    instruction:
+      "Use the top two text-probe-calibration archive entries as parents. Keep the best probe's strongest slots, inherit one compatible slot from the runner-up probe, and return one compact comma-separated child. Do not average all probes.",
+  },
+  {
+    name: "probe-elite abstraction shift",
+    instruction:
+      "Use the top text-probe-calibration archive entry as the elite parent. Preserve its activation feel but shift one slot to a lower-level perceptual axis such as attention, density, distance, surface, warmth, or ambiguity.",
+  },
+];
+
 const refinementStrategies: MutationStrategy[] = [
   {
     name: "elitist point mutation",
@@ -1387,6 +1405,13 @@ function selectMutationStrategy(args: {
   outputType: OutputObj["outputType"];
   archive?: CandidateArchive;
 }): MutationStrategy {
+  if (
+    args.iteration === 1 &&
+    args.outputType === "text" &&
+    hasTextProbeArchive(args.archive)
+  ) {
+    return rotatingStrategy(textProbeColdStartStrategies, args.index);
+  }
   if (args.iteration === 1) {
     return rotatingStrategy(coldStartStrategies, args.index);
   }
@@ -1496,6 +1521,14 @@ function rotatingStrategy(
     throw new Error("Mutation strategy pool is empty.");
   }
   return strategies[index % strategies.length];
+}
+
+function hasTextProbeArchive(archive: CandidateArchive | undefined): boolean {
+  return (
+    archive?.entries.some((entry) =>
+      entry.entropy?.includes("strategy=text-probe-calibration"),
+    ) ?? false
+  );
 }
 
 function strategyByName(

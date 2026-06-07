@@ -1134,3 +1134,43 @@ Interpretation:
 - Next direction: learn/update the probe library itself from successful probes
   and add a dedicated "probe-refinement" candidate operator that starts from the
   top probe text and mutates one slot with the judge/probe score evidence.
+
+## 2026-06-06 21:33 PDT - Probe-Aware Cold Operators
+
+Change:
+
+- Added probe-aware cold-start operators for text outputs when a fresh
+  `text-probe-calibration` archive exists:
+  - `probe-elite point mutation`
+  - `probe-elite crossover`
+  - `probe-elite abstraction shift`
+- Candidate prompt archive guidance now tells agents to treat probe entries as
+  freshly scored target basis vectors.
+
+Verification:
+
+- `bun run format && bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Real TRIBE evidence:
+
+- Run: `.agent/benchmarks/mona-http-codex-probe-aware-v1.json`
+- Setup: hosted TRIBE, Codex backend, Mona image-to-text, 3 probes, 2
+  probe-aware Codex candidates, 1 generation, target cache reused, no target
+  archive reuse.
+- Result:
+  - best overall stayed `probe-01` at `0.446713`
+  - `probe-elite point mutation` child scored `0.348689`:
+    `stillness held, attention suspended, warm shadowed dense air, soft ambiguity`
+  - `probe-elite crossover` child scored `0.307248`:
+    `stillness held, attention suspended, warm shadow, near quiet, soft ambiguity, distant weight`
+
+Interpretation:
+
+- Probe-aware operators produce sensible children and beat the earlier generic
+  Codex children, but they still degrade the best probe. The high-scoring probe
+  seems brittle: adding warm/dense/distance detail hurts more than it helps.
+- Next direction: refine by ablation/minimal edits around the top probe, not by
+  adding slots. Try shorter variants and single-token substitutions around
+  `stillness held, attention suspended, near quiet, soft ambiguity`.
