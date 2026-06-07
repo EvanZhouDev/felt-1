@@ -1125,3 +1125,26 @@ diverse emotional registers (persona panel) instead of the feature-extractor
 Note: "[starry] DONE best=0.638" is a display quirk - it re-renders the final
 selected candidate once more and reports that fresh score; the tracked
 per-iteration best (the curve) is the real 0.6797.
+
+## 2026-06-07 - v4 (persona cold-start): iter-1 confirmed, then BLOCKED on Codex limit
+
+Persona-seeded cold-start (commit 709c401) WORKS as designed. Iter 1 used 4
+distinct emotional registers, each producing genuinely different prose:
+  candidate-a sublime-dread       0.6745  <- best (matches the fan-out finding)
+  candidate-d ecstatic-rapturous  0.6721
+  candidate-c visceral-bodily     0.6558
+  candidate-b intimate-tender     0.6543
+Strong cold-start (0.6745 vs v3's iter-1 0.6712). The register operators
+diversify the population exactly as intended.
+
+BLOCKER: Codex CLI hit its usage limit mid-run (iteration 2): "You've hit your
+usage limit ... try again at 5:26 AM." External resource limit, not a code bug.
+v4 cannot complete and no further Codex-backed loops can run until ~5:26 AM PDT
+(2026-06-07). The deterministic agent backend was removed earlier (commit
+b252fe9), so there is no offline fallback for candidate generation.
+
+State at block: all code changes committed + pushed (HEAD 709c401). The metric +
+prompt + cold-start improvements are done and validated (v3 reached 0.6797,
++0.108 over baseline; v4 iter-1 confirms persona diversity). Resume plan when
+Codex resets: re-run v4 (6x4) to get the full curve and confirm persona
+cold-start beats v3's 0.6797.
