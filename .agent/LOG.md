@@ -670,6 +670,64 @@ Interpretation:
   agent already generated a better layout caption, but the operator is now
   available when the agent emits doorway/room inventory phrasing.
 
+## 2026-06-07 01:28 PDT - Filter Contrast Cache by Rendered Target Kind
+
+Problem found:
+
+- A broader default cold sweep produced implausibly negative adjusted scores for
+  plausible image-to-text captions:
+  - Mona `mona-image-to-text-88e66928` raw `0.206402`, adjusted `-0.430031`
+  - Backrooms `backrooms-image-to-text-f54479b8` raw `0.326163`, adjusted
+    `-0.548329`
+  - Dog `dog-image-to-text-2f90c216` raw `0.153740` for one child, adjusted
+    `-0.854267`
+- Detailed diagnostics showed contrast similarities around `0.81-0.93`.
+- Target-cache inspection found a local TRIBE text target in
+  `.volta/benchmarks/target-cache/tribev2-1ef3...json` with rendered kind
+  `text`. Image-to-text captions were being contrasted against this text target,
+  creating another modality artifact.
+- The default sweep also moved into `mona-image-to-image`; I stopped it because
+  the current experiment was image-to-text and the image-to-image row was
+  spending real TRIBE compute outside the current question.
+
+Code change:
+
+- Calibration items now carry `renderedKind`.
+- `loadCalibrationActivations` accepts `targetKind`.
+- The run loop passes `args.target.rendered.kind`, so contrast calibration only
+  uses targets with the same rendered kind as the current target.
+  - Image targets render as `video`, so text target caches no longer penalize
+    image-to-text caption candidates.
+  - Same-medium text runs can still use text-kind contrasts.
+
+Validation:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+- Dog rerun `dog-image-to-text-55e2cbaa` selected:
+  `A white puppy sits in green grass, facing the camera.`
+  - raw `0.191601`
+  - contrast `0.214728`
+  - residual `-0.034468`
+  - adjusted `-0.057594`
+  - total `-0.032594`
+- Backrooms rerun `backrooms-image-to-text-0e73a20e` selected:
+  `A narrow view into an empty yellow room with beige carpet and fluorescent lights.`
+  - raw `0.229666`
+  - contrast `0.239077`
+  - residual `-0.008514`
+  - adjusted `-0.017925`
+  - total `0.007075`
+
+Interpretation:
+
+- The scorer was still over-penalizing because target caches were cross-kind.
+  This fix makes contrast comparisons more semantically comparable.
+- The current scores remain far from 90%; the system now has less broken
+  scoring, but candidate quality and calibration-bank breadth remain major
+  bottlenecks.
+
 Interpretation:
 
 - This makes the generic evolutionary algorithm safer to scale: we can explore

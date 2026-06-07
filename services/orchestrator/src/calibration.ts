@@ -5,6 +5,7 @@ import type { ActivationTrace, EvaluatedOutput } from "@volta/core";
 type TargetArtifact = {
   rendered?: {
     sha256?: string;
+    kind?: string;
   };
   activation?: ActivationTrace;
 };
@@ -17,6 +18,7 @@ export function loadCalibrationActivations(args: {
   explicitTargetRoots?: string[];
   maxActivations?: number;
   includeScoreActivations?: boolean;
+  targetKind?: string;
 }): ActivationTrace[] {
   const maxActivations = args.maxActivations ?? 96;
   const items: CalibrationItem[] = [];
@@ -71,6 +73,7 @@ type CalibrationItem = {
   key: string;
   activation: ActivationTrace;
   sourceTargetSha?: string;
+  renderedKind?: string;
 };
 
 function targetCacheRoots(args: {
@@ -106,6 +109,7 @@ function loadTargetCacheItems(root: string): CalibrationItem[] {
           key: `target:${cachedTarget.activation.model}:${sha}`,
           activation: cachedTarget.activation,
           sourceTargetSha: sha,
+          renderedKind: cachedTarget.rendered?.kind,
         },
       ];
     });
@@ -143,6 +147,7 @@ function loadScoreItems(
         key,
         activation: output.activation,
         sourceTargetSha,
+        renderedKind: output.rendered?.kind,
       },
     ];
   });
@@ -153,12 +158,14 @@ function usableCalibrationItem(
   args: {
     targetActivation: ActivationTrace;
     targetSha?: string;
+    targetKind?: string;
   },
 ): boolean {
   return Boolean(
     item.activation.values &&
       item.activation.model === args.targetActivation.model &&
       sameActivationShape(item.activation, args.targetActivation) &&
+      (!args.targetKind || item.renderedKind === args.targetKind) &&
       (!args.targetSha || item.sourceTargetSha !== args.targetSha),
   );
 }

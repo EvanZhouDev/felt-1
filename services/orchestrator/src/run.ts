@@ -862,6 +862,7 @@ function loadContrastTargets(
     runsRoot: args.runsRoot,
     targetActivation: args.target.activation,
     targetSha: args.target.rendered.sha256,
+    targetKind: args.target.rendered.kind,
     explicitTargetRoots: args.loop.contrastTargetRoots,
     maxActivations: 96,
     includeScoreActivations:
