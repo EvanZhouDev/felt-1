@@ -2293,6 +2293,39 @@ const imageTextRefinementStrategies: MutationStrategy[] = [
   },
 ];
 
+const imageImageRefinementStrategies: MutationStrategy[] = [
+  {
+    name: "image operator-fitness exploit",
+    instruction:
+      "Use the archive scores to identify the strongest image operator family so far. Preserve the current global elite's strongest visible traits, then make one deliberate visual correction toward the attached target image. Do not use text-slot or sentence-shape language.",
+  },
+  {
+    name: "image elite visual correction",
+    instruction:
+      "Inspect the attached target and previous selected image. Preserve the previous elite's strongest subject, camera distance, crop, color cast, and low-level style, then correct exactly one visible miss against the target. Express the child as one concise Flux prompt.",
+  },
+  {
+    name: "image geometry correction",
+    instruction:
+      "Use the target image as the geometry authority. Preserve the elite's useful visual feel, but correct one layout variable such as wall plane position, doorway/opening count, foreground/background balance, subject scale, horizon/ceiling placement, or crop.",
+  },
+  {
+    name: "image sparsity correction",
+    instruction:
+      "Preserve the elite's main scene and style while removing visual clutter that is absent from the target. Emphasize empty space, blank regions, simple surfaces, and the target's level of object/detail density.",
+  },
+  {
+    name: "image surface-light correction",
+    instruction:
+      "Preserve the elite's composition, but adjust surface texture, blur, contrast, saturation, color temperature, and light direction toward the target. Avoid adding new semantic content.",
+  },
+  {
+    name: "image concise anchor reset",
+    instruction:
+      "Make a concise visual prompt from the target and elite: name only the core subject, composition, light/color, texture, camera quality, and one absence constraint. Avoid over-constrained inventories and avoid text-style slot language.",
+  },
+];
+
 const textMoonshotStrategies: MutationStrategy[] = [
   {
     name: "latent-axis reset",
@@ -2412,9 +2445,7 @@ function selectImageImageStrategy(args: {
   if (args.iteration === 1) {
     return rotatingStrategy(imageImageColdStartStrategies, args.index);
   }
-  const generationOffset =
-    Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
-  return rotatingStrategy(refinementStrategies, generationOffset + args.index);
+  return rotatingStrategy(imageImageRefinementStrategies, args.index);
 }
 
 function isImageToText(args: {

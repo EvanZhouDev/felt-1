@@ -2668,3 +2668,84 @@ Verification:
   - `.agent/benchmarks/backrooms-image-to-image-seedmut-v2.json`
   - `.agent/benchmarks/backrooms-image-to-image-fidelity-pop3-v1.json`
   - `.agent/benchmarks/dog-image-to-image-fidelity-v1.json`
+
+## 2026-06-07 05:00 PDT - Image Refinement Attachment and Visual Strategy Pass
+
+Goal:
+
+- Test whether the image-to-image loop can keep climbing after the strong
+  one-turn backrooms population result by giving refinement agents better visual
+  context and image-specific operators.
+
+Changes:
+
+- Candidate refinement agents now attach the previous selected visual output in
+  addition to the target image. Before this, judges could inspect candidate
+  images, but next-turn candidate agents only received the target attachment and
+  a JSON path for the previous seed.
+- The refinement prompt now explicitly tells visual candidates to compare the
+  target and previous output, preserve what worked, and correct one visible miss.
+- Added image-to-image refinement strategies instead of routing image refinement
+  through text-centric slot/crossover strategies. This exposed an important
+  result: visual strategies are less wrong, but the current Flux backend still
+  often regresses when asked to refine an already-good generated image.
+
+Runs:
+
+- `backrooms-image-to-image-f42a6a6b`
+  - fresh run: 3 candidates, 2 iterations, real local TRIBE
+  - iteration 1 best:
+    - candidate `candidate-b`
+    - adjusted `0.7692867610540317`
+  - iteration 2 best / global elite:
+    - candidate `candidate-b`
+    - raw `0.9950067411446626`
+    - adjusted `0.8566271777650765`
+    - total `0.8823599576974804`
+    - output: `.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/candidate-b/c01482ad2fc8c8e7-target-fidelity.png`
+- Resume iteration 3, before image-specific strategy routing:
+  - best adjusted `0.7664577338001334`
+  - global best remained iteration 2.
+  - failure mode: candidates used text-centric entropy such as
+    `slot-library exploit` and `slot-crossover exploit`.
+- Resume iteration 4, with image-specific strategies:
+  - best adjusted `0.8074342497833789`
+  - global best remained iteration 2.
+- Resume iteration 5, with prioritized visual strategies:
+  - best adjusted `0.6585476451299261`
+  - global best remained iteration 2.
+
+Cross-target audit for the 0.856 elite:
+
+- Backrooms elite:
+  - vs backrooms adjusted `0.8681585985863489`, total
+    `0.8923704671238818`
+  - vs Mona adjusted `0`, total `0`
+  - vs dog adjusted `0`, total `0`
+- Dog fidelity sanity output still stays specific:
+  - vs dog adjusted `0.9895345701504914`, total `1.0167254526173715`
+  - vs Mona adjusted `0`, total `0`
+  - vs backrooms adjusted `0.10436777712491818`, total
+    `0.10436777712491818`
+
+Interpretation:
+
+- The system now reaches `0.8566` adjusted on the harder backrooms image in two
+  turns, without direct target copying and with clean Mona/dog guardrails for the
+  winning output.
+- Later refinement turns do not currently help. The issue is no longer just
+  missing visual attachment; the generator tends to drift or over-correct from a
+  good image. The next high-impact move should be elitist image replay plus
+  reference-conditioned/editing generation, or a stricter judge that can reject
+  geometry drift before TRIBE scoring.
+- We are close to 90 but not there on the hard case. Dog is already above 99%
+  adjusted in one turn.
+
+Verification:
+
+- `bun run check` passed.
+- Reports:
+  - `.agent/benchmarks/backrooms-image-to-image-refine2-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-refine3-resume-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-refine4-resume-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-refine5-resume-v1.json`

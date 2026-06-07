@@ -36,6 +36,7 @@ export function buildRefinementCandidatePrompt(
     archiveInstructions(invocation),
     `Previous seed:\n${stableJson(invocation.previous)}`,
     "Use the previous selected output as evidence, not as a script to copy. Preserve what worked, change one or two meaningful variables, and keep the output aimed at the target neural activation.",
+    "If the previous selected output is visual and attached, compare it against the target image: keep the visible traits that worked and correct one concrete miss in composition, subject scale, light, texture, or sparseness.",
     "If the previous seed is written as instructions or an image-generation prompt, convert it into declarative descriptive prose before refining.",
     "Return only a JSON object matching the provided output schema.",
   ].join("\n\n");

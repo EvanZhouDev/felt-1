@@ -1,0 +1,81 @@
+{
+  "createdAt": "2026-06-07T11:59:31.236Z",
+  "run": {
+    "id": "backrooms-image-to-image-f42a6a6b",
+    "status": "completed",
+    "inputNodeType": "image",
+    "outputType": "image",
+    "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b",
+    "selectedAgentId": "candidate-b",
+    "bestScore": 0.8823599576974804,
+    "error": null,
+    "createdAt": "2026-06-07T11:42:15.059Z",
+    "updatedAt": "2026-06-07T11:59:31.188Z"
+  },
+  "result": {
+    "runId": "backrooms-image-to-image-f42a6a6b",
+    "stopReason": "max_iterations",
+    "bestScore": 0.8823599576974804,
+    "bestAdjustedSimilarity": 0.8566271777650765,
+    "bestNeuralSimilarity": 0.9950067411446626,
+    "selectedAgentId": "candidate-b",
+    "iterationCount": 5,
+    "iterations": [
+      {
+        "selectedAgentId": "candidate-b",
+        "best": {
+          "agentId": "candidate-b",
+          "total": 0.7949595814540431,
+          "adjustedSimilarity": 0.7692867610540317,
+          "neuralSimilarity": 0.9897246305271867,
+          "preview": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/candidate-b/ad9fe54a3afdd841-target-fidelity.png",
+          "entropy": "iteration=1 | strategy=image composition lock | inputType=image | outputType=image | Create a Flux prompt that locks onto the target's layout: main subject position, body scale, wall/door/opening geometry, foreground/background balance, depth of field, lighting, dominant colors, and low-level camera quality. Avoid abstract mood-only prompts and avoid polished stock-photo detail. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image | targetStyle=250x188 | targetFidelity=soft-muted"
+        }
+      },
+      {
+        "selectedAgentId": "candidate-b",
+        "best": {
+          "agentId": "candidate-b",
+          "total": 0.8823599576974804,
+          "adjustedSimilarity": 0.8566271777650765,
+          "neuralSimilarity": 0.9950067411446626,
+          "preview": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/candidate-b/c01482ad2fc8c8e7-target-fidelity.png",
+          "entropy": "iteration=2 | strategy=operator-fitness exploit | inputType=image | outputType=image | Use the archive's operatorStats to identify the strongest operator family so far. Generate a child that follows that family more deliberately while preserving the current elite's strongest traits. If no stats exist, fall back to conservative point mutation. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image | targetStyle=250x188 | targetFidelity=soft-muted"
+        }
+      },
+      {
+        "selectedAgentId": "candidate-a",
+        "best": {
+          "agentId": "candidate-a",
+          "total": 0.7918618398857523,
+          "adjustedSimilarity": 0.7664577338001334,
+          "neuralSimilarity": 0.9694309558233425,
+          "preview": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/candidate-a/80d4f21e7559a11d-target-fidelity.png",
+          "entropy": "iteration=3 | strategy=slot-library exploit | inputType=image | outputType=image | Treat a text elite as genotype slots. Preserve slot order and mutate exactly one weak slot using the closest generic perceptual axis: temperature/light, motion/stillness, attention/gaze/salience, atmosphere/air/density, proximity/distance/depth, surface/texture, central anchor, or ambiguity/calm/tension. Do not add a sentence. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image | targetStyle=250x188 | targetFidelity=soft-muted"
+        }
+      },
+      {
+        "selectedAgentId": "candidate-b",
+        "best": {
+          "agentId": "candidate-b",
+          "total": 0.8330991587371572,
+          "adjustedSimilarity": 0.8074342497833789,
+          "neuralSimilarity": 0.9746555887798285,
+          "preview": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/candidate-b/95efaa5fdfbd6cf5-target-fidelity.png",
+          "entropy": "iteration=4 | strategy=image sparsity correction | inputType=image | outputType=image | Preserve the elite's main scene and style while removing visual clutter that is absent from the target. Emphasize empty space, blank regions, simple surfaces, and the target's level of object/detail density. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image | targetStyle=250x188 | targetFidelity=soft-muted"
+        }
+      },
+      {
+        "selectedAgentId": "candidate-b",
+        "best": {
+          "agentId": "candidate-b",
+          "total": 0.6841246109286372,
+          "adjustedSimilarity": 0.6585476451299261,
+          "neuralSimilarity": 0.9855220756809795,
+          "preview": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/candidate-b/bb38a80af9a26559-target-fidelity.png",
+          "entropy": "iteration=5 | strategy=image elite visual correction | inputType=image | outputType=image | Inspect the attached target and previous selected image. Preserve the previous elite's strongest subject, camera distance, crop, color cast, and low-level style, then correct exactly one visible miss against the target. Express the child as one concise Flux prompt. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image | targetStyle=250x188 | targetFidelity=soft-muted"
+        }
+      }
+    ]
+  }
+}
