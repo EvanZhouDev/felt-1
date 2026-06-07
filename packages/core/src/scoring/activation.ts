@@ -9,19 +9,26 @@ export function scoreActivations(args: {
   diversity?: number;
   penalty?: number;
 }): ScoreBundle {
+  const targetVector = flattenTrace(args.target);
   const candidateVector = flattenTrace(args.candidate);
-  const neuralSimilarity = cosineSimilarity(
-    flattenTrace(args.target),
-    candidateVector,
+  const contrastTargets = sameLengthContrastTargets(
+    args.contrastTargets ?? [],
+    targetVector.length,
   );
+  const neuralSimilarity = cosineSimilarity(targetVector, candidateVector);
   const contrastSimilarity = maxContrastSimilarity({
     candidate: candidateVector,
-    targets: args.contrastTargets ?? [],
+    targets: contrastTargets,
   });
   const residualSimilarity = residualizedSimilarity({
-    target: flattenTrace(args.target),
+    target: targetVector,
     candidate: candidateVector,
-    contrastTargets: args.contrastTargets ?? [],
+    contrastTargets,
+  });
+  const calibrated = calibratedRetrievalSimilarity({
+    target: targetVector,
+    candidate: candidateVector,
+    contrastTargets,
   });
   const targetSpecificity =
     contrastSimilarity === undefined
@@ -30,8 +37,9 @@ export function scoreActivations(args: {
   const contrastPenalty =
     targetSpecificity === undefined ? 0 : Math.min(0, targetSpecificity);
   const adjustedSimilarity =
+    calibrated?.calibratedSimilarity ??
     (residualSimilarity ?? targetSpecificity ?? neuralSimilarity) +
-    contrastPenalty;
+      contrastPenalty;
   const seedAdherence = args.seedAdherence ?? 0.5;
   const coherence = args.coherence ?? 0.5;
   const diversity = args.diversity ?? 0.5;
@@ -44,8 +52,15 @@ export function scoreActivations(args: {
   return {
     neuralSimilarity,
     adjustedSimilarity,
+    calibratedSimilarity: calibrated?.calibratedSimilarity,
     contrastSimilarity,
+    discriminativeSimilarity: calibrated?.discriminativeSimilarity,
     residualSimilarity,
+    retrievalMargin: calibrated?.retrievalMargin,
+    cslsSimilarity: calibrated?.cslsSimilarity,
+    hubnessPenalty: calibrated?.hubnessPenalty,
+    calibrationTargetCount: calibrated?.calibrationTargetCount,
+    calibrationVertexCount: calibrated?.calibrationVertexCount,
     targetSpecificity,
     penalty: penalty > 0 ? penalty : undefined,
     seedAdherence,
@@ -108,6 +123,82 @@ function maxContrastSimilarity(args: {
   );
 }
 
+function calibratedRetrievalSimilarity(args: {
+  target: number[];
+  candidate: number[];
+  contrastTargets: ActivationTrace[];
+}):
+  | {
+      calibratedSimilarity: number;
+      discriminativeSimilarity: number;
+      retrievalMargin: number;
+      cslsSimilarity: number;
+      hubnessPenalty: number;
+      calibrationTargetCount: number;
+      calibrationVertexCount: number;
+    }
+  | undefined {
+  if (args.contrastTargets.length < 2) {
+    return undefined;
+  }
+
+  const contrastVectors = args.contrastTargets.map(flattenTrace);
+  const prototype = meanVector(contrastVectors);
+  const standardDeviations = standardDeviationVector(
+    contrastVectors,
+    prototype,
+  );
+  const selectedVertices = topTargetSpecificityIndices(
+    args.target,
+    prototype,
+    standardDeviations,
+    calibrationVertexCount(args.target.length),
+  );
+  if (selectedVertices.length === 0) {
+    return undefined;
+  }
+
+  const target = selectCentered(args.target, prototype, selectedVertices);
+  const candidate = selectCentered(args.candidate, prototype, selectedVertices);
+  const contrasts = contrastVectors.map((contrast) =>
+    selectCentered(contrast, prototype, selectedVertices),
+  );
+  if (vectorNorm(target) <= 1e-9 || vectorNorm(candidate) <= 1e-9) {
+    return undefined;
+  }
+
+  const discriminativeSimilarity = cosineSimilarity(target, candidate);
+  const candidateContrastSimilarities = contrasts
+    .map((contrast) => cosineSimilarity(candidate, contrast))
+    .sort((left, right) => right - left);
+  const targetContrastSimilarities = contrasts
+    .map((contrast) => cosineSimilarity(target, contrast))
+    .sort((left, right) => right - left);
+  const nearestContrastSimilarity = candidateContrastSimilarities[0] ?? 0;
+  const neighborCount = Math.min(3, contrasts.length);
+  const candidateNeighborhood = mean(
+    candidateContrastSimilarities.slice(0, neighborCount),
+  );
+  const targetNeighborhood = mean(
+    targetContrastSimilarities.slice(0, neighborCount),
+  );
+  const cslsSimilarity =
+    2 * discriminativeSimilarity - candidateNeighborhood - targetNeighborhood;
+  const retrievalMargin = discriminativeSimilarity - nearestContrastSimilarity;
+
+  return {
+    calibratedSimilarity:
+      (0.5 + 0.5 * Math.tanh(cslsSimilarity)) *
+      retrievalMarginConfidence(retrievalMargin),
+    discriminativeSimilarity,
+    retrievalMargin,
+    cslsSimilarity,
+    hubnessPenalty: Math.max(0, candidateNeighborhood),
+    calibrationTargetCount: contrastVectors.length + 1,
+    calibrationVertexCount: selectedVertices.length,
+  };
+}
+
 function residualizedSimilarity(args: {
   target: number[];
   candidate: number[];
@@ -127,6 +218,89 @@ function residualizedSimilarity(args: {
     removeSubspaceProjection(args.target, contrastBasis),
     removeSubspaceProjection(args.candidate, contrastBasis),
   );
+}
+
+function sameLengthContrastTargets(
+  targets: ActivationTrace[],
+  vectorLength: number,
+): ActivationTrace[] {
+  return targets.filter(
+    (target) => flattenTrace(target).length === vectorLength,
+  );
+}
+
+function calibrationVertexCount(vectorLength: number): number {
+  if (vectorLength < 128) {
+    return Math.max(4, Math.floor(vectorLength * 0.25));
+  }
+  return Math.min(512, Math.max(32, Math.floor(vectorLength * 0.005)));
+}
+
+function topTargetSpecificityIndices(
+  target: number[],
+  prototype: number[],
+  standardDeviations: number[],
+  count: number,
+): number[] {
+  return target
+    .map((value, index) => ({
+      index,
+      targetSpecificity: Math.abs(
+        (value - (prototype[index] ?? 0)) /
+          ((standardDeviations[index] ?? 0) + 0.05),
+      ),
+    }))
+    .sort((left, right) => right.targetSpecificity - left.targetSpecificity)
+    .slice(0, count)
+    .map((item) => item.index)
+    .sort((left, right) => left - right);
+}
+
+function meanVector(vectors: number[][]): number[] {
+  const length = vectors[0]?.length ?? 0;
+  const result = new Array<number>(length).fill(0);
+  for (const vector of vectors) {
+    for (let index = 0; index < length; index += 1) {
+      result[index] += vector[index] ?? 0;
+    }
+  }
+  return result.map((value) => value / vectors.length);
+}
+
+function standardDeviationVector(
+  vectors: number[][],
+  meanValues: number[],
+): number[] {
+  return meanValues.map((meanValue, index) => {
+    let sum = 0;
+    for (const vector of vectors) {
+      sum += ((vector[index] ?? 0) - meanValue) ** 2;
+    }
+    return Math.sqrt(sum / vectors.length);
+  });
+}
+
+function selectCentered(
+  vector: number[],
+  prototype: number[],
+  indices: number[],
+): number[] {
+  return indices.map((index) => (vector[index] ?? 0) - (prototype[index] ?? 0));
+}
+
+function mean(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function retrievalMarginConfidence(retrievalMargin: number): number {
+  return clamp01((retrievalMargin + 0.25) / 0.5);
 }
 
 function orthonormalBasis(vectors: number[][]): number[][] {

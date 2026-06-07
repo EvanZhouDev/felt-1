@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   type AgentBackend,
   type AgentSpec,
@@ -64,6 +65,7 @@ const judgeSpec: Extract<AgentSpec, { role: "judge" }> = {
   role: "judge",
   id: "judge",
 };
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 export async function executeRun(args: ExecuteRunArgs): Promise<void> {
   const backend = args.backend ?? new DeterministicAgentBackend();
@@ -829,37 +831,74 @@ function loadContrastTargets(
   },
 ): RunLoopResult["target"]["activation"][] {
   const roots = uniqueStrings([
-    join(args.runsRoot, "..", "target-cache"),
+    resolve(join(args.runsRoot, "..", "target-cache")),
+    ...discoverTargetCacheRoots(REPO_ROOT),
     ...args.loop.contrastTargetRoots,
   ]);
   const contrastTargets: RunLoopResult["target"]["activation"][] = [];
+  const seen = new Set<string>();
 
   for (const root of roots) {
     if (!existsSync(root)) {
       continue;
     }
-    for (const entry of readdirSync(root)) {
+    for (const entry of readdirSync(root).sort()) {
       if (!entry.endsWith(".json")) {
         continue;
       }
       const cachedTarget = readOptionalJson<RunLoopResult["target"]>(
         join(root, entry),
       );
+      const key = `${cachedTarget?.activation?.model ?? ""}:${
+        cachedTarget?.rendered?.sha256 ?? entry
+      }`;
       if (
         !cachedTarget?.activation?.values ||
         cachedTarget.rendered.sha256 === args.target.rendered.sha256 ||
+        cachedTarget.activation.model !== args.target.activation.model ||
+        seen.has(key) ||
         !sameActivationShape(cachedTarget.activation, args.target.activation)
       ) {
         continue;
       }
+      seen.add(key);
       contrastTargets.push(cachedTarget.activation);
-      if (contrastTargets.length >= 16) {
+      if (contrastTargets.length >= 64) {
         return contrastTargets;
       }
     }
   }
 
   return contrastTargets;
+}
+
+function discoverTargetCacheRoots(cwd: string): string[] {
+  return uniqueStrings(
+    [join(cwd, ".volta"), join(cwd, "services/orchestrator/.volta")]
+      .flatMap((root) => findTargetCacheRoots(root, 5))
+      .map((root) => resolve(root)),
+  ).sort();
+}
+
+function findTargetCacheRoots(root: string, maxDepth: number): string[] {
+  if (maxDepth < 0 || !existsSync(root)) {
+    return [];
+  }
+  const roots: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true }).sort(
+    (left, right) => left.name.localeCompare(right.name),
+  )) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const path = join(root, entry.name);
+    if (entry.name === "target-cache") {
+      roots.push(path);
+      continue;
+    }
+    roots.push(...findTargetCacheRoots(path, maxDepth - 1));
+  }
+  return roots;
 }
 
 function sameActivationShape(

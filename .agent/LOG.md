@@ -1243,3 +1243,134 @@ Interpretation:
   broad image/video attractors.
 - The pipeline should now optimize the target-specific residual signal. Scores
   will look much lower, but they are harder to hack and more meaningful.
+
+## 2026-06-06 22:33 PDT - Metric Pivot Research
+
+User challenge:
+
+- Mona vs dog still remained too high under the one-vector residual patch
+  (`0.785830` residual in the three-target audit). This means the contrastive
+  residual implementation is only a partial fix.
+- The deeper issue is that a single whole-cortex cosine over one target and one
+  candidate is not a calibrated vibe-transfer metric. It mostly measures broad
+  modality/prototype structure and creates hub candidates that are adjacent to
+  many unrelated inputs.
+
+Research-backed direction:
+
+- TRIBE itself monitors neural prediction with Pearson-style metrics across
+  held-out response samples, not one raw cosine between two arbitrary stimuli.
+- Neural representation work usually compares relative response geometry
+  across many conditions (RSA/RDMs) or uses noise/covariance-aware distances
+  such as cross-validated Mahalanobis when repeated measurements exist.
+- Cross-modal retrieval systems such as CLIP use contrastive objectives: a
+  match is meaningful only relative to negatives in the batch/corpus.
+- Hubness correction methods such as CSLS are directly relevant because we
+  observed generic text probes that score well against everything.
+
+Offline audit:
+
+- Using only the saved Mona/backrooms/dog target activations, the full-vector
+  raw cosines stayed very high:
+  - Mona vs dog: `0.950194`
+  - Mona vs backrooms: `0.943118`
+  - Backrooms vs dog: `0.871809`
+- Restricting comparison to the most target-discriminative TRIBE vertices
+  separated the image targets much better:
+  - Top 0.5% variance vertices: Mona vs dog `0.161663`, Mona vs backrooms
+    `0.290031`, backrooms vs dog `-0.146823`.
+  - Top 1% variance vertices: Mona vs dog `0.550141`, Mona vs backrooms
+    `0.528899`, backrooms vs dog `0.044099`.
+- This suggests the useful signal is present, but the current metric drowns it
+  in corpus-wide visual prototype dimensions.
+
+Proposed next algorithm:
+
+- Replace raw/residual cosine as the main objective with a reference-calibrated
+  neural retrieval score:
+  1. Build a diverse calibration bank of target/candidate activations with the
+     same oracle model and shape.
+  2. Normalize per vertex across that bank, not within each individual vector.
+  3. Remove the top shared nuisance components/prototypes learned from the
+     bank.
+  4. Weight vertices by empirical target-discriminative variance and eventual
+     reliability.
+  5. Score weighted residual similarity plus a hard-negative retrieval margin.
+  6. Apply hubness correction so candidates that are close to many unrelated
+     targets get penalized.
+  7. Report the main 0-1 value as calibrated retrieval probability/percentile,
+     not raw cosine.
+
+Implementation note:
+
+- This is generic. The calibration bank and hard negatives must be independent
+  of Mona Lisa and should include image, text, code, and later audio examples.
+  Mona/dog/backrooms become regression tests, not special-case targets.
+
+## 2026-06-06 22:45 PDT - Fast Score v3 Implementation
+
+Change:
+
+- Implemented a practical calibrated retrieval scorer as the primary
+  `adjustedSimilarity` when at least two same-model/same-shape contrast targets
+  are available.
+- The scorer now:
+  - auto-discovers target-cache roots under `.volta` and
+    `services/orchestrator/.volta`,
+  - de-dupes repeated target hashes,
+  - filters by exact oracle model and activation shape,
+  - selects target-specific vertices where the target differs from the contrast
+    bank,
+  - centers target/candidate/negatives against the contrast prototype,
+  - computes a discriminative similarity,
+  - applies CSLS-style neighborhood correction,
+  - applies a strong hard-negative retrieval-margin confidence gate.
+- Raw `neuralSimilarity` remains diagnostic. New diagnostics include
+  `calibratedSimilarity`, `discriminativeSimilarity`, `retrievalMargin`,
+  `cslsSimilarity`, `hubnessPenalty`, `calibrationTargetCount`, and
+  `calibrationVertexCount`.
+
+Calibration-image experiment:
+
+- Downloaded 9 Picsum seed images for quick online calibration exploration and
+  converted them to the same 0.5s still-video format used by hosted TRIBE.
+- User noted the seed names do not describe image contents and some images are
+  duplicates.
+- Confirmed by hash/contact sheet:
+  - filenames are not semantic labels,
+  - `interior.jpg` and `vehicle.jpg` were exact duplicates,
+  - removed the duplicate local asset from `.volta`.
+- Encoded 3 anonymous visual negatives before stopping further calibration
+  spend: the files named `city`, `forest`, and `food`. These are useful only as
+  unlabeled diverse negatives, not as category labels.
+
+Audit results:
+
+- Without extra calibration targets, the new target-pair adjusted scores are
+  all zero despite high raw cosine:
+  - Mona vs dog raw `0.950194`, retrieval-adjusted `0`.
+  - Mona vs backrooms raw `0.943118`, retrieval-adjusted `0`.
+  - Backrooms vs dog raw `0.871809`, retrieval-adjusted `0`.
+- With the 3 extra anonymous visual negatives included:
+  - Mona vs dog raw `0.950194`, retrieval-adjusted about `0.050554`.
+  - Backrooms vs dog raw `0.871809`, retrieval-adjusted `0`.
+  - Mona vs backrooms raw `0.943118`, retrieval-adjusted about `0.066696`.
+- Generic phrase hacks are mostly pushed toward zero under the broader bank.
+  This is conservative and may lower absolute run scores, but it blocks the
+  obvious "similar to everything" failure mode.
+
+Interpretation:
+
+- More images do help, but only as unique, visually diverse negatives encoded
+  through the same TRIBE path. They teach the scorer what "generic image
+  response" looks like and make hub phrases easier to penalize.
+- Bad calibration images can hurt: duplicates reduce effective diversity, and a
+  tiny random bank can distort target-specific vertex selection. Future online
+  calibration fetches need visual QA or hash/perceptual-hash filtering before
+  TRIBE encoding.
+
+Verification:
+
+- `bun run format && bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.

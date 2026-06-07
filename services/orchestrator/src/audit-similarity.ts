@@ -52,20 +52,37 @@ for (const target of targets) {
 console.log("\ntarget_pairs");
 for (let left = 0; left < targets.length - 1; left += 1) {
   for (let right = left + 1; right < targets.length; right += 1) {
-    const score = scoreActivations({
+    const forward = scoreActivations({
       target: targets[left].artifact.activation,
       candidate: targets[right].artifact.activation,
       contrastTargets: targets
-        .filter((_, index) => index !== left && index !== right)
+        .filter((_, index) => index !== left)
+        .map((target) => target.artifact.activation),
+    });
+    const reverse = scoreActivations({
+      target: targets[right].artifact.activation,
+      candidate: targets[left].artifact.activation,
+      contrastTargets: targets
+        .filter((_, index) => index !== right)
         .map((target) => target.artifact.activation),
     });
     console.log(
       JSON.stringify({
         left: targets[left].label,
         right: targets[right].label,
-        neuralSimilarity: score.neuralSimilarity,
-        residualSimilarity: score.residualSimilarity,
-        adjustedSimilarity: score.adjustedSimilarity,
+        neuralSimilarity: forward.neuralSimilarity,
+        retrievalAdjustedSimilarity:
+          (forward.adjustedSimilarity + reverse.adjustedSimilarity) / 2,
+        forwardAdjustedSimilarity: forward.adjustedSimilarity,
+        reverseAdjustedSimilarity: reverse.adjustedSimilarity,
+        forwardRetrievalMargin: forward.retrievalMargin,
+        reverseRetrievalMargin: reverse.retrievalMargin,
+        forwardDiscriminativeSimilarity: forward.discriminativeSimilarity,
+        reverseDiscriminativeSimilarity: reverse.discriminativeSimilarity,
+        residualSimilarity: forward.residualSimilarity,
+        calibratedSimilarity: forward.calibratedSimilarity,
+        calibrationTargetCount: forward.calibrationTargetCount,
+        calibrationVertexCount: forward.calibrationVertexCount,
       }),
     );
   }
@@ -101,7 +118,12 @@ for (const scorePath of scorePaths) {
           return {
             target: target.label,
             neuralSimilarity: score.neuralSimilarity,
+            calibratedSimilarity: score.calibratedSimilarity,
+            discriminativeSimilarity: score.discriminativeSimilarity,
             residualSimilarity: score.residualSimilarity,
+            retrievalMargin: score.retrievalMargin,
+            cslsSimilarity: score.cslsSimilarity,
+            hubnessPenalty: score.hubnessPenalty,
             adjustedSimilarity: score.adjustedSimilarity,
           };
         }),
