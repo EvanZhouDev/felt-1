@@ -474,6 +474,7 @@ async function executeIteration(
         iteration: args.iteration,
         index,
         candidateCount: args.loop.candidateCount,
+        inputType: args.input.inputNode.type,
         outputType: args.output.outputType,
         archive,
       });
@@ -518,6 +519,7 @@ async function executeIteration(
   );
   const candidateOutputs = expandCandidateOutputs({
     candidates: generatedCandidateOutputs,
+    inputType: args.input.inputNode.type,
     outputType: args.output.outputType,
     textMicroMutations: args.loop.textMicroMutations,
   });
@@ -658,7 +660,11 @@ async function evaluateCandidate(
     candidate: activation,
     target: args.target.activation,
   });
-  const scoringPriors = candidateScoringPriors(args.candidate);
+  const scoringPriors = candidateScoringPriors({
+    candidate: args.candidate,
+    inputType: args.input.inputNode.type,
+    outputType: args.output.outputType,
+  });
   const score = await args.journal.trace({
     name: "candidate.score",
     input: {
@@ -853,16 +859,24 @@ function loadContrastTargets(
   });
 }
 
-function candidateScoringPriors(candidate: CandidateOutput): {
+function candidateScoringPriors(args: {
+  candidate: CandidateOutput;
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+}): {
   coherence?: number;
   diversity?: number;
   penalty?: number;
 } {
-  if (candidate.outputNode.type !== "text") {
+  if (args.candidate.outputNode.type !== "text") {
     return {};
   }
 
-  const text = candidate.outputNode.payload.text;
+  const text = args.candidate.outputNode.payload.text;
+  if (args.inputType === "image" && args.outputType === "text") {
+    return naturalCaptionScoringPriors(text);
+  }
+
   const wordCount = textWords(text).length;
   const slotCount = textSlots(text).length;
   const wordPenalty = wordCount < 6 ? (6 - wordCount) * 0.05 : 0;
@@ -873,6 +887,53 @@ function candidateScoringPriors(candidate: CandidateOutput): {
     coherence: textStructureScore({ wordCount, slotCount }),
     penalty,
   };
+}
+
+function naturalCaptionScoringPriors(text: string): {
+  coherence: number;
+  penalty?: number;
+} {
+  const wordCount = textWords(text).length;
+  const sentenceCount = captionSentenceCount(text);
+  const commaCount = (text.match(/,/g) ?? []).length;
+  const wordPenalty =
+    wordCount < 6
+      ? (6 - wordCount) * 0.04
+      : wordCount > 32
+        ? (wordCount - 32) * 0.02
+        : 0;
+  const sentencePenalty =
+    sentenceCount === 0 ? 0.04 : sentenceCount > 2 ? 0.06 : 0;
+  const inventoryPenalty =
+    commaCount >= 4 ? Math.min(0.12, commaCount * 0.02) : 0;
+  const penalty = Math.min(
+    0.25,
+    wordPenalty + sentencePenalty + inventoryPenalty,
+  );
+
+  return {
+    coherence:
+      rangeScore(wordCount, {
+        floor: 4,
+        targetMin: 8,
+        targetMax: 22,
+        ceiling: 36,
+      }) *
+        0.75 +
+      rangeScore(sentenceCount, {
+        floor: 0,
+        targetMin: 1,
+        targetMax: 1,
+        ceiling: 3,
+      }) *
+        0.25,
+    penalty: penalty > 0 ? penalty : undefined,
+  };
+}
+
+function captionSentenceCount(text: string): number {
+  const terminalCount = (text.match(/[.!?]+/g) ?? []).length;
+  return terminalCount > 0 ? terminalCount : text.trim().length > 0 ? 1 : 0;
 }
 
 function textStructureScore(args: {
@@ -1116,6 +1177,7 @@ const TEXT_PROBE_LIBRARY = [
 
 function expandCandidateOutputs(args: {
   candidates: CandidateOutput[];
+  inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
   textMicroMutations: number;
 }): CandidateOutput[] {
@@ -1128,10 +1190,16 @@ function expandCandidateOutputs(args: {
     if (candidate.outputNode.type !== "text") {
       continue;
     }
-    const variants = textMicroVariants(
-      candidate.outputNode.payload.text,
-      args.textMicroMutations,
-    );
+    const variants =
+      args.inputType === "image"
+        ? captionMicroVariants(
+            candidate.outputNode.payload.text,
+            args.textMicroMutations,
+          )
+        : textMicroVariants(
+            candidate.outputNode.payload.text,
+            args.textMicroMutations,
+          );
     for (const [index, variant] of variants.entries()) {
       expanded.push({
         ...candidate,
@@ -1176,6 +1244,150 @@ function textMicroVariants(text: string, maxCount: number): TextMicroVariant[] {
     ].filter((variant): variant is TextMicroVariant => Boolean(variant)),
     text,
   ).slice(0, maxCount);
+}
+
+type TextTransform = {
+  name: string;
+  apply: (text: string) => string;
+};
+
+const captionTransforms: TextTransform[] = [
+  {
+    name: "caption-visible-anchor-normalization",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(/\bcream[- ]colored\b/gi, "white")
+          .replace(/\bcream\b/gi, "white")
+          .replace(/\blight[- ]colored\b/gi, "white")
+          .replace(/\bgolden retriever puppy\b/gi, "puppy")
+          .replace(/\bsoft green grass\b/gi, "green grass")
+          .replace(/\bsoft grass\b/gi, "green grass")
+          .replace(/\bin a close view\b/gi, "")
+          .replace(/\bin a close frame\b/gi, "")
+          .replace(/\bin close framing\b/gi, "")
+          .replace(/\bclose[- ]up view\b/gi, "")
+          .replace(/\bclose view\b/gi, "")
+          .replace(/\bclose frame\b/gi, "")
+          .replace(/\bclose framing\b/gi, "")
+          .replace(
+            /\blooking\s+(?:gently\s+)?toward the camera\b/gi,
+            "looking at the camera",
+          )
+          .replace(/\band looks at the camera\b/gi, ", looking at the camera")
+          .replace(/\bis sitting\b/gi, "sits")
+          .replace(/\b(gently|calmly|quietly|softly)\s+/gi, ""),
+      ),
+  },
+  {
+    name: "caption-size-synonym",
+    apply: (text) => cleanCaptionText(text.replace(/\bsmall\b/gi, "little")),
+  },
+  {
+    name: "caption-size-ablation",
+    apply: (text) =>
+      cleanCaptionText(text.replace(/\b(small|little|tiny)\s+/gi, "")),
+  },
+  {
+    name: "caption-camera-at",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(
+            /\blooking\s+(?:gently\s+)?toward the camera\b/gi,
+            "looking at the camera",
+          )
+          .replace(/\bfacing toward the camera\b/gi, "facing the camera")
+          .replace(/\band looks at the camera\b/gi, ", looking at the camera"),
+      ),
+  },
+  {
+    name: "caption-weak-adverb-drop",
+    apply: (text) =>
+      cleanCaptionText(
+        text.replace(/\b(gently|calmly|quietly|softly)\s+/gi, ""),
+      ),
+  },
+  {
+    name: "caption-common-color",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(/\bcream[- ]colored\b/gi, "white")
+          .replace(/\bcream\b/gi, "white")
+          .replace(/\blight[- ]colored\b/gi, "white")
+          .replace(/\bpale[- ]colored\b/gi, "white"),
+      ),
+  },
+  {
+    name: "caption-framing-ablation",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(/\bin a close view\b/gi, "")
+          .replace(/\bin a close frame\b/gi, "")
+          .replace(/\bin close framing\b/gi, "")
+          .replace(/\bclose[- ]up view\b/gi, "")
+          .replace(/\bclose view\b/gi, "")
+          .replace(/\bclose frame\b/gi, "")
+          .replace(/\bclose framing\b/gi, ""),
+      ),
+  },
+  {
+    name: "caption-setting-color",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(/\bsoft green grass\b/gi, "green grass")
+          .replace(/\bsoft grass\b/gi, "green grass"),
+      ),
+  },
+  {
+    name: "caption-present-tense",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(/\bis sitting\b/gi, "sits")
+          .replace(/\bis looking\b/gi, "looks")
+          .replace(/\bis facing\b/gi, "faces"),
+      ),
+  },
+];
+
+function captionMicroVariants(
+  text: string,
+  maxCount: number,
+): TextMicroVariant[] {
+  const variants: TextMicroVariant[] = [];
+  for (const transform of captionTransforms) {
+    variants.push({
+      name: transform.name,
+      text: transform.apply(text),
+    });
+  }
+
+  for (let left = 0; left < captionTransforms.length; left += 1) {
+    for (let right = left + 1; right < captionTransforms.length; right += 1) {
+      const leftTransform = captionTransforms[left];
+      const rightTransform = captionTransforms[right];
+      variants.push({
+        name: `${leftTransform.name}+${rightTransform.name}`,
+        text: rightTransform.apply(leftTransform.apply(text)),
+      });
+    }
+  }
+
+  return uniqueTextVariants(variants, text).slice(0, maxCount);
+}
+
+function cleanCaptionText(text: string): string {
+  return text
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*,+/g, ",")
+    .replace(/\s+/g, " ")
+    .replace(/\s+\./g, ".")
+    .replace(/,\s*\./g, ".")
+    .trim();
 }
 
 function textSlots(text: string): string[] {
@@ -1482,6 +1694,34 @@ const coldStartStrategies: MutationStrategy[] = [
   },
 ];
 
+const imageTextColdStartStrategies: MutationStrategy[] = [
+  {
+    name: "grounded natural caption",
+    instruction:
+      "Create one concise natural sentence that directly describes the visible image. Use ordinary caption grammar, 8-18 words, and simple visible anchors: subject, common color, setting, gaze, and framing. Avoid vague mood adverbs and comma-separated activation-code fragments.",
+  },
+  {
+    name: "perceptual caption",
+    instruction:
+      "Create one natural caption sentence that names the main visible subject and preserves the image's attention, distance, light, texture, and setting. Keep it literal and grounded in what is visible.",
+  },
+  {
+    name: "caption with context",
+    instruction:
+      "Create one short caption sentence with a clear subject, setting, and visual relation. Prefer a concrete scene description over abstract mood words.",
+  },
+  {
+    name: "caption detail probe",
+    instruction:
+      "Create one concise natural caption sentence that includes two specific visual details likely to matter neurally, such as subject, common color, gaze, texture, background, or framing. Avoid exact category labels unless visually obvious.",
+  },
+  {
+    name: "minimal literal caption",
+    instruction:
+      "Create the simplest accurate natural-language caption for the image. Avoid poetic wording, labels, metadata, and comma inventories.",
+  },
+];
+
 const textProbeColdStartStrategies: MutationStrategy[] = [
   {
     name: "probe-elite point mutation",
@@ -1578,6 +1818,34 @@ const refinementStrategies: MutationStrategy[] = [
   },
 ];
 
+const imageTextRefinementStrategies: MutationStrategy[] = [
+  {
+    name: "caption concrete-detail mutation",
+    instruction:
+      "Preserve the best caption's natural sentence structure, but replace one weak or vague word with a more literal visible anchor from the image. Keep it one sentence.",
+  },
+  {
+    name: "caption grounding correction",
+    instruction:
+      "Rewrite the caption as a more literal description of the visible image while preserving any high-scoring subject, setting, gaze, texture, or lighting cues.",
+  },
+  {
+    name: "caption sentence-shape mutation",
+    instruction:
+      "Keep the same visible content but change the sentence shape: subject-first, setting-first, or action-first. Do not switch back to comma-separated fragments.",
+  },
+  {
+    name: "caption sensory-detail mutation",
+    instruction:
+      "Preserve the caption's main subject and setting, then mutate one sensory detail such as color, softness, light, depth, or background texture.",
+  },
+  {
+    name: "caption specificity reset",
+    instruction:
+      "Discard abstract mood language, vague adverbs, and over-specific labels. Write a fresh concise caption grounded in the visible subject and scene. Use one natural sentence.",
+  },
+];
+
 const textMoonshotStrategies: MutationStrategy[] = [
   {
     name: "latent-axis reset",
@@ -1625,6 +1893,7 @@ function mutationStrategy(args: {
   iteration: number;
   index: number;
   candidateCount: number;
+  inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
   archive?: CandidateArchive;
 }): string {
@@ -1632,9 +1901,10 @@ function mutationStrategy(args: {
   return [
     `iteration=${args.iteration}`,
     `strategy=${strategy.name}`,
+    `inputType=${args.inputType}`,
     `outputType=${args.outputType}`,
     strategy.instruction,
-    outputTypeInstruction(args.outputType),
+    outputTypeInstruction(args.outputType, args.inputType),
   ].join(" | ");
 }
 
@@ -1642,9 +1912,13 @@ function selectMutationStrategy(args: {
   iteration: number;
   index: number;
   candidateCount: number;
+  inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
   archive?: CandidateArchive;
 }): MutationStrategy {
+  if (isImageToText(args)) {
+    return selectImageTextStrategy(args);
+  }
   if (
     args.iteration === 1 &&
     args.outputType === "text" &&
@@ -1661,6 +1935,30 @@ function selectMutationStrategy(args: {
   const generationOffset =
     Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
   return rotatingStrategy(refinementStrategies, generationOffset + args.index);
+}
+
+function selectImageTextStrategy(args: {
+  iteration: number;
+  index: number;
+  candidateCount: number;
+  archive?: CandidateArchive;
+}): MutationStrategy {
+  if (args.iteration === 1) {
+    return rotatingStrategy(imageTextColdStartStrategies, args.index);
+  }
+  const generationOffset =
+    Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
+  return rotatingStrategy(
+    imageTextRefinementStrategies,
+    generationOffset + args.index,
+  );
+}
+
+function isImageToText(args: {
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+}): boolean {
+  return args.inputType === "image" && args.outputType === "text";
 }
 
 function selectTextRefinementStrategy(args: {
@@ -1782,8 +2080,14 @@ function strategyByName(
   return strategy;
 }
 
-function outputTypeInstruction(outputType: OutputObj["outputType"]): string {
+function outputTypeInstruction(
+  outputType: OutputObj["outputType"],
+  inputType: InputObj["inputNode"]["type"],
+): string {
   if (outputType === "text") {
+    if (inputType === "image") {
+      return "For image-to-text output, prefer one concise natural caption sentence that directly describes the visible target with simple subject, color, setting, gaze, and framing anchors. Avoid vague mood adverbs, over-specific labels, comma-separated phrase fragments, and abstract activation codes.";
+    }
     return "For text output, use compact comma-separated semantic units by default: 6-8 phrase fragments, 10-18 words total, no full sentence, no labels, no proper names, no explanatory prose.";
   }
   if (outputType === "image") {

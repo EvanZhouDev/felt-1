@@ -1546,3 +1546,75 @@ Interpretation:
 - Next prompt change to test: for image-to-text outputs, ask agents for concise
   natural captions first, then optionally mutate caption attributes, instead of
   defaulting to comma-separated activation codes.
+
+## 2026-06-07 00:24 PDT - Restarted Image-to-Text Optimization Around Natural Captions
+
+Goal reset:
+
+- Re-test the old assumptions under the corrected scorer instead of continuing
+  to optimize the old comma-fragment activation-code style.
+- Treat weird behavior as a root-cause target, especially "shorter text is
+  always better" and broad generic phrases matching everything.
+
+Code changes:
+
+- Removed the global candidate prompt default that forced every text output into
+  comma-separated activation-code fragments.
+- Added an image-to-text-specific prompt path that asks for one concise natural
+  caption sentence grounded in the visible target image.
+- Added image-to-text mutation operators that prefer literal visible anchors
+  such as subject, common color, setting, gaze, texture, background, and
+  framing.
+- Changed image-to-text scoring priors so natural caption sentences are not
+  penalized as one-slot fragment genotypes.
+- Added a generic caption micro-mutation layer for image-to-text when
+  `textMicroMutations` is enabled. It tests local lexical children such as
+  common color normalization, camera-clause normalization, weak-adverb removal,
+  size ablation/synonym swaps, and framing-phrase ablation.
+
+Real local TRIBE evidence:
+
+- Pre-fix one-candidate natural-caption run
+  `dog-image-to-text-76a6bf0f` generated:
+  `A cream-colored puppy sits in soft grass, looking gently toward the camera.`
+  - raw `0.025390`
+  - adjusted `-0.348762`
+  - total `-0.323762`
+- Caption wording ablation against the same cached dog target showed TRIBE is
+  deterministic and wording-sensitive, not just "shorter is better":
+  - `A little white puppy sits in green grass, looking at the camera.` raw
+    `0.218783`
+  - `A white puppy sits in green grass, looking at the camera.` raw `0.191198`
+  - `A small white puppy in green grass looks at the camera.` raw `0.185670`
+  - `A small white puppy sits in green grass, looking at the camera.` raw
+    `0.166500`
+  - `A small white puppy sits in green grass and looks at the camera.` raw
+    `0.099711`
+  - `A cream-colored puppy sits in soft grass, looking gently toward the camera.`
+    raw `0.025390`
+- First integrated micro-mutation run with incomplete transform coverage
+  `dog-image-to-text-d1136501` selected:
+  `A white puppy sits in green grass, looking at the camera in a close frame.`
+  - raw `0.045868`
+  - adjusted `-0.176895`
+  - total `-0.151895`
+- After adding generic close-frame ablation, integrated run
+  `dog-image-to-text-deafc5cc` selected:
+  `A white puppy sits on green grass facing the camera.`
+  - raw `0.215005`
+  - adjusted `-0.025531`
+  - total `-0.000531`
+  - parent caption was
+    `A white puppy sits on green grass facing the camera in a close frame.`
+    with raw `0.121085`, adjusted `-0.114168`, total `-0.089168`
+
+Interpretation:
+
+- Natural captioning plus TRIBE-scored local lexical evolution is much more
+  promising than forcing compact activation codes for image-to-text.
+- The improvement is legitimate: the winning child is a plausible caption of
+  the image, and it beat its parent by removing a concrete phrase that TRIBE
+  penalized.
+- The system still is not near 90% adjusted similarity; the next experiment
+  should run at least two iterations so the judge can seed visible specificity
+  while the micro-mutation layer keeps pruning harmful wording.

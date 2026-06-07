@@ -69,9 +69,7 @@ function candidateSharedInstructions(
     "For same-medium transfers such as text-to-text, do not solve the task by copying or paraphrasing the target. Translate the target's activation feel into the seed topic.",
     "Do not train a model. Produce one renderable output node.",
     "The entropy cue is an assigned evolutionary operator. Follow it so parallel candidates behave like a population: elite preservation, point mutation, crossover, novelty injection, ablation, or representation reset.",
-    "For text output, write a compact activation code by default: comma-separated phrase fragments, 6-8 units, 10-18 words total, no full sentence, no title, no labels, no proper names, no explanatory prose.",
-    "For text-output mutation, treat each comma-separated unit as a genotype slot. Change only the slot requested by the operator and keep the strongest high-scoring slots stable.",
-    "For first-pass text output, favor perceptual-state units over object inventory: motion level, attention, emotional temperature, ambiguity, atmosphere, light, texture, distance, and visual weight. Use at most one concrete subject anchor unless the seed requires a topic.",
+    ...textOutputInstructions(invocation),
     "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
     "For image output, produce an image node referencing the intended generated image asset URI.",
     "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",
@@ -79,6 +77,27 @@ function candidateSharedInstructions(
     `Output request:\n${stableJson(invocation.output)}`,
     `Entropy cue:\n${invocation.entropy ?? "none"}`,
   ].join("\n\n");
+}
+
+function textOutputInstructions(
+  invocation: CandidateAgentInvocation,
+): string[] {
+  if (invocation.output.outputType !== "text") {
+    return [];
+  }
+  if (invocation.input.inputNode.type === "image") {
+    return [
+      "For image-to-text output, prefer one concise natural caption sentence that directly describes the visible target image.",
+      "Use ordinary sentence grammar, a clear subject, and simple visible anchor words for subject, color, setting, gaze, texture, background, and framing.",
+      "Prefer literal common words over soft mood drift: avoid vague adverbs such as gently/calmly and avoid over-specific labels such as exact breeds or art terms unless they are visually obvious.",
+      "Do not default to comma-separated activation-code fragments. Prior real TRIBE probes showed natural captions can score better than short fragment inventories.",
+    ];
+  }
+  return [
+    "For text output, follow the entropy cue's requested representation. Use compact phrase units only when the operator explicitly asks for a slot code.",
+    "For first-pass text output, favor readable perceptual descriptions over reward-hacky short phrases. Keep content grounded in the seed/topic constraints.",
+    "For text-output mutation, preserve the strongest high-scoring traits, but do not assume shorter comma fragments are inherently better.",
+  ];
 }
 
 function archiveInstructions(invocation: CandidateAgentInvocation): string {
