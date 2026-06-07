@@ -10,6 +10,9 @@ export function scoreActivations(args: {
   candidate: ActivationTrace;
   contrastTargets?: ActivationTrace[];
   seedAdherence?: number;
+  seedSimilarity?: number;
+  seedTargetSimilarity?: number;
+  seedSpecificity?: number;
   coherence?: number;
   diversity?: number;
   penalty?: number;
@@ -89,6 +92,9 @@ export function scoreActivations(args: {
     calibrationTargetCount: calibrated?.calibrationTargetCount,
     calibrationVertexCount: calibrated?.calibrationVertexCount,
     targetSpecificity,
+    seedSimilarity: args.seedSimilarity,
+    seedTargetSimilarity: args.seedTargetSimilarity,
+    seedSpecificity: args.seedSpecificity,
     penalty: penalty > 0 ? penalty : undefined,
     seedAdherence,
     coherence,

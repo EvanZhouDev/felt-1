@@ -3595,3 +3595,73 @@ Takeaways:
   prompt-side, not objective-side. The next architecture improvement should add
   an explicit seed-adherence/constraint score for seeded transfers so the search
   cannot silently trade off the seed topic against target activation.
+
+## 2026-06-07 08:41 PDT - Seeded Image Replacement Subject Fix
+
+Goal:
+
+- Correct the semantics of image-to-image seeding. A seed such as `flowers`
+  means the output should be a flower image that carries the target's vibe, not
+  the target scene with flowers inserted into it.
+- Keep the non-seeded image-to-image pipeline unchanged.
+
+Changes:
+
+- Added seed-specific image-to-image candidate instructions in
+  `packages/agent-sdk/src/prompts.ts`.
+  - Seeded image-to-image now says the seed is a replacement subject
+    constraint.
+  - It explicitly uses target image traits only for perceptual transfer:
+    composition skeleton, camera distance, aspect ratio, low-level capture
+    quality, light/color, texture, sparsity/density, and affect.
+- Split image-to-image mutation operators in `services/orchestrator/src/run.ts`.
+  - Unseeded image-to-image still uses the existing reconstruction/refinement
+    strategy pools.
+  - Seeded image-to-image uses replacement-subject operators such as
+    `seed subject reconstruction`, `seed composition transplant`, and
+    `seed reset`.
+- Added seed diagnostic fields to score bundles:
+  `seedSimilarity`, `seedTargetSimilarity`, and `seedSpecificity`.
+- Kept text-vs-image seed cosine diagnostic-only for image/code outputs by
+  forcing `seedAdherence=0.5` in totals for those modalities. The prior
+  flowers probe showed text-vs-image seed cosine can mis-rank visible seed
+  adherence, so it should not drive image selection yet.
+
+Validation:
+
+- `bun run typecheck` passed after the code edits.
+- Prompt validation run:
+  - Run id: `backrooms-flowers-replacement-62287a00`
+  - The Codex candidate prompt correctly used `strategy=seed subject
+    reconstruction` and included the new replacement-subject instructions.
+  - Codex produced no output files after a long prediction wait, so the run was
+    killed before Flux/TRIBE work to avoid wasting compute.
+- Real local Flux + local TRIBE direct-candidate run:
+  - Run id: `backrooms-flowers-replacement-direct-646c14f8`
+  - Report:
+    `.agent/benchmarks/backrooms-image-to-image-flowers-replacement-direct-v1.json`
+  - Contact sheet:
+    `.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8/flowers-replacement-score-sheet.png`
+  - Best selected candidate: `candidate-a`
+    - raw neural similarity: `0.9183852360094479`
+    - adjusted similarity: `0.32517639063393683`
+    - total: `0.3501872454421791`
+    - output:
+      `.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8/generated-assets/candidate-a/1d2f6f9a20857c56-target-fidelity.png`
+  - Runner-up `candidate-a-image-2`:
+    - raw neural similarity: `0.9196004255247162`
+    - adjusted similarity: `0.3245173250519039`
+    - total: `0.3494876219781749`
+
+Takeaways:
+
+- The new seeded semantics produce a full flower image with backrooms-like
+  yellow cast, low-resolution feel, sparse/empty composition, and uncanny
+  atmosphere.
+- This is visually much more correct than the earlier additive result, but the
+  adjusted similarity is much lower than the additive image and the unseeded
+  backrooms reconstruction. That is a real tradeoff, not a failure of the
+  seed-specific prompt.
+- Next scoring work should add a modality-appropriate seed verifier for image
+  outputs, likely a visual seed proxy or CLIP/caption-based subject check,
+  instead of relying on TRIBE text-vs-image seed cosine.

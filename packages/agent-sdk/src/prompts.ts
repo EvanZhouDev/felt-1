@@ -66,7 +66,7 @@ function candidateSharedInstructions(
   return [
     "The inputNode is the target whose emotion, energy, and perceptual feel should be matched.",
     "If the Codex run includes attached images, inspect them directly; they are visual evidence for the target or rendered candidate nodes.",
-    "The optional seed is content direction, not the target itself. When a seed is present, keep the generated output about the seed's requested topic or medium while matching the input target's perceptual feel.",
+    seedInstruction(invocation),
     "For same-medium transfers such as text-to-text, do not solve the task by copying or paraphrasing the target. Translate the target's activation feel into the seed topic.",
     "Do not train a model. Produce one renderable output node.",
     "The entropy cue is an assigned evolutionary operator. Follow it so parallel candidates behave like a population: elite preservation, point mutation, crossover, novelty injection, ablation, or representation reset.",
@@ -78,6 +78,23 @@ function candidateSharedInstructions(
     `Output request:\n${stableJson(invocation.output)}`,
     `Entropy cue:\n${invocation.entropy ?? "none"}`,
   ].join("\n\n");
+}
+
+function seedInstruction(invocation: CandidateAgentInvocation): string {
+  if (
+    invocation.input.seed?.prompt &&
+    invocation.input.inputNode.type === "image" &&
+    invocation.output.outputType === "image"
+  ) {
+    return [
+      "The optional seed is a replacement subject constraint for this image-to-image run.",
+      "When a seed is present, the generated image must read primarily as the seed subject, not as the target scene with seed objects added.",
+      "Use the target image for perceptual transfer only: composition skeleton, camera distance, aspect ratio, low-level capture quality, light/color, texture, sparsity/density, and affect.",
+      "Example: if the seed is flowers and the target is a backrooms room, output a flower image that feels like the backrooms image; do not output a backrooms room with flowers placed inside it.",
+    ].join(" ");
+  }
+
+  return "The optional seed is content direction, not the target itself. When a seed is present, keep the generated output about the seed's requested topic or medium while matching the input target's perceptual feel.";
 }
 
 function textOutputInstructions(

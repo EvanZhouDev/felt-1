@@ -1,0 +1,74 @@
+{
+  "scenarioId": "backrooms-flowers-replacement-direct",
+  "runId": "backrooms-flowers-replacement-direct-646c14f8",
+  "description": "Backrooms target to seeded flower image output using a deterministic replacement-subject image candidate; Flux and TRIBE are real/local.",
+  "tags": [
+    "image",
+    "backrooms",
+    "flowers",
+    "seeded",
+    "replacement-subject",
+    "local-flux",
+    "local-tribe"
+  ],
+  "createdAt": "2026-06-07T15:39:35.378Z",
+  "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8",
+  "contactSheet": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8/flowers-replacement-score-sheet.png",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 1,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "imageSeedMutations": 0,
+    "imageLocalMutations": 2,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "prompt": "Create an image whose main subject is flowers. The entire output should read as a flower image, not a backrooms room with flowers added. Preserve the backrooms target image only as perceptual feel: low-resolution camera, wide empty-space composition, yellow fluorescent color cast, sparse geometry, dull carpet-like texture, and quiet unsettling atmosphere.",
+  "bestScore": 0.3501872454421791,
+  "bestAdjustedSimilarity": 0.32517639063393683,
+  "bestNeuralSimilarity": 0.9183852360094479,
+  "selectedAgentId": "candidate-a",
+  "ranked": [
+    {
+      "agentId": "candidate-a",
+      "total": 0.3501872454421791,
+      "adjustedSimilarity": 0.32517639063393683,
+      "neuralSimilarity": 0.9183852360094479,
+      "seedAdherence": 0.5,
+      "seedSimilarity": 0.6454986516504645,
+      "seedTargetSimilarity": 0.5827997249609648,
+      "seedSpecificity": 0.06269892668949972,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8/generated-assets/candidate-a/1d2f6f9a20857c56-target-fidelity.png",
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "agentId": "candidate-a-image-2",
+      "total": 0.3494876219781749,
+      "adjustedSimilarity": 0.3245173250519039,
+      "neuralSimilarity": 0.9196004255247162,
+      "seedAdherence": 0.5,
+      "seedSimilarity": 0.6343456159330867,
+      "seedTargetSimilarity": 0.5827997249609648,
+      "seedSpecificity": 0.05154589097212192,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8/generated-assets/candidate-a-image-2/1d2f6f9a20857c56-target-texture-propagate-right.png",
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | imageMutation=local-style-texture-propagate-right | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=texture-propagate-right"
+    },
+    {
+      "agentId": "candidate-a-image-1",
+      "total": 0.3127764052465713,
+      "adjustedSimilarity": 0.2899342947974947,
+      "neuralSimilarity": 0.9202492046854853,
+      "seedAdherence": 0.5,
+      "seedSimilarity": 0.6334558026103255,
+      "seedTargetSimilarity": 0.5827997249609648,
+      "seedSpecificity": 0.05065607764936075,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8/generated-assets/candidate-a-image-1/1d2f6f9a20857c56-target-hard-neutral-sharp.png",
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=hard-neutral-sharp"
+    }
+  ]
+}

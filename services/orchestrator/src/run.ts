@@ -11,7 +11,9 @@ import {
   runJudgeAgent,
 } from "@volta/agent-sdk";
 import {
+  cosineSimilarity,
   type EvaluatedOutput,
+  flattenTrace,
   type InputObj,
   type NeuralOracle,
   type NextIterationSeed,
@@ -211,6 +213,7 @@ type RunLoopResult = {
     rendered: RenderedStimulus;
     activation: Awaited<ReturnType<NeuralOracle["encode"]>>;
   };
+  seedTarget?: SeedTarget;
   iterations: IterationResult[];
   candidates: EvaluatedOutput[];
   judge: Awaited<ReturnType<typeof runJudgeAgent>>;
@@ -231,9 +234,17 @@ type ResumeState = {
   output: OutputObj;
   runPath: string;
   target: RunLoopResult["target"];
+  seedTarget?: SeedTarget;
   previous: NextIterationSeed;
   existingIterations: IterationResult[];
   startIteration: number;
+};
+
+type SeedTarget = {
+  prompt: string;
+  text: string;
+  rendered: RenderedStimulus;
+  activation: Awaited<ReturnType<NeuralOracle["encode"]>>;
 };
 
 async function executeRunLoop(
@@ -241,6 +252,7 @@ async function executeRunLoop(
   resume?: ResumeState,
 ): Promise<RunLoopResult> {
   const target = resume?.target ?? (await buildTarget(args));
+  const seedTarget = resume?.seedTarget ?? (await buildSeedTarget(args));
 
   let previous: NextIterationSeed = resume?.previous ?? {
     type: "fresh",
@@ -265,6 +277,7 @@ async function executeRunLoop(
       candidateSpecs,
       previous,
       target,
+      seedTarget,
     });
     const bestBefore = bestOverallOutput(iterations);
     const best = iterationResult.rankedOutputs[0];
@@ -325,6 +338,7 @@ async function executeRunLoop(
     runId: args.id,
     stopReason: finalIteration.stopReason ?? "max_iterations",
     target,
+    seedTarget,
     iterations,
     candidates: bestIteration?.rankedOutputs ?? finalIteration.rankedOutputs,
     judge: finalJudge,
@@ -345,6 +359,14 @@ async function executeRunLoop(
   await writeJson(join(args.runPath, "evolution-journal.json"), {
     runId: args.id,
     target: targetSummary(target),
+    seedTarget: seedTarget
+      ? {
+          prompt: seedTarget.prompt,
+          text: seedTarget.text,
+          rendered: renderedSummary(seedTarget.rendered),
+          activation: activationSummary(seedTarget.activation),
+        }
+      : undefined,
     loop: args.loop,
     effectiveLoop: {
       textMicroMutations: effectiveTextMicroMutationCount({
@@ -415,6 +437,58 @@ async function buildTarget(
   return target;
 }
 
+async function buildSeedTarget(
+  args: RunLoopArgs,
+): Promise<SeedTarget | undefined> {
+  const prompt = args.input.seed?.prompt.trim();
+  if (!prompt) {
+    return undefined;
+  }
+
+  const text = seedActivationText(prompt);
+  const seedNode = {
+    type: "text",
+    payload: {
+      type: "text",
+      text,
+    },
+  } as const;
+  const rendered = await args.journal.trace({
+    name: "seed.render",
+    input: {
+      runId: args.id,
+      prompt,
+      text,
+    },
+    run: () => renderNode(seedNode),
+    output: renderedSummary,
+  });
+  const cached = await loadCachedSeedTarget(args, prompt, text, rendered);
+  if (cached) {
+    await writeJson(join(args.runPath, "seed-target.json"), cached);
+    return cached;
+  }
+
+  const activation = await args.journal.trace({
+    name: "seed.encode",
+    input: {
+      runId: args.id,
+      rendered: renderedSummary(rendered),
+    },
+    run: () => args.oracle.encode(rendered.encoderInput),
+    output: activationSummary,
+  });
+  const seedTarget = {
+    prompt,
+    text,
+    rendered,
+    activation,
+  };
+  await writeJson(join(args.runPath, "seed-target.json"), seedTarget);
+  await writeCachedSeedTarget(args, seedTarget);
+  return seedTarget;
+}
+
 async function loadCachedTarget(
   args: RunLoopArgs,
   rendered: RenderedStimulus,
@@ -443,6 +517,36 @@ async function writeCachedTarget(
   await writeJson(path, target);
 }
 
+async function loadCachedSeedTarget(
+  args: RunLoopArgs,
+  prompt: string,
+  text: string,
+  rendered: RenderedStimulus,
+): Promise<SeedTarget | undefined> {
+  const cached = readOptionalJson<SeedTarget>(targetCachePath(args, rendered));
+  if (!cached?.activation) {
+    return undefined;
+  }
+  if (args.oracle.model && cached.activation.model !== args.oracle.model) {
+    return undefined;
+  }
+  return {
+    prompt,
+    text,
+    rendered,
+    activation: cached.activation,
+  };
+}
+
+async function writeCachedSeedTarget(
+  args: RunLoopArgs,
+  seedTarget: SeedTarget,
+): Promise<void> {
+  const path = targetCachePath(args, seedTarget.rendered);
+  await mkdir(dirname(path), { recursive: true });
+  await writeJson(path, seedTarget);
+}
+
 function targetCachePath(
   args: RunLoopArgs,
   rendered: RenderedStimulus,
@@ -465,6 +569,7 @@ async function executeIteration(
     candidateSpecs: Extract<AgentSpec, { role: "candidate" }>[];
     previous: NextIterationSeed;
     target: RunLoopResult["target"];
+    seedTarget?: SeedTarget;
   },
 ): Promise<IterationResult> {
   const iterationPath = join(
@@ -495,6 +600,7 @@ async function executeIteration(
         candidateCount: args.loop.candidateCount,
         inputType: args.input.inputNode.type,
         outputType: args.output.outputType,
+        hasSeed: hasInputSeed(args.input),
         archive,
       });
       const workspace = await createAgentWorkspace({
@@ -564,6 +670,7 @@ async function executeIteration(
             ...args,
             candidate,
             target: args.target,
+            seedTarget: args.seedTarget,
           });
           await writeJson(
             join(iterationPath, "scores", `${candidate.agentId}.json`),
@@ -726,6 +833,7 @@ async function evaluateCandidate(
     iteration: number;
     candidate: CandidateOutput;
     target: RunLoopResult["target"];
+    seedTarget?: SeedTarget;
   },
 ): Promise<EvaluatedOutput> {
   const candidate = await materializeGeneratedImageCandidate({
@@ -777,6 +885,15 @@ async function evaluateCandidate(
     inputType: args.input.inputNode.type,
     outputType: args.output.outputType,
   });
+  const seedScore = seedAdherenceScore({
+    seedTarget: args.seedTarget,
+    target: args.target.activation,
+    candidate: activationWithDiagnostics,
+  });
+  const seedAdherence = seedAdherenceForTotal({
+    seedScore,
+    outputType: args.output.outputType,
+  });
   const score = await args.journal.trace({
     name: "candidate.score",
     input: {
@@ -796,6 +913,10 @@ async function evaluateCandidate(
         target: args.target.activation,
         candidate: activationWithDiagnostics,
         contrastTargets: loadContrastTargets(args),
+        seedAdherence,
+        seedSimilarity: seedScore?.similarity,
+        seedTargetSimilarity: seedScore?.targetSimilarity,
+        seedSpecificity: seedScore?.specificity,
         coherence: scoringPriors.coherence,
         diversity:
           scoringPriors.diversity ?? (args.candidate.entropy ? 0.75 : 0.5),
@@ -2627,6 +2748,34 @@ const imageImageColdStartStrategies: MutationStrategy[] = [
   },
 ];
 
+const seededImageImageColdStartStrategies: MutationStrategy[] = [
+  {
+    name: "seed subject reconstruction",
+    instruction:
+      "Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject.",
+  },
+  {
+    name: "seed composition transplant",
+    instruction:
+      "Use the seed prompt as the subject authority and the target image as the layout/lighting authority. Build a prompt for a seed-subject image with target-like framing, empty-space rhythm, perspective depth, surface texture, color cast, and camera artifacts. Avoid naming or preserving target-specific objects unless they are purely structural analogies.",
+  },
+  {
+    name: "seed low-fidelity style transfer",
+    instruction:
+      "Create a seed-subject image rendered with the target's low-level capture style: aspect ratio, blur, compression/grain, contrast, saturation, color temperature, camera distance, and awkward framing. The result should be immediately recognizable as the seed subject, not a target reconstruction with seed decoration.",
+  },
+  {
+    name: "seed affect transfer",
+    instruction:
+      "Make the seed subject carry the target's affect and attention pattern: quietness or tension, density/sparsity, centrality, depth, stillness, and texture. Keep the seed subject dominant and omit target-scene nouns that would make the output an additive collage.",
+  },
+  {
+    name: "seed absence lock",
+    instruction:
+      "Create a seed-subject image that preserves the target's absence constraints: similar amount of emptiness, uncluttered regions, simple foreground/background balance, and lack of extra narrative objects. Do not add the seed subject as a small prop; make it the image's main form.",
+  },
+];
+
 const textProbeColdStartStrategies: MutationStrategy[] = [
   {
     name: "probe-elite point mutation",
@@ -2784,6 +2933,34 @@ const imageImageRefinementStrategies: MutationStrategy[] = [
   },
 ];
 
+const seededImageImageRefinementStrategies: MutationStrategy[] = [
+  {
+    name: "seed subject correction",
+    instruction:
+      "Inspect the target and previous selected image. Preserve only target-like perceptual traits that helped score, but correct the child so the seed subject remains the dominant image subject. Remove target-scene remnants that make the output look like the original scene plus seed objects.",
+  },
+  {
+    name: "seed style exploit",
+    instruction:
+      "Use archive scores to keep the strongest target-like style family, then regenerate around the seed subject as the central form. Preserve light/color, camera quality, texture, and spacing; do not preserve target-specific setting nouns.",
+  },
+  {
+    name: "seed composition correction",
+    instruction:
+      "Keep the seed subject dominant while correcting one layout variable toward the target: crop, depth, empty-space rhythm, foreground/background balance, horizon/ceiling analogue, or camera distance. Avoid additive props.",
+  },
+  {
+    name: "seed surface-light correction",
+    instruction:
+      "Preserve the seed subject and adjust only surface texture, blur, contrast, saturation, color temperature, and light direction toward the target. Do not reintroduce target objects or setting.",
+  },
+  {
+    name: "seed reset",
+    instruction:
+      "If the elite has drifted into target reconstruction, reset to a fresh seed-subject prompt and reapply only the target's low-level vibe: framing, color cast, light, sparseness, texture, and affect.",
+  },
+];
+
 const textMoonshotStrategies: MutationStrategy[] = [
   {
     name: "latent-axis reset",
@@ -2833,6 +3010,7 @@ function mutationStrategy(args: {
   candidateCount: number;
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
+  hasSeed: boolean;
   archive?: CandidateArchive;
 }): string {
   const strategy = selectMutationStrategy(args);
@@ -2842,8 +3020,12 @@ function mutationStrategy(args: {
     `inputType=${args.inputType}`,
     `outputType=${args.outputType}`,
     strategy.instruction,
-    outputTypeInstruction(args.outputType, args.inputType),
+    outputTypeInstruction(args.outputType, args.inputType, args.hasSeed),
   ].join(" | ");
+}
+
+function hasInputSeed(input: InputObj): boolean {
+  return Boolean(input.seed?.prompt.trim());
 }
 
 function selectMutationStrategy(args: {
@@ -2852,6 +3034,7 @@ function selectMutationStrategy(args: {
   candidateCount: number;
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
+  hasSeed: boolean;
   archive?: CandidateArchive;
 }): MutationStrategy {
   if (isImageToText(args)) {
@@ -2899,7 +3082,14 @@ function selectImageImageStrategy(args: {
   iteration: number;
   index: number;
   candidateCount: number;
+  hasSeed: boolean;
 }): MutationStrategy {
+  if (args.hasSeed) {
+    if (args.iteration === 1) {
+      return rotatingStrategy(seededImageImageColdStartStrategies, args.index);
+    }
+    return rotatingStrategy(seededImageImageRefinementStrategies, args.index);
+  }
   if (args.iteration === 1) {
     return rotatingStrategy(imageImageColdStartStrategies, args.index);
   }
@@ -3042,6 +3232,7 @@ function strategyByName(
 function outputTypeInstruction(
   outputType: OutputObj["outputType"],
   inputType: InputObj["inputNode"]["type"],
+  hasSeed: boolean,
 ): string {
   if (outputType === "text") {
     if (inputType === "image") {
@@ -3050,9 +3241,87 @@ function outputTypeInstruction(
     return "For text output, use compact comma-separated semantic units by default: 6-8 phrase fragments, 10-18 words total, no full sentence, no labels, no proper names, no explanatory prose.";
   }
   if (outputType === "image") {
+    if (inputType === "image" && hasSeed) {
+      return "For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject.";
+    }
     return "For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates.";
   }
   return "For code output, express the operator through renderable UI/scene structure: layout, motion/static balance, density, typography, color/contrast, texture, and interaction-free visual state.";
+}
+
+function seedActivationText(prompt: string): string {
+  const topic = extractSeedTopic(prompt);
+  return topic ?? prompt;
+}
+
+function extractSeedTopic(prompt: string): string | undefined {
+  const patterns = [
+    /\babout\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:\s+while|\s+with|\s+that|\s+preserving|[.,;]|$)/i,
+    /\btopic(?:\s+is|:)\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:[.,;]|$)/i,
+    /\bsubject(?:\s+is|:)\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:[.,;]|$)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    const topic = match?.[1]?.trim().replace(/\s+/g, " ");
+    if (topic) {
+      return topic;
+    }
+  }
+  return undefined;
+}
+
+function seedAdherenceScore(args: {
+  seedTarget: SeedTarget | undefined;
+  target: SeedTarget["activation"];
+  candidate: SeedTarget["activation"];
+}):
+  | {
+      adherence: number;
+      similarity: number;
+      targetSimilarity: number;
+      specificity: number;
+    }
+  | undefined {
+  if (!args.seedTarget) {
+    return undefined;
+  }
+  const seed = flattenTrace(args.seedTarget.activation);
+  const candidate = flattenTrace(args.candidate);
+  const target = flattenTrace(args.target);
+  if (seed.length !== candidate.length || seed.length !== target.length) {
+    return {
+      adherence: 0.5,
+      similarity: 0,
+      targetSimilarity: 0,
+      specificity: 0,
+    };
+  }
+  const similarity = cosineSimilarity(seed, candidate);
+  const targetSimilarity = cosineSimilarity(seed, target);
+  const specificity = similarity - targetSimilarity;
+  return {
+    adherence: clamp01(0.5 + specificity * 5),
+    similarity,
+    targetSimilarity,
+    specificity,
+  };
+}
+
+function seedAdherenceForTotal(args: {
+  seedScore: ReturnType<typeof seedAdherenceScore>;
+  outputType: OutputObj["outputType"];
+}): number | undefined {
+  if (!args.seedScore) {
+    return undefined;
+  }
+  if (args.outputType === "image" || args.outputType === "code") {
+    return 0.5;
+  }
+  return args.seedScore.adherence;
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }
 
 function getStopReason(args: {
@@ -3113,6 +3382,7 @@ function loadResumeState(args: ResumeRunArgs): ResumeState {
     output: artifact.output,
     runPath: record.runPath || join(args.runsRoot, args.id),
     target: result.target,
+    seedTarget: result.seedTarget,
     previous,
     existingIterations,
     startIteration:

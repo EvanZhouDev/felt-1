@@ -167,6 +167,9 @@ export type ScoreBundle = {
   calibrationTargetCount?: number;
   calibrationVertexCount?: number;
   targetSpecificity?: number;
+  seedSimilarity?: number;
+  seedTargetSimilarity?: number;
+  seedSpecificity?: number;
   penalty?: number;
   seedAdherence: number;
   coherence: number;
