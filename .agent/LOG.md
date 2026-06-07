@@ -728,6 +728,51 @@ Interpretation:
   scoring, but candidate quality and calibration-bank breadth remain major
   bottlenecks.
 
+## 2026-06-07 01:37 PDT - Mona Population-Size Probe
+
+Question:
+
+- Does increasing candidate population help more than single-agent iteration for
+  image-to-text after the scoring fixes?
+
+Setup:
+
+- Scenario: `mona-image-to-text`
+- Local TRIBE, Codex backend
+- `candidateCount=3`
+- `maxIterations=1`
+- `textMicroMutations=3`
+- Run: `mona-image-to-text-e6cee5cd`
+
+Results:
+
+- Winner `candidate-b`:
+  `A dark-haired woman in a dark dress is shown from the waist up with folded hands, looking forward with a faint smile against a hazy blue-green landscape and warm cracked paint texture.`
+  - raw `-0.035726`
+  - contrast `-0.051222`
+  - residual / adjusted `0.295381`
+  - total `0.298952`
+- Runner-up `candidate-c`:
+  `A dark-haired woman in a dark dress sits with folded hands before a hazy blue-green landscape, facing the viewer with a faint smile.`
+  - raw `-0.010559`
+  - adjusted `0.271528`
+  - total `0.294385`
+- Candidate A:
+  `A woman in dark clothing gazes forward before a green landscape in a close portrait.`
+  - raw `0.174682`
+  - adjusted `0.188944`
+  - total `0.213944`
+
+Interpretation:
+
+- Candidate population helped. Best adjusted score improved from the previous
+  Mona best `0.229004` to `0.295381`.
+- Raw cosine would have picked the generic candidate A, but adjusted/residual
+  scoring correctly preferred richer target-specific visible anchors: folded
+  hands, faint smile, blue-green landscape, cracked paint texture.
+- Candidate B and C were very close on total. Next experiment should preserve
+  B's anchors but mutate toward C's concision, rather than adding more facts.
+
 Interpretation:
 
 - This makes the generic evolutionary algorithm safer to scale: we can explore
