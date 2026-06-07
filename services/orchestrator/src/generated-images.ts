@@ -52,15 +52,17 @@ export async function materializeGeneratedImageCandidate(args: {
   const targetFidelity = targetStyle
     ? targetFidelityMode(targetStyle, requestedTargetFidelity(sourceUri))
     : undefined;
-  const generationStyle = targetStyle
-    ? fluxGenerationGeometry(targetStyle)
-    : undefined;
+  const materializationKind = materializationKindForUri(sourceUri);
+  const generationStyle =
+    targetStyle && materializationKind === "flux-image"
+      ? fluxGenerationGeometry(targetStyle)
+      : undefined;
 
   return {
     ...args.candidate,
     entropy: [
       args.candidate.entropy,
-      "materialized=flux-image",
+      `materialized=${materializationKind}`,
       targetStyle
         ? `targetStyle=${targetStyle.width}x${targetStyle.height}`
         : undefined,
@@ -76,6 +78,12 @@ export async function materializeGeneratedImageCandidate(args: {
       payload: materialized,
     },
   };
+}
+
+function materializationKindForUri(
+  uri: string,
+): "flux-image" | "local-image-style" {
+  return parseLocalStyleUri(uri) ? "local-image-style" : "flux-image";
 }
 
 async function materializeFluxImagePayload(args: {

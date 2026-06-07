@@ -3054,3 +3054,48 @@ Interpretation:
   more like `0.32-0.40` on backrooms.
 - The important fix is that the loop now has a nonzero, monotonic signal for
   text evolution instead of choosing among all-zero adjusted scores.
+
+## 2026-06-07 06:30 PDT - Local-Only Backrooms Image Refinement
+
+Goal:
+
+- Verify that image-to-image refinement can still make progress while hosted
+  Flux is down, using the new elite replay and local image-style mutation path.
+
+Run:
+
+- Resumed `backrooms-image-to-image-f42a6a6b` for one additional local-only
+  iteration with:
+  - real local TRIBE
+  - deterministic backend
+  - `candidateCount=1`
+  - `imageLocalMutations=1`
+  - no image seed mutations
+- This avoided Codex/Flux generation cost. The deterministic placeholder failed
+  and was isolated as `candidate-a.error.json`; the elite replay and local style
+  child still scored successfully.
+
+Result:
+
+- Iteration `006`
+- Selected `elite-replay-image-1`
+- Previous best adjusted `0.8566271777650765`
+- New best adjusted `0.8629998557657745`
+- New best total `0.8886278475705585`
+- Raw neural similarity `0.9958414605293769`
+- Output:
+  `.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/elite-replay-image-1/b393e8b6f875288a-target-crisp-neutral.png`
+
+Interpretation:
+
+- The local mutation architecture is now doing useful search work inside the
+  real pipeline, not only in standalone probes.
+- This is a small but legitimate hard-case improvement and does not rely on
+  target copying or new Flux generations.
+- Still not at 90 adjusted on backrooms; current local-only hard-case best is
+  `0.8630`.
+
+Verification:
+
+- Report:
+  `.agent/benchmarks/backrooms-image-to-image-local-resume-v1.json`

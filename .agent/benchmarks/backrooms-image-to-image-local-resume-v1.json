@@ -1,0 +1,36 @@
+{
+  "createdAt": "2026-06-07T13:30:00.000Z",
+  "oracleMode": "tribe",
+  "backend": "deterministic",
+  "runId": "backrooms-image-to-image-f42a6a6b",
+  "resumeIteration": 6,
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 1,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "imageSeedMutations": 0,
+    "imageLocalMutations": 1,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "result": {
+    "status": "completed",
+    "selectedAgentId": "elite-replay-image-1",
+    "previousBestAdjustedSimilarity": 0.8566271777650765,
+    "bestAdjustedSimilarity": 0.8629998557657745,
+    "bestScore": 0.8886278475705585,
+    "bestNeuralSimilarity": 0.9958414605293769,
+    "iterationCount": 6,
+    "outputImage": ".volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/elite-replay-image-1/b393e8b6f875288a-target-crisp-neutral.png"
+  },
+  "notes": [
+    "Validated local-only image-to-image improvement while hosted Flux returned 502.",
+    "The deterministic generated placeholder failed and was isolated as candidate-a.error.json.",
+    "The winning candidate was a local crisp-neutral style mutation of the existing global elite, not a target copy and not a Flux call."
+  ]
+}
