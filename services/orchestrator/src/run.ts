@@ -719,6 +719,11 @@ const refinementStrategies: MutationStrategy[] = [
       "Preserve the previous elite's strongest behavior. Mutate exactly one semantic unit or rendering variable, keeping all other high-scoring traits stable.",
   },
   {
+    name: "operator-fitness exploit",
+    instruction:
+      "Use the archive's operatorStats to identify the strongest operator family so far. Generate a child that follows that family more deliberately while preserving the current elite's strongest traits. If no stats exist, fall back to conservative point mutation.",
+  },
+  {
     name: "generic focus-axis mutation",
     instruction:
       "Preserve the previous elite except replace one concrete anchor, focus, attention, or central-presence unit with a domain-appropriate alternative supported by the input.",

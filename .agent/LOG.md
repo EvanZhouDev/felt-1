@@ -730,3 +730,24 @@ Interpretation:
 - This makes the archive more like a real evolutionary journal. Future agents can
   adapt based on operator performance instead of treating all archive entries as
   undifferentiated examples.
+
+## 2026-06-06 19:32 PDT - Operator-Fitness Exploit Child
+
+Change:
+
+- Added a refinement operator named `operator-fitness exploit`.
+- This child reads archive `operatorStats`, identifies the strongest operator
+  family so far, and deliberately generates another child in that family while
+  preserving the current elite.
+- If there are no stats, it falls back to conservative point mutation.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Interpretation:
+
+- This makes the operator stats actionable. The search now mixes fixed
+  operator cycling with an adaptive exploitation slot.
