@@ -1042,3 +1042,21 @@ Implications for the loop changes:
   optimizer then exploits whichever register scores for THIS target.
 - The style sweep's real lesson is "register matters and varies", evidenced by
   the spread across personas - not "register X is best".
+
+## 2026-06-07 - PROOF: winning register is target-dependent (ranking flips)
+
+Scored the same 6 style probes against TWO contrasting targets with the blended
+metric. The ranking FLIPS:
+  Turbulent (Starry Night image): LYRIC > WORDSOUP > STORY1P > VISCERAL > STORY2P > PLAIN
+  Calm (still-lake text):         WORDSOUP > LYRIC > VISCERAL > STORY2P > PLAIN > STORY1P
+- STORY1P (emotional first-person): 3rd for turbulent, DEAD LAST for calm.
+- PLAIN (flat description): last for turbulent, mid-pack for calm.
+- LYRIC: 1st for turbulent, 2nd for calm.
+Conclusion: you cannot hardcode a register; the optimizer must discover it per
+target. This is the architectural justification for the orchestration+loop.
+(Caveat: calm scores compressed high ~0.85-0.89 since that target is text, so
+text<->text runs high; the RELATIVE ranking is the signal.)
+
+Interesting per the user: for STARRY NIGHT specifically, LYRIC (high Romantic
+apostrophe - "O restless heaven...") is the top register, with visceral/word-soup
+close behind. Flat description is reliably worst for an emotionally-charged target.
