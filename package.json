@@ -22,6 +22,7 @@
     "probe:texts": "bun services/orchestrator/src/probe-texts.ts",
     "probe:evolve-texts": "bun services/orchestrator/src/probe-evolve-texts.ts",
     "probe:yeo": "bun services/orchestrator/src/probe-yeo.ts",
+    "traces:export": "bun services/orchestrator/src/export-traces.ts && biome format --write .agent/traces/volta-run-traces.json .agent/traces/volta-run-traces.summary.md",
     "audit:similarity": "bun services/orchestrator/src/audit-similarity.ts",
     "calibration:images": "bun services/orchestrator/src/build-image-calibration.ts",
     "calibration:texts": "bun services/orchestrator/src/build-text-calibration.ts",

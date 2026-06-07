@@ -3665,3 +3665,76 @@ Takeaways:
 - Next scoring work should add a modality-appropriate seed verifier for image
   outputs, likely a visual seed proxy or CLIP/caption-based subject check,
   instead of relying on TRIBE text-vs-image seed cosine.
+
+## 2026-06-07 09:01 PDT - Run Trace Snapshot and Graph Visualizer
+
+Goal:
+
+- Preserve compact traces from past `.volta` runs somewhere committed and easy
+  to reload.
+- Build a real visual graph over the run evolution, with rendered image/text
+  nodes instead of a developer-only JSON/table view.
+
+Changes:
+
+- Added `services/orchestrator/src/export-traces.ts`.
+  - Scans `.volta/benchmarks/runs` and `.volta/runs`.
+  - Writes compact graph metadata to
+    `.agent/traces/volta-run-traces.json`.
+  - Writes a short summary to
+    `.agent/traces/volta-run-traces.summary.md`.
+  - Stores run/candidate scores, selected candidates, seed/target links,
+    media references, artifact file paths, and run JSON hashes.
+  - Intentionally omits full activation vectors and does not copy all generated
+    image/video binaries into git.
+- Added `bun run traces:export`.
+- Added `@xyflow/react` to `apps/web`.
+- Replaced the placeholder web shell with a polished trace graph UI:
+  - run search and run picker
+  - React Flow graph canvas
+  - target, seed, candidate, and judge nodes
+  - image thumbnails rendered directly inside graph nodes
+  - text rendered directly inside graph nodes
+  - right inspector with selected image/text, scores, operator, seed, and trace
+    hash/path
+- Added local web APIs:
+  - `/api/traces` serves the committed compact trace snapshot.
+  - `/api/trace-media?path=...` streams allowlisted local image files from this
+    repo's `.volta`/`.agent` paths and the sibling original asset repo.
+
+Snapshot:
+
+- Current snapshot:
+  - runs: `92`
+  - completed runs: `79`
+  - graph nodes: `494`
+  - graph edges: `722`
+  - image nodes: `174`
+  - text nodes: `301`
+- Snapshot files:
+  - `.agent/traces/volta-run-traces.json`
+  - `.agent/traces/volta-run-traces.summary.md`
+- Browser verification screenshots:
+  - `.agent/traces/trace-graph-browser.png`
+  - `.agent/traces/trace-graph-browser-fullpage.png`
+  - `.agent/traces/trace-graph-browser-desktop.png`
+
+Validation:
+
+- `bun run traces:export`
+- `bun run check`
+- Direct API checks:
+  - `/api/traces` returned the 92-run stats above.
+  - `/api/trace-media` returned `200 OK` for a generated seeded flower image.
+- Browser verification:
+  - React Flow graph rendered the latest seeded flowers run.
+  - Desktop check showed target, seed, and candidate image nodes in the graph,
+    plus the selected candidate image and neural/adjusted/total scores in the
+    inspector.
+
+Takeaway:
+
+- We now have a committed compact trace index for past runs and a real visual
+  run explorer. The large generated media remains in `.volta`, but the visualizer
+  can render it through a local allowlisted route as long as the run artifact
+  directories remain on disk.
