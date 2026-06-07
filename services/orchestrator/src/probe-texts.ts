@@ -29,6 +29,7 @@ type ProbeResult = {
   contrastSimilarity?: number;
   discriminativeSimilarity?: number;
   residualSimilarity?: number;
+  residualAdjustedSimilarity?: number;
   retrievalMargin?: number;
   nearMissSimilarity?: number;
   cslsSimilarity?: number;
@@ -99,6 +100,7 @@ try {
         contrastSimilarity: score.contrastSimilarity,
         discriminativeSimilarity: score.discriminativeSimilarity,
         residualSimilarity: score.residualSimilarity,
+        residualAdjustedSimilarity: score.residualAdjustedSimilarity,
         retrievalMargin: score.retrievalMargin,
         nearMissSimilarity: score.nearMissSimilarity,
         cslsSimilarity: score.cslsSimilarity,

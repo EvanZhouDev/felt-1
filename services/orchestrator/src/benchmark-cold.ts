@@ -134,6 +134,7 @@ try {
         loop,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
+        fluxUrl: config.fluxUrl,
       });
       const artifact = store.getArtifact(record.id);
       const result = artifact?.result as BenchmarkRunResult | undefined;
@@ -394,6 +395,26 @@ function buildScenarios(): BenchmarkScenario[] {
       tags: ["image", "mona-lisa", "seeded", "cold-start"],
       skipReason: monaSkipReason,
     },
+    {
+      id: "dog-image-to-image",
+      description:
+        "Use the dog image target as an image-to-image cold benchmark.",
+      input: {
+        inputNode: {
+          type: "image",
+          payload: dogPayload,
+        },
+        seed: {
+          prompt:
+            "Create an image with the same close puppy-in-grass subject, framing, light, and simple outdoor feel.",
+        },
+      },
+      output: {
+        outputType: "image",
+      },
+      tags: ["image", "dog", "same-medium", "cold-start"],
+      skipReason: dogSkipReason,
+    },
   ];
 }
 
@@ -404,6 +425,7 @@ function defaultScenarioIds(): string[] {
     "backrooms-image-to-text",
     "dog-image-to-text",
     "mona-image-to-image",
+    "dog-image-to-image",
   ];
 }
 

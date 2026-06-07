@@ -81,6 +81,7 @@ const server = Bun.serve({
         journal,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
+        fluxUrl: config.fluxUrl,
       }).catch((error) => {
         console.error(`Run ${id} failed:`, error);
       });
@@ -126,6 +127,7 @@ const server = Bun.serve({
         journal,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
+        fluxUrl: config.fluxUrl,
       }).catch((error) => {
         console.error(`Run ${id} resume failed:`, error);
       });

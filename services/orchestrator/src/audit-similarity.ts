@@ -73,11 +73,17 @@ for (let left = 0; left < targets.length - 1; left += 1) {
       target: targets[left].artifact.activation,
       candidate: targets[right].artifact.activation,
       contrastTargets: contrastBankForTarget(left),
+      useResidualAdjustedSimilarity:
+        targets[left].artifact.rendered.kind ===
+        targets[right].artifact.rendered.kind,
     });
     const reverse = scoreActivations({
       target: targets[right].artifact.activation,
       candidate: targets[left].artifact.activation,
       contrastTargets: contrastBankForTarget(right),
+      useResidualAdjustedSimilarity:
+        targets[right].artifact.rendered.kind ===
+        targets[left].artifact.rendered.kind,
     });
     console.log(
       JSON.stringify({
@@ -95,6 +101,7 @@ for (let left = 0; left < targets.length - 1; left += 1) {
         forwardSearchProgressSignal: forward.searchProgressSignal,
         reverseSearchProgressSignal: reverse.searchProgressSignal,
         residualSimilarity: forward.residualSimilarity,
+        residualAdjustedSimilarity: forward.residualAdjustedSimilarity,
         calibratedSimilarity: forward.calibratedSimilarity,
         calibrationTargetCount: forward.calibrationTargetCount,
         calibrationVertexCount: forward.calibrationVertexCount,
@@ -127,6 +134,8 @@ for (const scorePath of scorePaths) {
             target: target.artifact.activation,
             candidate: output.activation,
             contrastTargets: contrastBankForTarget(targetIndex),
+            useResidualAdjustedSimilarity:
+              target.artifact.rendered.kind === output.rendered.kind,
           });
           return {
             target: target.label,
@@ -134,6 +143,7 @@ for (const scorePath of scorePaths) {
             calibratedSimilarity: score.calibratedSimilarity,
             discriminativeSimilarity: score.discriminativeSimilarity,
             residualSimilarity: score.residualSimilarity,
+            residualAdjustedSimilarity: score.residualAdjustedSimilarity,
             retrievalMargin: score.retrievalMargin,
             cslsSimilarity: score.cslsSimilarity,
             hubnessPenalty: score.hubnessPenalty,

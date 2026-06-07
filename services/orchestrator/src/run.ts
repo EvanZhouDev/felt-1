@@ -31,6 +31,7 @@ import {
 } from "./archive.ts";
 import { loadCalibrationActivations } from "./calibration.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
+import { materializeGeneratedImageCandidate } from "./generated-images.ts";
 import {
   activationSummary,
   candidateSummary,
@@ -58,6 +59,7 @@ export type ExecuteRunArgs = {
   journal?: EvolutionJournal;
   candidateModel?: string;
   judgeModel?: string;
+  fluxUrl?: string;
 };
 
 export type ResumeRunArgs = Omit<ExecuteRunArgs, "input" | "output">;
@@ -671,19 +673,24 @@ async function evaluateCandidate(
     target: RunLoopResult["target"];
   },
 ): Promise<EvaluatedOutput> {
+  const candidate = await materializeGeneratedImageCandidate({
+    candidate: args.candidate,
+    runPath: args.runPath,
+    fluxUrl: args.fluxUrl,
+  });
   const rendered = await args.journal.trace({
     name: "candidate.render",
     input: {
       runId: args.id,
       iteration: args.iteration,
-      candidate: candidateSummary(args.candidate),
+      candidate: candidateSummary(candidate),
     },
     attributes: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
     },
-    run: () => renderNode(args.candidate.outputNode),
+    run: () => renderNode(candidate.outputNode),
     output: renderedSummary,
   });
   const activation = await args.journal.trace({
@@ -691,13 +698,13 @@ async function evaluateCandidate(
     input: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
       rendered: renderedSummary(rendered),
     },
     attributes: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
     },
     run: () => args.oracle.encode(rendered.encoderInput),
     output: activationSummary,
@@ -707,7 +714,7 @@ async function evaluateCandidate(
     target: args.target.activation,
   });
   const scoringPriors = candidateScoringPriors({
-    candidate: args.candidate,
+    candidate,
     inputType: args.input.inputNode.type,
     outputType: args.output.outputType,
   });
@@ -716,14 +723,14 @@ async function evaluateCandidate(
     input: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
       targetActivation: activationSummary(args.target.activation),
       candidateActivation: activationSummary(activationWithDiagnostics),
     },
     attributes: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
     },
     run: async () =>
       scoreActivations({
@@ -734,12 +741,14 @@ async function evaluateCandidate(
         diversity:
           scoringPriors.diversity ?? (args.candidate.entropy ? 0.75 : 0.5),
         penalty: scoringPriors.penalty,
+        useResidualAdjustedSimilarity:
+          args.input.inputNode.type === args.output.outputType,
       }),
     output: scoreSummary,
   });
 
   return {
-    ...args.candidate,
+    ...candidate,
     rendered,
     activation: activationWithDiagnostics,
     score,
@@ -1986,6 +1995,24 @@ const imageTextColdStartStrategies: MutationStrategy[] = [
   },
 ];
 
+const imageImageColdStartStrategies: MutationStrategy[] = [
+  {
+    name: "image visual reconstruction",
+    instruction:
+      "Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, scale, background, light, color palette, texture, and photographic style. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject.",
+  },
+  {
+    name: "image composition lock",
+    instruction:
+      "Create a Flux prompt that locks onto the target's layout: main subject position, body scale, foreground/background balance, depth of field, lighting, and dominant colors. Avoid abstract mood-only prompts.",
+  },
+  {
+    name: "image semantic anchor",
+    instruction:
+      "Create a Flux prompt centered on the target's most important visual entity and setting, with concrete details for posture, framing, surface texture, and background. Keep the prompt literal and concise.",
+  },
+];
+
 const textProbeColdStartStrategies: MutationStrategy[] = [
   {
     name: "probe-elite point mutation",
@@ -2183,6 +2210,9 @@ function selectMutationStrategy(args: {
   if (isImageToText(args)) {
     return selectImageTextStrategy(args);
   }
+  if (isImageToImage(args)) {
+    return selectImageImageStrategy(args);
+  }
   if (
     args.iteration === 1 &&
     args.outputType === "text" &&
@@ -2218,11 +2248,31 @@ function selectImageTextStrategy(args: {
   );
 }
 
+function selectImageImageStrategy(args: {
+  iteration: number;
+  index: number;
+  candidateCount: number;
+}): MutationStrategy {
+  if (args.iteration === 1) {
+    return rotatingStrategy(imageImageColdStartStrategies, args.index);
+  }
+  const generationOffset =
+    Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
+  return rotatingStrategy(refinementStrategies, generationOffset + args.index);
+}
+
 function isImageToText(args: {
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
 }): boolean {
   return args.inputType === "image" && args.outputType === "text";
+}
+
+function isImageToImage(args: {
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+}): boolean {
+  return args.inputType === "image" && args.outputType === "image";
 }
 
 function selectTextRefinementStrategy(args: {
@@ -2355,7 +2405,7 @@ function outputTypeInstruction(
     return "For text output, use compact comma-separated semantic units by default: 6-8 phrase fragments, 10-18 words total, no full sentence, no labels, no proper names, no explanatory prose.";
   }
   if (outputType === "image") {
-    return "For image output, express the operator through image-generation intent: composition, subject anchors, light/color, texture, camera/framing, and atmosphere.";
+    return "For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates.";
   }
   return "For code output, express the operator through renderable UI/scene structure: layout, motion/static balance, density, typography, color/contrast, texture, and interaction-free visual state.";
 }

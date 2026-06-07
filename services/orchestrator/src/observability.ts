@@ -134,6 +134,7 @@ export function scoreSummary(score: ScoreBundle) {
     contrastSimilarity: score.contrastSimilarity,
     discriminativeSimilarity: score.discriminativeSimilarity,
     residualSimilarity: score.residualSimilarity,
+    residualAdjustedSimilarity: score.residualAdjustedSimilarity,
     retrievalMargin: score.retrievalMargin,
     cslsSimilarity: score.cslsSimilarity,
     hubnessPenalty: score.hubnessPenalty,

@@ -1,0 +1,36 @@
+{
+  "createdAt": "2026-06-07T10:43:24.737Z",
+  "updatedAt": "2026-06-07T10:44:59.351Z",
+  "oracleMode": "tribe",
+  "backend": "codex",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 1,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "dog-image-to-image",
+      "runId": "dog-image-to-image-27d2c8d6",
+      "status": "completed",
+      "description": "Use the dog image target as an image-to-image cold benchmark.",
+      "tags": ["image", "dog", "same-medium", "cold-start"],
+      "outputType": "image",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-image-to-image-27d2c8d6",
+      "bestScore": 0.4737365795564498,
+      "bestNeuralSimilarity": 0.994104974987327,
+      "bestAdjustedSimilarity": 0.4415634445096991,
+      "iterationCount": 1,
+      "selectedAgentId": "candidate-a"
+    }
+  ]
+}
