@@ -3,7 +3,8 @@ import { join, resolve } from "node:path";
 import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
-import { loadImageNode } from "./loaders.ts";
+import { createAudioDescriber } from "./describer.ts";
+import { loadAudioNode, loadImageNode } from "./loaders.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun } from "./run.ts";
 import { RunStore } from "./storage.ts";
@@ -15,8 +16,13 @@ import { RunStore } from "./storage.ts";
 
 const repoRoot = resolve(import.meta.dir, "../../..");
 const label = process.env.VOLTA_RUN_LABEL ?? "starry";
-const imageSource =
-  process.env.VOLTA_SMOKE_IMAGE ?? join(repoRoot, "starrynight.jpg");
+const inputMedium = (process.env.VOLTA_INPUT_MEDIUM ?? "image") as
+  | "image"
+  | "audio";
+const inputSource =
+  process.env.VOLTA_SMOKE_IMAGE ??
+  process.env.VOLTA_SMOKE_AUDIO ??
+  join(repoRoot, "starrynight.jpg");
 const outputType = (process.env.VOLTA_SMOKE_OUTPUT ??
   "text") as OutputNode["type"];
 
@@ -31,7 +37,10 @@ const config: OrchestratorConfig = {
   databasePath: join(runsRoot, "volta.sqlite"),
   runsRoot,
   oracleMode: base.oracleMode,
-  describeAudio: false,
+  // Audio cannot be attached to the agent like an image, so describing it is the
+  // legitimate "let the agent perceive the audio" path (the audio analogue of
+  // vision), not target-specific steering. Honor VOLTA_DESCRIBE_AUDIO.
+  describeAudio: inputMedium === "audio" && base.describeAudio,
 };
 
 const store = new RunStore(config.databasePath);
@@ -42,12 +51,19 @@ const backend = new CodexCliBackend({
   profile: config.agentBackend.profile,
   timeoutMs: config.agentBackend.timeoutMs,
 });
+const describeAudio =
+  inputMedium === "audio" && config.describeAudio
+    ? createAudioDescriber(config)
+    : undefined;
 
+const inputNode =
+  inputMedium === "audio"
+    ? await loadAudioNode(inputSource)
+    : await loadImageNode(inputSource);
 const input: InputObj = {
-  inputNode: await loadImageNode(imageSource),
+  inputNode,
   seed: {
-    prompt:
-      "Generate text that carries the perceptual vibe of this image: its motion, emotional temperature, light, and atmosphere.",
+    prompt: `Generate text that carries the perceptual vibe of this ${inputMedium}: its motion, emotional temperature, energy, and atmosphere.`,
   },
 };
 const output: OutputObj = { outputType };
@@ -148,6 +164,7 @@ try {
     backend,
     runsRoot,
     loop: config.loop,
+    ...(describeAudio ? { describeAudio } : {}),
   });
 } finally {
   clearInterval(ticker);
