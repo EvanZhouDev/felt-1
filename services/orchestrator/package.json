@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@volta/agent-sdk": "workspace:*",
-    "@volta/core": "workspace:*"
+    "@volta/core": "workspace:*",
+    "weave": "^0.15.1"
   },
   "devDependencies": {
     "@types/bun": "^1.3.4"

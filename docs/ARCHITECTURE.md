@@ -82,13 +82,24 @@ would otherwise lose.
 
 ## Current Scaffold
 
-The repo now has a minimal one-iteration MVP for the agent loop. It uses a
-deterministic agent backend, mock oracle scoring, isolated per-agent folders,
-and readable run artifacts under `.volta/runs/<runId>/`. SQLite is only the run
-index; full run data lives in JSON files such as `run.json`, `input.json`,
-`output-request.json`, and per-iteration `scores.json` / `judge.json`.
+The repo now has a configurable multi-iteration MVP for the agent loop. It can
+run the Codex CLI backend by default, or the deterministic backend for fast
+smokes. Each agent receives an isolated workspace folder, and each run writes
+readable artifacts under `.volta/runs/<runId>/`. SQLite is only the run index;
+full run data lives in JSON files such as `run.json`, `input.json`,
+`output-request.json`, root `target.json`, `evolution-journal.json`, and
+per-iteration `scores.json` / `judge.json` / `iteration.json`.
 
-The real Codex SDK backend, MCP tool gateway, Flux image generation, audio vibe
-description/cache, production renderers, and multi-iteration genetic loop are
-still open implementation work. See [IO Modules](./IO_MODULES.md#scaffold-status)
-for the broader checklist.
+Runs are resumable after completion. `POST /runs/:id/resume` loads the saved
+target activation and latest `NextIterationSeed`, then appends new
+`iterations/NNN` folders. On resume, `loop.maxIterations` means additional
+iterations to append, not total run length.
+
+The Codex backend uses prompt-template functions for first-generation
+candidates, refinement candidates, and judges, then asks Codex for strict JSON
+output nodes/decisions. When image or code-screenshot nodes point at local image
+files, the backend also passes those files to `codex exec --image` so visual
+targets can be inspected directly. Weave can trace the Evolution Journal. The
+MCP tool gateway, Flux image generation, audio vibe description/cache, and
+production renderers are still open implementation work. See
+[IO Modules](./IO_MODULES.md#scaffold-status) for the broader checklist.

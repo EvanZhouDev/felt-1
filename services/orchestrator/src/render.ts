@@ -18,6 +18,7 @@ export async function renderPayload(
   payload: Payload,
 ): Promise<RenderedStimulus> {
   if (payload.type === "text") {
+    const duration = 0.5;
     return buildRenderedStimulus({
       payload,
       kind: "text",
@@ -26,16 +27,7 @@ export async function renderPayload(
         text: payload.text,
       },
       preview: payload.text,
-      events: [
-        {
-          type: "Text",
-          start: 0,
-          duration: 0.5,
-          timeline: "main",
-          subject: "stimulus",
-          text: payload.text,
-        },
-      ],
+      events: textEvents(payload.text, duration),
       text: payload.text,
     });
   }
@@ -58,14 +50,13 @@ export async function renderPayload(
 
   if (payload.type === "image") {
     const source = payload.cachedVideo ?? payload.source;
+    const eventType = payload.cachedVideo ? "Video" : "Image";
     return buildRenderedStimulus({
       payload,
       kind: "video",
       artifact: videoArtifact(source, payload.timing),
       preview: payload.source.uri,
-      events: [
-        assetEvent("Image", payload.source, payload.timing?.durationSec),
-      ],
+      events: [assetEvent(eventType, source, payload.timing?.durationSec)],
       artifactPath: source.uri,
     });
   }
@@ -78,15 +69,14 @@ export async function renderPayload(
       mime: "image/png",
     } satisfies AssetRef);
   const source = payload.cachedVideo ?? fallbackScreenshot;
+  const eventType = payload.cachedVideo ? "Video" : "Image";
 
   return buildRenderedStimulus({
     payload,
     kind: "video",
     artifact: videoArtifact(source, payload.timing),
     preview: `${payload.framework}:${payload.entrypoint}`,
-    events: [
-      assetEvent("Image", fallbackScreenshot, payload.timing?.durationSec),
-    ],
+    events: [assetEvent(eventType, source, payload.timing?.durationSec)],
     artifactPath: source.uri,
     metadata: {
       entrypoint: payload.entrypoint,
@@ -133,7 +123,7 @@ function videoArtifact(source: AssetRef, timing?: RenderTiming): TribeArtifact {
 }
 
 function assetEvent(
-  type: "Audio" | "Image",
+  type: "Audio" | "Image" | "Video",
   source: AssetRef,
   duration = 0.5,
 ): StimulusEvent {
@@ -145,6 +135,38 @@ function assetEvent(
     subject: "stimulus",
     filepath: source.uri,
   };
+}
+
+function textEvents(text: string, duration: number): StimulusEvent[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const wordDuration = duration / Math.max(words.length, 1);
+  const events: StimulusEvent[] = [
+    {
+      type: "Text",
+      start: 0,
+      duration,
+      timeline: "main",
+      subject: "stimulus",
+      text,
+      language: "english",
+      modality: "heard",
+    },
+  ];
+
+  words.forEach((word, index) => {
+    events.push({
+      type: "Word",
+      start: index * wordDuration,
+      duration: wordDuration,
+      timeline: "main",
+      subject: "stimulus",
+      text: word,
+      language: "english",
+      modality: "heard",
+    });
+  });
+
+  return events;
 }
 
 function sha256(value: string): string {

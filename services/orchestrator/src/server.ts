@@ -1,13 +1,26 @@
 import { join } from "node:path";
+import {
+  type AgentBackend,
+  CodexCliBackend,
+  DeterministicAgentBackend,
+} from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
-import { loadConfig } from "./config.ts";
+import {
+  type AgentBackendConfig,
+  type LoopConfig,
+  loadConfig,
+  normalizeLoopConfig,
+} from "./config.ts";
+import { createEvolutionJournal } from "./observability.ts";
 import { createOracle } from "./oracle.ts";
-import { executeRun } from "./run.ts";
+import { executeRun, resumeRun } from "./run.ts";
 import { RunStore } from "./storage.ts";
 
 const config = loadConfig();
 const store = new RunStore(config.databasePath);
 const oracle = createOracle(config);
+const journal = createEvolutionJournal(config.weave);
+const backend = createAgentBackend(config.agentBackend);
 
 const server = Bun.serve({
   port: config.port,
@@ -18,6 +31,13 @@ const server = Bun.serve({
       return json({
         ok: true,
         oracleMode: config.oracleMode,
+        tribeUrl: config.tribeUrl,
+        agentBackend: config.agentBackend.mode,
+        loop: config.loop,
+        weave: {
+          enabled: journal.enabled,
+          dashboardUrl: journal.dashboardUrl,
+        },
       });
     }
 
@@ -31,12 +51,17 @@ const server = Bun.serve({
       const body = (await request.json()) as {
         input?: InputObj;
         output?: OutputObj;
+        loop?: Partial<LoopConfig>;
       };
       if (!body.input || !body.output) {
         return json({ error: "input and output are required." }, 400);
       }
 
       const id = crypto.randomUUID();
+      const loop = normalizeLoopConfig({
+        ...config.loop,
+        ...body.loop,
+      });
       const record = store.create({
         id,
         input: body.input,
@@ -51,8 +76,9 @@ const server = Bun.serve({
         store,
         oracle,
         runsRoot: config.runsRoot,
-        candidateCount: config.candidateCount,
-        maxIterations: config.maxIterations,
+        backend,
+        loop,
+        journal,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
       }).catch((error) => {
@@ -61,6 +87,49 @@ const server = Bun.serve({
 
       return json({
         run: record,
+      });
+    }
+
+    const resumeMatch = url.pathname.match(/^\/runs\/([^/]+)\/resume$/);
+    if (request.method === "POST" && resumeMatch) {
+      const id = resumeMatch[1] as string;
+      const existing = store.get(id);
+      if (!existing) {
+        return json({ error: "Run not found." }, 404);
+      }
+      if (existing.status !== "completed") {
+        return json(
+          { error: `Run must be completed before resume: ${existing.status}.` },
+          409,
+        );
+      }
+
+      const body = (await request.json().catch(() => ({}))) as {
+        loop?: Partial<LoopConfig>;
+      };
+      const loop = normalizeLoopConfig({
+        ...config.loop,
+        maxIterations: 1,
+        ...body.loop,
+      });
+      store.updateStatus(id, "queued");
+
+      void resumeRun({
+        id,
+        store,
+        oracle,
+        runsRoot: config.runsRoot,
+        backend,
+        loop,
+        journal,
+        candidateModel: config.candidateModel,
+        judgeModel: config.judgeModel,
+      }).catch((error) => {
+        console.error(`Run ${id} resume failed:`, error);
+      });
+
+      return json({
+        run: store.get(id),
       });
     }
 
@@ -90,5 +159,17 @@ function json(value: unknown, status = 200): Response {
     headers: {
       "Content-Type": "application/json",
     },
+  });
+}
+
+function createAgentBackend(config: AgentBackendConfig): AgentBackend {
+  if (config.mode === "deterministic") {
+    return new DeterministicAgentBackend();
+  }
+  return new CodexCliBackend({
+    command: config.command,
+    model: config.model,
+    profile: config.profile,
+    timeoutMs: config.timeoutMs,
   });
 }
