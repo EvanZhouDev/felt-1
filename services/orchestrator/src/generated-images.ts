@@ -40,6 +40,9 @@ export async function materializeGeneratedImageCandidate(args: {
   const targetFidelity = targetStyle
     ? targetFidelityMode(targetStyle)
     : undefined;
+  const generationStyle = targetStyle
+    ? fluxGenerationGeometry(targetStyle)
+    : undefined;
 
   return {
     ...args.candidate,
@@ -48,6 +51,9 @@ export async function materializeGeneratedImageCandidate(args: {
       "materialized=flux-image",
       targetStyle
         ? `targetStyle=${targetStyle.width}x${targetStyle.height}`
+        : undefined,
+      generationStyle
+        ? `fluxSize=${generationStyle.width}x${generationStyle.height}`
         : undefined,
       targetFidelity ? `targetFidelity=${targetFidelity}` : undefined,
     ]
@@ -80,10 +86,15 @@ async function materializeFluxImagePayload(args: {
   const model = request.model ?? DEFAULT_FLUX_MODEL;
   const steps = request.steps ?? DEFAULT_FLUX_STEPS;
   const seed = request.seed ?? stableSeed(prompt);
-  const key = sha256(JSON.stringify({ prompt, model, steps, seed })).slice(
-    0,
-    16,
-  );
+  const generationStyle =
+    request.width && request.height
+      ? { width: Number(request.width), height: Number(request.height) }
+      : args.targetStyle
+        ? fluxGenerationGeometry(args.targetStyle)
+        : undefined;
+  const key = sha256(
+    JSON.stringify({ prompt, model, steps, seed, generationStyle }),
+  ).slice(0, 16);
   const assetRoot = join(args.runPath, "generated-assets", args.agentId);
   const rawImagePath = join(assetRoot, `${key}.png`);
   const styledImagePath = join(assetRoot, `${key}-target-style.png`);
@@ -113,6 +124,7 @@ async function materializeFluxImagePayload(args: {
       model,
       steps,
       seed,
+      geometry: generationStyle,
       outPath: rawImagePath,
     });
   }
@@ -186,12 +198,32 @@ function targetFidelityMode(
   return area <= 512 * 512 ? "soft-muted" : undefined;
 }
 
+function fluxGenerationGeometry(geometry: ImageGeometry): ImageGeometry {
+  const maxDimension = 768;
+  const scale = Math.min(
+    maxDimension / geometry.width,
+    maxDimension / geometry.height,
+  );
+  return {
+    width: generationDimension(geometry.width * scale),
+    height: generationDimension(geometry.height * scale),
+  };
+}
+
+function generationDimension(value: number): number {
+  const multiple = 8;
+  const rounded = Math.round(value / multiple) * multiple;
+  return Math.min(1440, Math.max(256, rounded));
+}
+
 function parseFluxGenerationUri(uri: string):
   | {
       prompt: string;
       model?: string;
       steps?: string;
       seed?: string;
+      width?: string;
+      height?: string;
     }
   | undefined {
   if (!uri.startsWith("flux://generate")) {
@@ -204,6 +236,8 @@ function parseFluxGenerationUri(uri: string):
     model: parsed.searchParams.get("model") ?? undefined,
     steps: parsed.searchParams.get("steps") ?? undefined,
     seed: parsed.searchParams.get("seed") ?? undefined,
+    width: parsed.searchParams.get("width") ?? undefined,
+    height: parsed.searchParams.get("height") ?? undefined,
   };
 }
 
@@ -213,6 +247,7 @@ async function downloadFluxImage(args: {
   model: string;
   steps: string;
   seed: string;
+  geometry?: ImageGeometry;
   outPath: string;
 }): Promise<void> {
   const url = new URL("/generate", args.url.replace(/\/+$/, ""));
@@ -220,6 +255,10 @@ async function downloadFluxImage(args: {
   url.searchParams.set("model", args.model);
   url.searchParams.set("steps", args.steps);
   url.searchParams.set("seed", args.seed);
+  if (args.geometry) {
+    url.searchParams.set("width", String(args.geometry.width));
+    url.searchParams.set("height", String(args.geometry.height));
+  }
 
   const response = await fetchWithTimeout(url, DEFAULT_FLUX_TIMEOUT_MS);
   if (!response.ok) {

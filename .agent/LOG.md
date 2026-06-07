@@ -2749,3 +2749,71 @@ Verification:
   - `.agent/benchmarks/backrooms-image-to-image-refine3-resume-v1.json`
   - `.agent/benchmarks/backrooms-image-to-image-refine4-resume-v1.json`
   - `.agent/benchmarks/backrooms-image-to-image-refine5-resume-v1.json`
+
+## 2026-06-07 05:12 PDT - Target-Aspect Flux Generation
+
+Goal:
+
+- Remove another render/generation mismatch: Flux was generating square images
+  and the materializer was cropping them down to the target aspect. The hosted
+  Flux API supports `width` and `height`, so image-to-image runs can generate at
+  the target aspect before target-style/fidelity scoring.
+
+Change:
+
+- For image-to-image candidates with a target render geometry, Flux generation
+  now requests a target-aspect size up to 768 px on the long side. For the
+  backrooms/dog 250x188 targets this becomes `768x576`.
+- The generation size is part of the cache key, so old square generations are
+  not reused accidentally.
+- Candidate entropy records `fluxSize=<width>x<height>`.
+
+Runs:
+
+- `backrooms-image-to-image-cb8068ad`
+  - 3 candidates, 1 iteration, real local TRIBE
+  - best candidate `candidate-b`
+  - raw `0.990592392604175`
+  - adjusted `0.8222376890532574`
+  - total `0.8478646348823649`
+  - output: `.volta/benchmarks/runs/backrooms-image-to-image-cb8068ad/generated-assets/candidate-b/aedc0aee51daa8e0-target-fidelity.png`
+  - raw Flux image was `768x576`; scored target-fidelity image was `250x188`.
+- `backrooms-image-to-image-70009e94`
+  - 3 candidates, 2 iterations, real local TRIBE
+  - best adjusted `0.7027960540178082`
+  - interpretation: target-aspect generation improved one-turn potential but
+    does not guarantee a strong first population; this run started weaker and
+    refinement did not recover.
+- `dog-image-to-image-57dfe8fe`
+  - one candidate, one iteration
+  - raw `0.9980048695231954`
+  - adjusted `0.9759573456741`
+  - total `1.003348083095347`
+
+Cross-target audit:
+
+- Target-aspect backrooms winner:
+  - vs backrooms adjusted `0.8390786598456733`, total
+    `0.86241251710694`
+  - vs Mona adjusted `0`, total `0`
+  - vs dog adjusted `0`, total `0`
+- Target-aspect dog winner:
+  - vs dog adjusted `0.9660912372365351`, total `0.9932793246673197`
+  - vs Mona adjusted `0`, total `0`
+  - vs backrooms adjusted `0`, total `0`
+
+Interpretation:
+
+- Target-aspect Flux generation is a real generic render-boundary fix and gives
+  a new one-turn backrooms high of `0.8222` adjusted.
+- The current best overall backrooms result is still the earlier 2-turn elite at
+  `0.8566` adjusted. The remaining bottleneck is not aspect alone; it is
+  reliable first-population quality and avoiding drift in refinement.
+
+Verification:
+
+- `bun run check` passed.
+- Reports:
+  - `.agent/benchmarks/backrooms-image-to-image-aspect-pop3-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-aspect-refine2-v1.json`
+  - `.agent/benchmarks/dog-image-to-image-aspect-v1.json`
