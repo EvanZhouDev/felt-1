@@ -1281,3 +1281,17 @@ INVITE semantic divergence (evoke the same FEELING via any subject, not just
 describe the image). Test whether a divergence-allowed loop climbs higher.
 Note: not all divergent texts win (storm/dread scored below) - it must match the
 SPECIFIC felt quality, so the search still matters; this isn't "anything goes".
+
+## 2026-06-07 - CLARIFICATION: the grandma text was HAND-WRITTEN, not loop-derived
+
+Important caveat on the divergence finding: I (the agent) WROTE the grandma /
+first-love / storm / dread texts by hand to probe the user's hypothesis. The
+PRODUCTION LOOP did NOT independently generate them. What's proven: the TRIBE
+scoring LANDSCAPE rewards a semantically-unrelated emotional match over a literal
+description (grandma 0.637 > night-sky 0.608) - this is real, deterministic,
+metric-measured. What is NOT yet proven: that the search/loop would DISCOVER
+divergent text on its own (it currently produces only descriptive text, because
+the seed + image bias it toward describing the scene). So "the loop is leaving
+signal on the table" is a PLAUSIBLE INFERENCE, not a tested result. The
+divergence-allowed loop test (task 21) is what would settle whether the search
+can exploit the opportunity.
