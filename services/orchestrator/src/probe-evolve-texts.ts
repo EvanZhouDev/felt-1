@@ -356,18 +356,37 @@ function parentFromUnknown(item: unknown, index: number): ParentText {
           ? item.id
           : `parent-${String(index + 1).padStart(2, "0")}`,
       text: item.text,
-      score:
-        typeof item.neuralSimilarity === "number"
-          ? item.neuralSimilarity
-          : typeof item.score === "number"
-            ? item.score
-            : isObject(item.score) &&
-                typeof item.score.neuralSimilarity === "number"
-              ? item.score.neuralSimilarity
-              : undefined,
+      score: parentScore(item),
     };
   }
   throw new Error(`Invalid parent at index ${index}.`);
+}
+
+function parentScore(item: Record<string, unknown>): number | undefined {
+  if (typeof item.total === "number") {
+    return item.total;
+  }
+  if (typeof item.adjustedSimilarity === "number") {
+    return item.adjustedSimilarity;
+  }
+  if (isObject(item.score)) {
+    if (typeof item.score.total === "number") {
+      return item.score.total;
+    }
+    if (typeof item.score.adjustedSimilarity === "number") {
+      return item.score.adjustedSimilarity;
+    }
+    if (typeof item.score.neuralSimilarity === "number") {
+      return item.score.neuralSimilarity;
+    }
+  }
+  if (typeof item.score === "number") {
+    return item.score;
+  }
+  if (typeof item.neuralSimilarity === "number") {
+    return item.neuralSimilarity;
+  }
+  return undefined;
 }
 
 function normalizeText(value: string): string {

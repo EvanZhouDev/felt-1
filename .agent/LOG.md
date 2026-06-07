@@ -3445,3 +3445,40 @@ Verification:
 
 - `bun run check`
 - `bun run smoke`
+
+## 2026-06-07 07:20 PDT - Text Evolution Parent Score Priority
+
+Goal:
+
+- Remove another stale raw-neural assumption from the text-side evolutionary
+  tooling.
+
+Problem found:
+
+- `probe:evolve-texts` ranked parents from probe reports by
+  `neuralSimilarity` before considering corrected `total` or
+  `adjustedSimilarity`.
+- That could reintroduce reward-hacky text parents that have high raw neural
+  similarity but lose under the corrected scorer.
+
+Change:
+
+- Parent score priority is now:
+  1. top-level `total`
+  2. top-level `adjustedSimilarity`
+  3. nested `score.total`
+  4. nested `score.adjustedSimilarity`
+  5. nested/raw `neuralSimilarity`
+  6. legacy numeric `score`
+
+Validation:
+
+- Crafted a two-parent probe report where:
+  - `raw-high` had `neuralSimilarity=0.99` but `total=0.1`
+  - `total-high` had `neuralSimilarity=0.2` but `total=0.8`
+- `probe:evolve-texts --limit 2` emitted `elite-total-high` before
+  `elite-raw-high`, proving it follows corrected total score.
+
+Verification:
+
+- `bun run check`
