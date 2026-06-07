@@ -1295,3 +1295,43 @@ the seed + image bias it toward describing the scene). So "the loop is leaving
 signal on the table" is a PLAUSIBLE INFERENCE, not a tested result. The
 divergence-allowed loop test (task 21) is what would settle whether the search
 can exploit the opportunity.
+
+## 2026-06-07 - Painting specificity matrix: NEGATIVE result + root cause
+
+Ran the real target-agnostic loop (3x3) on 5 paintings @250px, then cross-scored
+all 5 optimized texts x all 5 image targets (blended metric).
+
+Per-painting loop best (iteration first reached):
+  starry_night 0.6794 @ iter2 | the_scream 0.6713 @ iter2 | mona_lisa 0.6782 @ iter2
+  great_wave 0.6504 @ iter1 | water_lilies 0.6260 @ iter2
+
+CROSS-SCORE MATRIX (row=text-optimized-for, col=image target):
+            starry  scream   mona    wave  lilies
+  starry   0.6794*  0.6954  0.6770  0.6611  0.6178   best=scream
+  scream   0.6527   0.6705* 0.6748  0.6430  0.5944   best=mona
+  mona     0.6565   0.6689  0.6782* 0.6402  0.6100   best=mona (DIAG)
+  wave     0.6684   0.6784  0.6781  0.6504* 0.6212   best=scream
+  lilies   0.6742   0.6853  0.6929  0.6636  0.6257*  best=mona
+
+Diagonal dominance: 1/5 (only Mona Lisa). NEGATIVE result - the optimized texts
+do NOT discriminate between paintings. Starry-Night text scores HIGHER on the
+Scream than on Starry Night.
+
+ROOT CAUSE (diagnosed): the IMAGE TARGETS THEMSELVES are nearly collinear.
+Between-painting target-target pooled-centered cosine: mean 0.855, range
+0.759-0.973. Starry Night <-> The Scream = 0.973 (nearly identical!). If two
+targets are 0.97 similar, NO text can score high on one and low on the other -
+specificity is impossible by construction.
+
+WHY so similar - leading hypothesis: 250px downscale + image path produces only
+2 timesteps (still -> 2-frame held clip), a weak low-variance embedding that
+doesn't capture painting-specific structure. The Scream/Mona columns act as
+"generic attractors" because their targets sit where most texts land.
+
+This is an important finding about the IMAGE->TRIBE path, not just the loop.
+Open questions to resolve with user (PAUSED here per request):
+- Is 250px too small? (user picked 250 over 600; maybe higher res separates them)
+- Does the 2-timestep image path lose painting structure vs e.g. a longer clip?
+- Are image targets just inherently low-variance in TRIBE (image vs text/video)?
+- Should specificity be judged on a metric that emphasizes the residual
+  between-painting variance (whiten by the common-mode)?
