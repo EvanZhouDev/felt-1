@@ -122,9 +122,12 @@ if (result.iterations.length !== 2) {
     `Expected 2 iterations, received ${result.iterations.length}.`,
   );
 }
-if (result.candidates.length !== 2) {
+// From iteration 2 on, elitism re-injects the reigning global elite into the
+// population, so the final ranking holds candidateCount fresh candidates plus
+// (when an elite exists) one carried-forward elite.
+if (result.candidates.length !== 2 && result.candidates.length !== 3) {
   throw new Error(
-    `Expected 2 candidates, received ${result.candidates.length}.`,
+    `Expected 2 or 3 candidates, received ${result.candidates.length}.`,
   );
 }
 if (result.judge.selectedAgentId !== result.candidates[0]?.agentId) {
