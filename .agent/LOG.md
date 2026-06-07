@@ -445,3 +445,36 @@ Interpretation:
   mutation strategies around the elite, such as replacing one semantic axis
   (face/gaze, air/distance, warmth/shadow, texture/surface) while preserving
   caption length.
+
+## 2026-06-06 18:58 PDT - Axis-Swap Refinement Test
+
+Change:
+
+- Replaced the first refinement slots after the score-preserving edit with
+  explicit compact axis swaps:
+  - face/gaze/expression/attention,
+  - air/distance/depth/haze/atmosphere,
+  - warmth/color/light/shadow.
+- Kept every strategy constrained to 10-18 comma-separated words.
+
+Run:
+
+- Continued run `738e1334-f9b2-4105-a08e-573c1de321b2` for iterations 5 and 6.
+- Seed was the global elite:
+  `warm stillness, suspended attention, heavy air, close distance, shadowed face, unreadable calm`.
+
+Results:
+
+- Iteration 5 best: `0.36235703287684884`.
+- Iteration 6 best: `0.33658293434128994`.
+- Global best remains iteration 2 `candidate-a` at `0.4447056855600945`.
+
+Interpretation:
+
+- Axis swaps preserve decent quality but did not break the `0.44` local basin.
+- The best mutation so far already looks like a compact affect/atmosphere code.
+  Further single-axis replacements mostly degrade it.
+- Next likely mechanism should be more global than phrase swapping: either
+  calibrate a small local phrase library by probing individual cue substitutions,
+  or add a deterministic micro-search around the best caption's slots instead of
+  relying only on Codex-generated one-shot children.

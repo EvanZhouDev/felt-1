@@ -709,6 +709,21 @@ const refinementStrategies: MutationStrategy[] = [
       "Keep the previous best as a 10-18 word comma-separated caption. Make one restrained phrase swap while preserving its strongest affect, light, texture, distance, and ambiguity cues.",
   },
   {
+    name: "minimal face-gaze axis swap",
+    instruction:
+      "Write a 10-18 word comma-separated caption. Preserve the previous best except replace exactly one face, gaze, expression, or attention phrase with a stronger target-specific alternative.",
+  },
+  {
+    name: "minimal air-distance axis swap",
+    instruction:
+      "Write a 10-18 word comma-separated caption. Preserve the previous best except replace exactly one air, distance, depth, haze, or atmosphere phrase with a stronger target-specific alternative.",
+  },
+  {
+    name: "minimal warmth-shadow axis swap",
+    instruction:
+      "Write a 10-18 word comma-separated caption. Preserve the previous best except replace exactly one warmth, color, light, or shadow phrase with a stronger target-specific alternative.",
+  },
+  {
     name: "minimal caption crossover",
     instruction:
       "Write a 10-18 word comma-separated caption that combines the previous best's strongest phrases with one useful cue from the runner-up or archive context.",
@@ -717,11 +732,6 @@ const refinementStrategies: MutationStrategy[] = [
     name: "minimal caption ablation",
     instruction:
       "Write a 10-18 word comma-separated caption that removes one concrete anchor from the previous best and replaces it with a low-level affect, light, surface, or air cue.",
-  },
-  {
-    name: "minimal affect intensity caption",
-    instruction:
-      "Write a 10-18 word comma-separated caption that keeps the previous best's subject anchor but shifts emotional temperature, motion level, attention, ambiguity, and intimacy.",
   },
   {
     name: "surface and texture child",
