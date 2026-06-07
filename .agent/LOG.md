@@ -997,3 +997,29 @@ Remaining weaknesses (next: improve the evolution process per user OK):
 - isEliteStalled triggers wider exploration after just ONE non-improving
   iteration, but even widened exploration stayed in the same semantic basin
   (every candidate is a paraphrase of the same Starry-Night description).
+
+## 2026-06-07 - Metric: added best-match term (answering "is resampling best?")
+
+Tested 4 cross-modal alignment strategies on the real image->text data. Finding:
+resample-max COMPRESSES the gradient (all 6 styles within ~0.03), while
+"best-match" (each target frame -> best candidate frame) SPREADS them ~2x wider
+(stronger climb signal) BUT alone fails the text<->text reward-hack test (ranks
+calm-sky above the true turbulent match - the gameable failure).
+
+Solution (commit, metric weights): BLEND
+  0.4 pooled-centered + 0.3 resampled temporal+dynamics + 0.3 symmetric best-match.
+The pooled backbone keeps it non-gameable (text<->text MATCH rank 1/8, hackgap
++0.077); best-match restores the cross-modal gradient (style spread 0.114).
+Validated on exp-2 probe set + 6-style sweep + 8-persona sweep.
+
+STYLE FINDING (TRIBE targets emotion, not description - user was right):
+6-style sweep vs image target, flat semantic PLAIN description ranks DEAD LAST
+(6/6) under every alignment strategy. Emotional lyric/visceral/story prose ranks
+highest. The loop's collapse into comma-separated "word-soup" was a real cause
+of the plateau.
+
+ORCHESTRATION (ultracode): fanned out 8 persona agents (visceral-fear,
+grief-longing, ecstatic-rapture, child-wonder, lonely-insomniac, lyric-romantic,
+dread-sublime, sensory-synesthete) -> 48 emotion-targeting candidates. Scoring
+all 48 vs the image target with the blended metric (in progress). First result:
+visceral-fear candidate = 0.6421, already above the v2 loop's best (0.6270).
