@@ -1060,3 +1060,34 @@ text<->text runs high; the RELATIVE ranking is the signal.)
 Interesting per the user: for STARRY NIGHT specifically, LYRIC (high Romantic
 apostrophe - "O restless heaven...") is the top register, with visceral/word-soup
 close behind. Flat description is reliably worst for an emotionally-charged target.
+
+## 2026-06-07 - Persona orchestration leaderboard (48 candidates scored)
+
+8 personas x 6 candidates, scored vs Starry Night image target (blended metric).
+EVERY persona's best beat the evolution loop's prior best (0.627 word-soup).
+
+Persona leaderboard (best / mean):
+  dread-sublime       0.6712 / 0.6512   <- WINS on best AND mean (most reliable)
+  child-wonder        0.6621 / 0.6189   (one spike, low mean = inconsistent)
+  sensory-synesthete  0.6573 / 0.6369
+  visceral-fear       0.6536 / 0.6390
+  lyric-romantic      0.6508 / 0.6275
+  grief-longing       0.6500 / 0.6223
+  ecstatic-rapture    0.6495 / 0.6378
+  lonely-insomniac    0.6485 / 0.6252
+
+Top generation (dread-sublime, 0.6712):
+> Beauty this large is not gentle. It opens beneath your feet like a sea, and
+> the stars blaze down indifferent as furnaces [...]
+
+Takeaways:
+- Emotion-targeting prose decisively beats word-soup for this target (+0.044 over
+  the loop's 0.627). The persona fan-out found candidates the single-register
+  loop could not.
+- dread-sublime (Burkean sublime: terror+awe, indifferent cosmos) is the most
+  aligned register for Starry Night - and it BEAT my hand-picked lyric/visceral
+  probes. The fan-out discovered a better register than I'd have guessed, which
+  is the point of the orchestration.
+- Per user's framing: this is the per-target winner, not a global one. Loop
+  prompt was fixed to invite register diversity + target-matching (commit ddf9e91),
+  NOT to hardcode dread-sublime.
