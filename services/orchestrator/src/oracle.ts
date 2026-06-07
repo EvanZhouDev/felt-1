@@ -20,6 +20,8 @@ export function createOracle(config: OrchestratorConfig): NeuralOracle {
 }
 
 class MockOracle implements NeuralOracle {
+  readonly model = "mock-neural-oracle";
+
   async encode(stimulus: EncoderStimulus): Promise<ActivationTrace> {
     const text = `${stimulus.text ?? ""} ${stimulus.events
       .map((event) => event.text ?? event.filepath ?? event.type)
@@ -64,6 +66,8 @@ type TribeJobStatus = {
 };
 
 class HttpTribeOracle implements NeuralOracle {
+  readonly model = "tribev2-http";
+
   private readonly baseUrl: string;
   private readonly timeoutMs = Number(
     process.env.VOLTA_ORACLE_TIMEOUT_MS ?? 600_000,
@@ -345,6 +349,8 @@ function halfToFloat(half: number): number {
 }
 
 class TribeOracle implements NeuralOracle {
+  readonly model = "tribev2";
+
   private worker: PythonOracleWorker | undefined;
 
   constructor(private readonly config: OrchestratorConfig) {}

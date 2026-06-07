@@ -160,6 +160,7 @@ export type ScoreBundle = {
   retrievalMargin?: number;
   cslsSimilarity?: number;
   hubnessPenalty?: number;
+  searchProgressSignal?: number;
   calibrationTargetCount?: number;
   calibrationVertexCount?: number;
   targetSpecificity?: number;
@@ -203,6 +204,7 @@ export type NextIterationSeed =
     };
 
 export type NeuralOracle = {
+  model?: string;
   encode(stimulus: EncoderStimulus): Promise<ActivationTrace>;
   shutdown?(): Promise<void> | void;
 };

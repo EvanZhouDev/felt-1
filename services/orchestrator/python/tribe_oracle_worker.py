@@ -20,15 +20,16 @@ class TribeOracleWorker:
         events = pd.DataFrame(stimulus["events"])
         model = self.get_model(payload)
         preds, _segments = model.predict(events=events, verbose=False)
+        pooled = preds.mean(axis=0, keepdims=True)
 
         return {
             "model": "tribev2",
-            "shape": list(preds.shape),
-            "values": preds.tolist(),
+            "shape": list(pooled.shape),
+            "values": pooled.tolist(),
             "summary": {
-                "mean": float(preds.mean()),
-                "std": float(preds.std()),
-                "norm": float(math.sqrt(float((preds * preds).sum()))),
+                "mean": float(pooled.mean()),
+                "std": float(pooled.std()),
+                "norm": float(math.sqrt(float((pooled * pooled).sum()))),
             },
         }
 

@@ -29,6 +29,7 @@ import {
   mergeCandidateArchives,
   operatorStats,
 } from "./archive.ts";
+import { loadCalibrationActivations } from "./calibration.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import {
   activationSummary,
@@ -275,7 +276,7 @@ async function executeRunLoop(
       );
     }
     const stopReason = getStopReason({
-      bestNeuralSimilarity: bestAfter
+      bestAdjustedSimilarity: bestAfter
         ? outputSelectionSimilarity(bestAfter)
         : undefined,
       iterationsCompleted: completed + 1,
@@ -405,6 +406,9 @@ async function loadCachedTarget(
   if (!cached?.activation) {
     return undefined;
   }
+  if (args.oracle.model && cached.activation.model !== args.oracle.model) {
+    return undefined;
+  }
   return {
     rendered,
     activation: cached.activation,
@@ -424,7 +428,16 @@ function targetCachePath(
   args: RunLoopArgs,
   rendered: RenderedStimulus,
 ): string {
-  return join(args.runsRoot, "..", "target-cache", `${rendered.sha256}.json`);
+  return join(
+    args.runsRoot,
+    "..",
+    "target-cache",
+    `${oracleCacheKey(args.oracle)}-${rendered.sha256}.json`,
+  );
+}
+
+function oracleCacheKey(oracle: NeuralOracle): string {
+  return (oracle.model ?? "unknown-oracle").replaceAll(/[^a-zA-Z0-9._-]/g, "_");
 }
 
 async function executeIteration(
@@ -830,82 +843,14 @@ function loadContrastTargets(
     target: RunLoopResult["target"];
   },
 ): RunLoopResult["target"]["activation"][] {
-  const roots = uniqueStrings([
-    resolve(join(args.runsRoot, "..", "target-cache")),
-    ...discoverTargetCacheRoots(REPO_ROOT),
-    ...args.loop.contrastTargetRoots,
-  ]);
-  const contrastTargets: RunLoopResult["target"]["activation"][] = [];
-  const seen = new Set<string>();
-
-  for (const root of roots) {
-    if (!existsSync(root)) {
-      continue;
-    }
-    for (const entry of readdirSync(root).sort()) {
-      if (!entry.endsWith(".json")) {
-        continue;
-      }
-      const cachedTarget = readOptionalJson<RunLoopResult["target"]>(
-        join(root, entry),
-      );
-      const key = `${cachedTarget?.activation?.model ?? ""}:${
-        cachedTarget?.rendered?.sha256 ?? entry
-      }`;
-      if (
-        !cachedTarget?.activation?.values ||
-        cachedTarget.rendered.sha256 === args.target.rendered.sha256 ||
-        cachedTarget.activation.model !== args.target.activation.model ||
-        seen.has(key) ||
-        !sameActivationShape(cachedTarget.activation, args.target.activation)
-      ) {
-        continue;
-      }
-      seen.add(key);
-      contrastTargets.push(cachedTarget.activation);
-      if (contrastTargets.length >= 64) {
-        return contrastTargets;
-      }
-    }
-  }
-
-  return contrastTargets;
-}
-
-function discoverTargetCacheRoots(cwd: string): string[] {
-  return uniqueStrings(
-    [join(cwd, ".volta"), join(cwd, "services/orchestrator/.volta")]
-      .flatMap((root) => findTargetCacheRoots(root, 5))
-      .map((root) => resolve(root)),
-  ).sort();
-}
-
-function findTargetCacheRoots(root: string, maxDepth: number): string[] {
-  if (maxDepth < 0 || !existsSync(root)) {
-    return [];
-  }
-  const roots: string[] = [];
-  for (const entry of readdirSync(root, { withFileTypes: true }).sort(
-    (left, right) => left.name.localeCompare(right.name),
-  )) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-    const path = join(root, entry.name);
-    if (entry.name === "target-cache") {
-      roots.push(path);
-      continue;
-    }
-    roots.push(...findTargetCacheRoots(path, maxDepth - 1));
-  }
-  return roots;
-}
-
-function sameActivationShape(
-  left: RunLoopResult["target"]["activation"],
-  right: RunLoopResult["target"]["activation"],
-): boolean {
-  return left.shape[0] === right.shape[0] && left.shape[1] === right.shape[1];
+  return loadCalibrationActivations({
+    repoRoot: REPO_ROOT,
+    runsRoot: args.runsRoot,
+    targetActivation: args.target.activation,
+    targetSha: args.target.rendered.sha256,
+    explicitTargetRoots: args.loop.contrastTargetRoots,
+    maxActivations: 96,
+  });
 }
 
 function candidateScoringPriors(candidate: CandidateOutput): {
@@ -1242,17 +1187,6 @@ function textSlots(text: string): string[] {
 
 function textWords(text: string): string[] {
   return text.trim().split(/\s+/).filter(Boolean);
-}
-
-function uniqueStrings(values: string[]): string[] {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    if (seen.has(value)) {
-      return false;
-    }
-    seen.add(value);
-    return true;
-  });
 }
 
 function syntaxInversionVariant(slots: string[]): TextMicroVariant | undefined {
@@ -1859,13 +1793,13 @@ function outputTypeInstruction(outputType: OutputObj["outputType"]): string {
 }
 
 function getStopReason(args: {
-  bestNeuralSimilarity: number | undefined;
+  bestAdjustedSimilarity: number | undefined;
   iterationsCompleted: number;
   loop: LoopConfig;
 }): StopReason | undefined {
   if (
-    typeof args.bestNeuralSimilarity === "number" &&
-    args.bestNeuralSimilarity >= args.loop.similarityThreshold
+    typeof args.bestAdjustedSimilarity === "number" &&
+    args.bestAdjustedSimilarity >= args.loop.similarityThreshold
   ) {
     return "threshold";
   }

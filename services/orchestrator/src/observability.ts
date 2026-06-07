@@ -137,6 +137,7 @@ export function scoreSummary(score: ScoreBundle) {
     retrievalMargin: score.retrievalMargin,
     cslsSimilarity: score.cslsSimilarity,
     hubnessPenalty: score.hubnessPenalty,
+    searchProgressSignal: score.searchProgressSignal,
     calibrationTargetCount: score.calibrationTargetCount,
     calibrationVertexCount: score.calibrationVertexCount,
     targetSpecificity: score.targetSpecificity,

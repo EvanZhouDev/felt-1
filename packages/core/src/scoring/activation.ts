@@ -44,6 +44,9 @@ export function scoreActivations(args: {
   const coherence = args.coherence ?? 0.5;
   const diversity = args.diversity ?? 0.5;
   const penalty = args.penalty ?? 0;
+  const searchProgressSignal = calibrated
+    ? Math.min(0.04, calibrated.searchProgressSignal * 0.04)
+    : 0;
   const auxiliarySignal =
     (seedAdherence - 0.5) * 0.04 +
     (coherence - 0.5) * 0.04 +
@@ -59,6 +62,8 @@ export function scoreActivations(args: {
     retrievalMargin: calibrated?.retrievalMargin,
     cslsSimilarity: calibrated?.cslsSimilarity,
     hubnessPenalty: calibrated?.hubnessPenalty,
+    searchProgressSignal:
+      searchProgressSignal > 0 ? searchProgressSignal : undefined,
     calibrationTargetCount: calibrated?.calibrationTargetCount,
     calibrationVertexCount: calibrated?.calibrationVertexCount,
     targetSpecificity,
@@ -66,7 +71,8 @@ export function scoreActivations(args: {
     seedAdherence,
     coherence,
     diversity,
-    total: adjustedSimilarity + auxiliarySignal - penalty,
+    total:
+      adjustedSimilarity + searchProgressSignal + auxiliarySignal - penalty,
   };
 }
 
@@ -84,7 +90,10 @@ export function flattenTrace(trace: ActivationTrace): number[] {
 }
 
 export function cosineSimilarity(a: number[], b: number[]): number {
-  const length = Math.min(a.length, b.length);
+  if (a.length !== b.length) {
+    return 0;
+  }
+  const length = a.length;
   if (length === 0) {
     return 0;
   }
@@ -134,6 +143,7 @@ function calibratedRetrievalSimilarity(args: {
       retrievalMargin: number;
       cslsSimilarity: number;
       hubnessPenalty: number;
+      searchProgressSignal: number;
       calibrationTargetCount: number;
       calibrationVertexCount: number;
     }
@@ -185,15 +195,17 @@ function calibratedRetrievalSimilarity(args: {
   const cslsSimilarity =
     2 * discriminativeSimilarity - candidateNeighborhood - targetNeighborhood;
   const retrievalMargin = discriminativeSimilarity - nearestContrastSimilarity;
+  const calibratedBase = 0.5 + 0.5 * Math.tanh(cslsSimilarity);
 
   return {
     calibratedSimilarity:
-      (0.5 + 0.5 * Math.tanh(cslsSimilarity)) *
-      retrievalMarginConfidence(retrievalMargin),
+      calibratedBase * retrievalMarginConfidence(retrievalMargin),
     discriminativeSimilarity,
     retrievalMargin,
     cslsSimilarity,
     hubnessPenalty: Math.max(0, candidateNeighborhood),
+    searchProgressSignal:
+      calibratedBase * retrievalMarginNearMissConfidence(retrievalMargin),
     calibrationTargetCount: contrastVectors.length + 1,
     calibrationVertexCount: selectedVertices.length,
   };
@@ -300,7 +312,11 @@ function clamp01(value: number): number {
 }
 
 function retrievalMarginConfidence(retrievalMargin: number): number {
-  return clamp01((retrievalMargin + 0.25) / 0.5);
+  return clamp01(retrievalMargin / 0.35);
+}
+
+function retrievalMarginNearMissConfidence(retrievalMargin: number): number {
+  return clamp01((retrievalMargin + 0.15) / 0.15);
 }
 
 function orthonormalBasis(vectors: number[][]): number[][] {

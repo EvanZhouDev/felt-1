@@ -1404,3 +1404,55 @@ Verification:
 - `bun run format && bun run check` passed.
 - `bun run smoke` passed.
 - `bun run smoke:generic` passed.
+
+## 2026-06-06 23:34 PDT - Local TRIBE Switch and Cache Bug Fix
+
+Context:
+
+- Hosted TRIBE had stale queued jobs and a long-running text job
+  `126a43eaebd5`, so we switched dog-image testing to local TRIBE.
+- Resized the dog probe assets for real runs:
+  - `/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-256.jpg`
+    (`256x180`, `4.9K`)
+  - `/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-256-0.5s.mp4`
+    (`256x180`, `0.5s`, one frame, `6.8K`)
+
+Bug found:
+
+- The first local run was invalid. It reused a hosted target cache
+  (`tribev2-http`, shape `[1, 20484]`) while encoding the candidate locally
+  (`tribev2`, shape `[5, 20484]`).
+- `cosineSimilarity` compared only the shared prefix length, so mismatched
+  flattened vectors could produce a plausible-looking number.
+
+Fix:
+
+- Added an optional `NeuralOracle.model` id and set it for mock, hosted TRIBE,
+  and local TRIBE.
+- Target-cache filenames now include the oracle model id, and cache reads reject
+  activations from a different oracle model.
+- Local TRIBE worker now mean-pools predicted timepoints to `[1, 20484]`, same
+  shape convention as hosted TRIBE.
+- `cosineSimilarity` now returns `0` on vector-length mismatch instead of
+  silently comparing a prefix.
+
+Valid local result:
+
+- Command:
+  `VOLTA_TRIBE_DEVICE=mps VOLTA_DOG_IMAGE=/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-256.jpg VOLTA_DOG_VIDEO=/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-256-0.5s.mp4 VOLTA_ORACLE_TIMEOUT_MS=900000 bun services/orchestrator/src/benchmark-cold.ts --scenario dog-image-to-text --oracle tribe --backend deterministic --max-iterations 1 --candidate-count 1 --scoring-concurrency 1 --text-probe-count 0 --text-micro-mutations 0 --out /tmp/volta-dog-score-v4-local-mps-pooled.json`
+- Completed in about `2m36s` including local model startup.
+- Run id: `dog-image-to-text-17ef787e`.
+- Target and candidate both used local `tribev2` with shape `[1, 20484]`.
+- Candidate text:
+  `Quiet visual attention, close space, muted atmosphere, with candidate a steady variation`
+- Scores:
+  - raw `neuralSimilarity`: `0.341410`
+  - `bestAdjustedSimilarity`: `-0.052101`
+  - `bestScore`: `-0.027101`
+
+Interpretation:
+
+- The corrected local pipeline no longer produces a false high score for the
+  generic dog text candidate.
+- Local MPS works and is usable for real TRIBE testing, but first-load latency
+  is still significant.
