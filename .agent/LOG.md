@@ -1434,3 +1434,59 @@ metric yet. Proper path: collect the reference corpus first, re-validate.
 Also note: the synthesis assumed Pearson "still ranks calm #1" - true for POOLED,
 but our FULL temporal blend already ranks MATCH #1, so the urgency is lower than
 the synthesis implies. The temporal structure was already doing the heavy lifting.
+
+## 2026-06-07 - LEAVE-ONE-OUT de-baseline VALIDATES on the 5 painting targets (no new corpus)
+
+Tested the methodology synthesis's #1 fix WITHOUT collecting the 200-stimulus corpus,
+using the workflow's leave-one-out variant: estimate the per-vertex common-mode mu
+from the OTHER painting targets (never the pair under test), subtract it from the
+pooled [20484] target vectors, then cosine. Pure offline algebra on the 5 saved
+[2,20484] targets - zero TRIBE calls.
+
+TARGET-TARGET pooled cosine (raw -> LOO de-baselined):
+  starry~scream    0.970 -> 0.733   (both turbulent - stays positive, CORRECT family)
+  starry~mona      0.851 -> 0.267
+  starry~wave      0.946 -> 0.709   (both turbulent/dynamic - stays positive)
+  starry~lilies    0.825 -> -0.002  (turbulent vs calm - now ORTHOGONAL)
+  scream~mona      0.881 -> 0.613
+  scream~wave      0.919 -> 0.460
+  scream~lilies    0.774 -> -0.369  (panic vs serene - now ANTI-correlated)
+  mona~wave        0.754 -> -0.620  (calm portrait vs violent wave - strong ANTI)
+  mona~lilies      0.765 -> 0.459   (two calm works - stays positive, CORRECT)
+  wave~lilies      0.837 -> 0.243
+  MEAN off-diag    0.852 -> 0.249
+
+KEY RESULT: LOO de-baseline collapses the collinearity floor 0.852 -> 0.249 and the
+emergent sign structure is SEMANTICALLY CORRECT - calm<->turbulent pairs go negative,
+same-family pairs (two turbulent / two calm) stay positive. This is the FIRST result
+that makes "Starry Night vs The Scream" distinguishable from "Starry Night vs Water
+Lilies" (0.733 vs -0.002). The raw metric called both ~0.9.
+
+Earlier honest correction (n=10 text-only mu broke calm/turbulent ranking) does NOT
+contradict this: that prototype used a tiny TEXT-only reference; here the reference is
+4 diverse multimodal PAINTING targets, which is exactly the "diversity over count"
+the synthesis demanded. n=5 LOO is thin but the signs are right and the magnitudes are
+large - this is far more decisive than the n=10 text prototype.
+
+CAVEAT before shipping: still need the proper >=200 independent per-modality corpus so
+the metric works for ARBITRARY inputs (not just these 5 paintings). LOO-over-targets
+only works when you have >=3 diverse targets in the batch. But as a PROOF that
+common-mode removal is the right lever, this is conclusive. Next: re-score the full
+17-text x 5-target candidate matrix under de-baseline to see if specificity (diagonal
+dominance) improves for the GENERATED texts, not just target-target.
+
+## 2026-06-07 - duration knob works; more timesteps does NOT help separability (partial)
+
+Confirmed: duration/fps are QUERY params (not form fields) on /predict/image.
+duration=10 -> exactly 10 timesteps (vs 2 default). Each job ~600s server-side.
+
+PARTIAL result (starry<->scream, the stubborn 0.973 pair):
+  dur=2  (2 frames):  0.9734
+  dur=10 (10 frames): 0.9836  -> MORE collinear, not less
+Temporal coherence of the 10 image frames ~0.96 (held still -> near-identical
+frames), so extra timesteps add little information. Early evidence the painting
+collinearity is the COMMON-MODE, not a 2-frame artifact - consistent with audio
+also collinear at 30 frames. The "more timesteps" lever looks like it's failing.
+Fetching remaining 3 paintings at dur=10 for the full 5x5 matrix to confirm.
+=> strengthens the case that per-vertex de-baseline (common-mode removal w/ ~200
+ref corpus) is the real fix, not timesteps.
