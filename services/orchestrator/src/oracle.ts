@@ -47,9 +47,10 @@ class MockOracle implements NeuralOracle {
 }
 
 // Hosted TRIBE v2 brain encoder (https://tribe.bryanhu.com): an async job API.
-// Submit a stimulus, poll the job, then download the raw float16 prediction
-// vector (shape [timesteps, 20484] over the fsaverage5 mesh) and mean-pool over
-// time into one R^20484 vector that `scoreActivations` can compare with cosine.
+// Submit a stimulus, poll the job, then download `result.json`, which carries
+// the FULL per-timestep prediction matrix (shape [timesteps, 20484] over the
+// fsaverage5 mesh) plus a per-Yeo-network breakdown. We keep every timestep —
+// the scorer compares the activation trajectory, so we must not collapse time.
 const TRIBE_VERTEX_COUNT = 20484;
 const TRIBE_POLL_INTERVAL_MS = 1500;
 const TRIBE_REQUEST_TIMEOUT_MS = 30_000;
@@ -61,6 +62,17 @@ type TribeJob = {
 type TribeJobStatus = {
   status: "queued" | "running" | "completed" | "failed";
   error?: string;
+};
+
+// Shape of GET /jobs/:id/result.json under the current hosted TRIBE API.
+type TribeResult = {
+  timesteps: number;
+  vertices: number;
+  // [timesteps][vertices] — the full activation, one frame per ~1s segment.
+  predictions: number[][];
+  // Per-Yeo-network: each value is [timesteps][verticesInNetwork].
+  predictions_by_network?: Record<string, number[][]>;
+  yeo7_means?: Record<string, number>;
 };
 
 class HttpTribeOracle implements NeuralOracle {
@@ -95,21 +107,37 @@ class HttpTribeOracle implements NeuralOracle {
   ): Promise<ActivationTrace> {
     const job = await this.submit(stimulus);
     await this.waitForJob(job.job_id);
-    const values = await this.fetchPooledValues(job.job_id);
-    const diagnostics = await this.fetchDiagnostics(job.job_id);
+    const result = await this.fetchResult(job.job_id);
 
-    const flat = values[0];
-    const mean = flat.reduce((sum, value) => sum + value, 0) / flat.length;
-    const variance =
-      flat.reduce((sum, value) => sum + (value - mean) ** 2, 0) / flat.length;
-    const norm = Math.sqrt(flat.reduce((sum, value) => sum + value * value, 0));
+    // Keep every timestep: values[t] is the R^vertices frame at segment t.
+    const values = result.predictions;
+    const timesteps = values.length;
+    const vertices = values[0]?.length ?? 0;
+
+    // Summary stats over the whole flattened matrix (kept for archive/index
+    // display and the sparse-trace fallback; scoring uses the full `values`).
+    let sum = 0;
+    let sumSq = 0;
+    let count = 0;
+    for (const frame of values) {
+      for (const v of frame) {
+        sum += v;
+        sumSq += v * v;
+        count += 1;
+      }
+    }
+    const mean = count ? sum / count : 0;
+    const variance = count ? sumSq / count - mean * mean : 0;
+    const norm = Math.sqrt(sumSq);
+
+    const diagnostics = buildDiagnostics(result);
 
     return {
       model: "tribev2-http",
-      shape: [1, flat.length],
+      shape: [timesteps, vertices],
       values,
-      diagnostics,
-      summary: { mean, std: Math.sqrt(variance), norm },
+      ...(diagnostics ? { diagnostics } : {}),
+      summary: { mean, std: Math.sqrt(Math.max(variance, 0)), norm },
     };
   }
 
@@ -213,59 +241,69 @@ class HttpTribeOracle implements NeuralOracle {
     );
   }
 
-  private async fetchPooledValues(jobId: string): Promise<number[][]> {
-    const response = await fetchWithTimeout(
-      `${this.baseUrl}/jobs/${jobId}/preds.norm.f16.bin`,
-      undefined,
-      `GET /jobs/${jobId}/preds.norm.f16.bin`,
-    );
-    if (!response.ok) {
-      throw new Error(
-        `GET /jobs/${jobId}/preds.norm.f16.bin failed: ${response.status}`,
-      );
-    }
-    const buffer = await response.arrayBuffer();
-    const raw = decodeFloat16(new Uint8Array(buffer));
-    if (raw.length === 0 || raw.length % TRIBE_VERTEX_COUNT !== 0) {
-      throw new Error(
-        `Unexpected prediction length ${raw.length}; expected a multiple of ${TRIBE_VERTEX_COUNT}.`,
-      );
-    }
-    const timesteps = raw.length / TRIBE_VERTEX_COUNT;
-    const pooled = new Array<number>(TRIBE_VERTEX_COUNT).fill(0);
-    for (let t = 0; t < timesteps; t += 1) {
-      const offset = t * TRIBE_VERTEX_COUNT;
-      for (let v = 0; v < TRIBE_VERTEX_COUNT; v += 1) {
-        pooled[v] += raw[offset + v];
-      }
-    }
-    for (let v = 0; v < TRIBE_VERTEX_COUNT; v += 1) {
-      pooled[v] /= timesteps;
-    }
-    return [pooled];
-  }
-
-  private async fetchDiagnostics(
-    jobId: string,
-  ): Promise<ActivationTrace["diagnostics"] | undefined> {
+  private async fetchResult(jobId: string): Promise<TribeResult> {
     const response = await fetchWithTimeout(
       `${this.baseUrl}/jobs/${jobId}/result.json`,
       undefined,
       `GET /jobs/${jobId}/result.json`,
-    ).catch(() => undefined);
-    if (!response?.ok) {
-      return undefined;
+    );
+    if (!response.ok) {
+      throw new Error(
+        `GET /jobs/${jobId}/result.json failed: ${response.status}`,
+      );
     }
-    const result = (await response.json().catch(() => undefined)) as
-      | { yeo7_means?: Record<string, number> }
-      | undefined;
-    if (!result?.yeo7_means) {
-      return undefined;
+    const result = (await response.json()) as TribeResult;
+    if (!Array.isArray(result.predictions) || result.predictions.length === 0) {
+      throw new Error(`TRIBE result ${jobId} has no predictions array.`);
     }
-    return {
-      yeo7Means: result.yeo7_means,
-    };
+    const vertices = result.predictions[0]?.length ?? 0;
+    if (vertices !== TRIBE_VERTEX_COUNT) {
+      throw new Error(
+        `TRIBE result ${jobId} has ${vertices} vertices; expected ${TRIBE_VERTEX_COUNT}.`,
+      );
+    }
+    return result;
   }
+}
+
+// Build the optional diagnostics block from a hosted-TRIBE result. The
+// network breakdown is mean-pooled over time into one vector per Yeo network
+// so callers can inspect per-network similarity without re-deriving it.
+function buildDiagnostics(
+  result: TribeResult,
+): ActivationTrace["diagnostics"] | undefined {
+  const diagnostics: NonNullable<ActivationTrace["diagnostics"]> = {};
+  if (result.yeo7_means) {
+    diagnostics.yeo7Means = result.yeo7_means;
+  }
+  if (result.predictions_by_network) {
+    const networkMeans: Record<string, number[]> = {};
+    for (const [network, frames] of Object.entries(
+      result.predictions_by_network,
+    )) {
+      networkMeans[network] = meanPoolOverTime(frames);
+    }
+    diagnostics.networkMeans = networkMeans;
+  }
+  return Object.keys(diagnostics).length > 0 ? diagnostics : undefined;
+}
+
+// Average a [timesteps][n] matrix over time into one R^n vector.
+function meanPoolOverTime(frames: number[][]): number[] {
+  const timesteps = frames.length;
+  const width = frames[0]?.length ?? 0;
+  const pooled = new Array<number>(width).fill(0);
+  for (const frame of frames) {
+    for (let i = 0; i < width; i += 1) {
+      pooled[i] += frame[i] ?? 0;
+    }
+  }
+  if (timesteps > 0) {
+    for (let i = 0; i < width; i += 1) {
+      pooled[i] /= timesteps;
+    }
+  }
+  return pooled;
 }
 
 const IMAGE_ARTIFACT_EXT = /\.(png|jpe?g|webp)$/i;
@@ -337,30 +375,6 @@ async function fetchWithTimeout(
       clearTimeout(timeout);
     }
   }
-}
-
-// Decode a little-endian IEEE 754 half-precision (float16) byte array.
-function decodeFloat16(bytes: Uint8Array): number[] {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const count = Math.floor(bytes.byteLength / 2);
-  const out = new Array<number>(count);
-  for (let i = 0; i < count; i += 1) {
-    out[i] = halfToFloat(view.getUint16(i * 2, true));
-  }
-  return out;
-}
-
-function halfToFloat(half: number): number {
-  const sign = (half & 0x8000) >> 15;
-  const exponent = (half & 0x7c00) >> 10;
-  const fraction = half & 0x03ff;
-  if (exponent === 0) {
-    return (sign ? -1 : 1) * 2 ** -14 * (fraction / 1024);
-  }
-  if (exponent === 0x1f) {
-    return fraction ? Number.NaN : (sign ? -1 : 1) * Number.POSITIVE_INFINITY;
-  }
-  return (sign ? -1 : 1) * 2 ** (exponent - 15) * (1 + fraction / 1024);
 }
 
 class TribeOracle implements NeuralOracle {

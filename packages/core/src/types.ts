@@ -136,12 +136,19 @@ export type Render = (payload: Payload) => Promise<RenderedStimulus>;
 
 export type ActivationTrace = {
   model: string;
+  // [timesteps, vertices]. The hosted oracle preserves every timestep (no
+  // mean-pool) so the scorer can compare the activation *trajectory*, not just
+  // its time-average — the temporal structure is where cross-modal vibe lives.
   shape: [number, number];
   artifactPath?: string;
+  // Full per-timestep activation: values[t] is the R^vertices frame at step t.
   values?: number[][];
   diagnostics?: {
     yeo7Means?: Record<string, number>;
     yeo7DeltaFromTarget?: Record<string, number>;
+    // Per-Yeo-network activation, mean-pooled over time. One entry per network
+    // ("Visual", "Default Mode", ...) holding that network's R^vertices vector.
+    networkMeans?: Record<string, number[]>;
   };
   summary: {
     mean: number;
