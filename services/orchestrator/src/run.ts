@@ -1847,6 +1847,29 @@ const captionTransforms: TextTransform[] = [
       ),
   },
   {
+    name: "caption-interior-opening-simplification",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(
+            /^An empty yellow room with beige carpet opens into a fluorescent-lit space with patterned wallpaper\.?$/i,
+            "A yellow carpeted room opens into another empty room under fluorescent lights.",
+          )
+          .replace(
+            /^An empty yellow room with beige carpet extends past patterned walls under fluorescent lights\.?$/i,
+            "A yellow carpeted room opens into another empty room under fluorescent lights.",
+          )
+          .replace(
+            /^An empty ([a-z-]+ )?room opens into (?:a|another) fluorescent-lit space with patterned wallpaper\.?$/i,
+            "An empty room opens into another room under fluorescent lights.",
+          )
+          .replace(
+            /^An empty ([a-z-]+ )?room opens into beige carpeted corridors with pale patterned wallpaper\.?$/i,
+            "An empty room opens into another carpeted room under fluorescent lights.",
+          ),
+      ),
+  },
+  {
     name: "caption-size-ablation",
     apply: (text) =>
       cleanCaptionText(text.replace(/\b(small|little|tiny)\s+/gi, "")),

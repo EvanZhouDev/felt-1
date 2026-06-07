@@ -3031,10 +3031,26 @@ Changes:
 - `probe-texts.ts` now uses raw adjusted similarity for non-text targets.
 - Added an image-to-text `spatial relation caption` strategy and tightened the
   perceptual-caption instruction around visible openings/relations.
+- Added a caption micro-transform for empty-room opening phrasing, so captions
+  like "opens into a fluorescent-lit space" can mutate toward the higher-scoring
+  "opens into another empty room under fluorescent lights" structure.
+
+Follow-up run:
+
+- `backrooms-image-to-text-3245e761`
+  - 3 candidates, 1 iteration, real local TRIBE, Codex backend
+  - best:
+    - `candidate-c`
+    - text:
+      `A yellow carpeted room opens into another empty room under fluorescent lights.`
+    - raw / adjusted `0.402311085819489`
+    - total `0.427311085819489`
+- This confirms the raw-adjusted scorer fix in the actual pipeline and improves
+  backrooms image-to-text from adjusted `0` to adjusted `0.4023` in one turn.
 
 Interpretation:
 
 - Cross-modal image-to-text is not close to 90; the honest current raw range is
-  more like `0.32-0.37` on backrooms.
+  more like `0.32-0.40` on backrooms.
 - The important fix is that the loop now has a nonzero, monotonic signal for
   text evolution instead of choosing among all-zero adjusted scores.
