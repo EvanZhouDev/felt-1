@@ -11,10 +11,7 @@
       "total": 0.37263328978829896,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": -0.13268579199390618,
           "std": 0.5657685128587803,
@@ -29,10 +26,7 @@
       "total": 0.30320273058390335,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": 0.0494967664823627,
           "std": 0.5961182229282611,
@@ -47,10 +41,7 @@
       "total": 0.25738717010080925,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": 0.01104646011920328,
           "std": 0.5292568602592493,
@@ -65,10 +56,7 @@
       "total": 0.21349303700018737,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": 0.006549980100023094,
           "std": 0.5086491401982016,
@@ -83,10 +71,7 @@
       "total": 0.18356981483325102,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": 0.08049158467165932,
           "std": 0.6089578827421204,
@@ -101,10 +86,7 @@
       "total": 0.18332055139029077,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": 0.025306290909137184,
           "std": 0.6311839973214685,
@@ -119,10 +101,7 @@
       "total": 0.12177460895311457,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": -0.000595388293870569,
           "std": 0.6403853265374408,
@@ -137,10 +116,7 @@
       "total": 0.06154736918021216,
       "activation": {
         "model": "mock-neural-oracle",
-        "shape": [
-          1,
-          32
-        ],
+        "shape": [1, 32],
         "summary": {
           "mean": -0.04903375784902221,
           "std": 0.6412919808763661,

@@ -56,3 +56,23 @@ Interpretation:
 - Plain semantic accuracy is not enough. The old best seems to have landed on a text style TRIBE likes better than more factual Mona Lisa captions.
 - The next search strategy should use larger parallel variation and explicit mutation styles rather than only refining toward a "better description."
 - We should add score-history feedback and mutation strategies to candidate prompts before spending on another full Codex+TRIBE loop.
+
+## 2026-06-06 17:33 PDT - Mutation Strategy Pass 1
+
+Changes in progress:
+
+- Replaced generic `entropy-N-M` candidate cues with explicit mutation strategies:
+  prior-best-preserving edit, compact visual inventory, spatial composition pass, affect/energy pass, texture/color pass, and negative-control escape.
+- Updated candidate prompts to treat refinement as score-driven neural search, not simple description polishing.
+- Updated judge prompts to return optimizer-style reasoning: keep/discard/next mutation plus score references.
+
+Expected effect:
+
+- Parallel candidates should explore different text styles instead of converging into near-duplicate portrait prose.
+- The next seed should carry more actionable feedback into the following generation.
+
+Validation:
+
+- Initial `bun run check` caught JSON formatter drift in probe reports; fixed with Biome format.
+- `bun run check` passed after formatting.
+- `bun run smoke` passed with the new mutation cues; selected `candidate-b` in the mock run, which is acceptable because the smoke asserts judge selection follows ranking rather than a fixed candidate id.

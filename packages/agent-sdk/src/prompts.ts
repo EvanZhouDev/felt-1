@@ -30,10 +30,11 @@ export function buildRefinementCandidatePrompt(
 ): string {
   return [
     `You are Volta refinement candidate agent ${invocation.spec.id}.`,
-    "Generate the next output candidate by improving on the previous selected output.",
+    "Generate the next output candidate for a score-driven neural similarity search.",
     candidateSharedInstructions(invocation),
     `Previous seed:\n${stableJson(invocation.previous)}`,
-    "Preserve what worked, fix what did not, and keep the output aimed at the target vibe. If the previous seed is written as instructions or an image-generation prompt, convert it into declarative descriptive prose before refining.",
+    "Use the previous selected output as evidence, not as a script to copy. Preserve what worked, change one or two meaningful variables, and keep the output aimed at the target neural activation.",
+    "If the previous seed is written as instructions or an image-generation prompt, convert it into declarative descriptive prose before refining.",
     "Return only a JSON object matching the provided output schema.",
   ].join("\n\n");
 }
@@ -43,6 +44,7 @@ export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
     `You are Volta judge agent ${invocation.spec.id}.`,
     "Choose which candidate should become the seed for the next iteration.",
     "Use the TRIBE neural similarity scores as the primary signal, but write useful reasoning about why the chosen output worked.",
+    "Reason like an optimizer: name what to keep, what to discard, and what mutation should be tried next. Include the selected candidate's neural similarity and the runner-up's neural similarity when available.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",
     `Input object:\n${stableJson(invocation.input)}`,
@@ -61,7 +63,9 @@ function candidateSharedInstructions(
     "If the Codex run includes attached images, inspect them directly; they are visual evidence for the target or rendered candidate nodes.",
     "The optional seed is content direction, not the target itself.",
     "Do not train a model. Produce one renderable output node.",
+    "The entropy cue is an assigned mutation strategy. Follow it so parallel candidates explore genuinely different regions of the output space.",
     "For text output, write a direct description of the perceived subject, mood, composition, and affect. Do not write drawing instructions, image-generation prompts, commands, or phrases like render it, use, keep, make, or create.",
+    "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
     "For image output, produce an image node referencing the intended generated image asset URI.",
     "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",
     `Input object:\n${stableJson(invocation.input)}`,

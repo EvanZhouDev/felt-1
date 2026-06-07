@@ -390,7 +390,7 @@ async function executeIteration(
           agentId: spec.id,
           previousType: args.previous.type,
           outputType: args.output.outputType,
-          entropy: `entropy-${args.iteration}-${index + 1}`,
+          entropy: mutationStrategy(args.iteration, index),
         },
         attributes: {
           runId: args.id,
@@ -406,7 +406,7 @@ async function executeIteration(
             input: args.input,
             output: args.output,
             previous: args.previous,
-            entropy: `entropy-${args.iteration}-${index + 1}`,
+            entropy: mutationStrategy(args.iteration, index),
             workspace,
           }),
         output: candidateSummary,
@@ -564,6 +564,47 @@ function candidateSuffix(index: number): string {
     return String.fromCharCode(code);
   }
   return String(index + 1);
+}
+
+function mutationStrategy(iteration: number, index: number): string {
+  const strategies = [
+    {
+      name: "prior-best-preserving edit",
+      instruction:
+        "Keep the strongest previous phrasing, then make one restrained mutation. Prefer small edits over full rewrites.",
+    },
+    {
+      name: "compact visual inventory",
+      instruction:
+        "Use short concrete visual phrases and object/material nouns. Avoid museum-label facts and proper names unless the seed already proved useful.",
+    },
+    {
+      name: "spatial composition pass",
+      instruction:
+        "Describe foreground, figure, face, hands, clothing, and background in image order with minimal interpretation.",
+    },
+    {
+      name: "affect and energy pass",
+      instruction:
+        "Focus on stillness, gaze, emotional temperature, ambiguity, motion level, and atmosphere using direct descriptive sentences.",
+    },
+    {
+      name: "texture and color pass",
+      instruction:
+        "Bias toward color, light, surface, softness, contrast, haze, shadow, and material texture while keeping the subject readable.",
+    },
+    {
+      name: "negative-control escape",
+      instruction:
+        "Deliberately avoid the dominant previous wording pattern and try a different length or syntax while preserving the target's perceptual feel.",
+    },
+  ];
+  const strategy = strategies[index % strategies.length];
+  return [
+    `iteration=${iteration}`,
+    `strategy=${strategy.name}`,
+    strategy.instruction,
+  ].join(" | ");
 }
 
 function getStopReason(args: {
