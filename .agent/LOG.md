@@ -1587,3 +1587,48 @@ IMPLICATIONS:
 - This does NOT contradict the common-mode finding - both are true: there's a
   common-mode AND the 2-frame default was under-sampling. dur=10 + de-baseline
   would likely compound.
+
+## 2026-06-07 - softDTW RE-TESTED with proper normalization: the +0.177 does NOT hold
+
+Revisited the earlier "softDTW is a strong candidate" note (which reported softDTW
+winning every axis: MATCH 1/8, hackgap +0.177 vs the blend's +0.077). Two flaws in
+that prototype: (1) the path-length norm was approximate (max(n,m)), and (2) it ran
+on a narrow 8-text test. New probe `services/orchestrator/src/probe-softdtw.ts`
+fixes both: proper per-path normalization (hard-DTW backpointer pass recovers the
+optimal alignment length; soft-DTW gamma=0.1 value divided by it), the broader
+17-text x 5-painting corpus, AND constructed adversaries (verbatim repetition,
+generic-affect filler) so the anti-gaming axis is tested against REAL exploits, not
+the weak "PLAIN-ranks-last" proxy. softDtwSimilarity calibration-checked offline
+(identical->1.0, anti-correlated->0, length-invariant for same-shape traces).
+
+RESULT (19/21 activations; the 60-word and 40-clause adversaries hung TRIBE past the
+600s job timeout - degenerate text stresses the encoder - so concluded on 2 adversaries):
+
+  MEAN adversary gap (PRIMARY):   blend 0.051   softdtw 0.061   (+0.010, marginal)
+  cross-modal spread:             blend 0.090   softdtw 0.103   (softdtw wider)
+  PLAIN-last (secondary, NOT verdict): blend 3/5   softdtw 5/5
+  MATCH-rank (own emotionFirst tops own column): mixed for BOTH, ~tie
+
+KEY CORRECTION: the proper normalization COLLAPSES the advertised margin. softDTW's
+anti-hack edge is +0.010, not the +0.100 (2.3x) the prototype claimed. The original
+number was an artifact of loose max(n,m) normalization on a narrow test.
+
+TWO PROBLEMS softDTW does NOT fix (both metrics share them):
+1. water_lilies (calm/low-arousal target): the verbatim-repetition adversary scores
+   ABOVE every legit water-lilies text - blend gap +0.005, softdtw -0.002 (slightly
+   WORSE). A real reward-hack hole near the calm target.
+2. SPECIFICITY/collinearity: a painting's own emotionFirst text rarely tops its own
+   column; PROD__starry and great_wave texts win most columns. This is the
+   common-mode problem the de-baseline work targets - orthogonal to alignment, so
+   softDTW (an alignment metric) cannot touch it.
+
+VERDICT: DO NOT adopt softDTW. Marginal anti-hack gain (~0.01), costs a full O(n*m)
+DTW per pair, and misses the two problems that matter. The real lever remains
+COMMON-MODE REMOVAL (de-baseline), which is orthogonal and addresses the shared
+specificity failure. softDTW is a lateral move; de-baseline is the direction.
+
+Reproducible/cheap: 19 activations banked in
+`.agent/probes/baseline-ceiling/softdtw-matrix.json`. Rerun the analysis with
+`--offline` (zero TRIBE calls); drop `--offline` to top up the 2 missing adversaries
+when TRIBE is calmer. Production metric (scoring/activation.ts) UNTOUCHED - this was
+a probe only.
