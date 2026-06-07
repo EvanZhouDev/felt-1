@@ -10,6 +10,8 @@ import type {
   TribeArtifact,
 } from "@volta/core";
 
+const TEXT_SECONDS_PER_WORD = 0.35;
+
 export async function renderNode(node: Node): Promise<RenderedStimulus> {
   return renderPayload(node.payload);
 }
@@ -18,7 +20,7 @@ export async function renderPayload(
   payload: Payload,
 ): Promise<RenderedStimulus> {
   if (payload.type === "text") {
-    const duration = 0.5;
+    const duration = textDuration(payload.text);
     return buildRenderedStimulus({
       payload,
       kind: "text",
@@ -29,6 +31,7 @@ export async function renderPayload(
       preview: payload.text,
       events: textEvents(payload.text, duration),
       text: payload.text,
+      digestSalt: `text-seconds-per-word:${TEXT_SECONDS_PER_WORD}`,
     });
   }
 
@@ -95,8 +98,13 @@ function buildRenderedStimulus(args: {
   text?: string;
   artifactPath?: string;
   metadata?: Record<string, unknown>;
+  digestSalt?: string;
 }): RenderedStimulus {
-  const digest = sha256(JSON.stringify(args.payload));
+  const digest = sha256(
+    args.digestSalt
+      ? JSON.stringify({ payload: args.payload, salt: args.digestSalt })
+      : JSON.stringify(args.payload),
+  );
 
   return {
     id: `${args.payload.type}-${digest.slice(0, 12)}`,
@@ -138,7 +146,7 @@ function assetEvent(
 }
 
 function textEvents(text: string, duration: number): StimulusEvent[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
+  const words = textWords(text);
   const wordDuration = duration / Math.max(words.length, 1);
   const events: StimulusEvent[] = [
     {
@@ -167,6 +175,14 @@ function textEvents(text: string, duration: number): StimulusEvent[] {
   });
 
   return events;
+}
+
+function textDuration(text: string): number {
+  return Math.max(textWords(text).length, 1) * TEXT_SECONDS_PER_WORD;
+}
+
+function textWords(text: string): string[] {
+  return text.trim().split(/\s+/).filter(Boolean);
 }
 
 function sha256(value: string): string {

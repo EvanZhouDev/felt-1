@@ -3,8 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { InputObj, OutputObj } from "@volta/core";
 import { createOracle } from "./oracle.ts";
+import { renderPayload } from "./render.ts";
 import { executeRun, resumeRun } from "./run.ts";
 import { RunStore } from "./storage.ts";
+
+await assertTextTiming();
 
 const smokeRoot = await mkdtemp(join(tmpdir(), "volta-agent-smoke-"));
 const store = new RunStore(join(smokeRoot, "volta.sqlite"));
@@ -221,4 +224,33 @@ type SmokeResult = {
 
 async function assertExists(path: string): Promise<void> {
   await stat(path);
+}
+
+async function assertTextTiming(): Promise<void> {
+  const rendered = await renderPayload({
+    type: "text",
+    text: "one two three",
+  });
+  const textEvent = rendered.encoderInput.events.find(
+    (event) => event.type === "Text",
+  );
+  const wordEvents = rendered.encoderInput.events.filter(
+    (event) => event.type === "Word",
+  );
+  if (!textEvent || !closeTo(textEvent.duration, 1.05)) {
+    throw new Error(
+      `Expected 3-word text duration to be 1.05s, received ${textEvent?.duration}.`,
+    );
+  }
+  for (const event of wordEvents) {
+    if (!closeTo(event.duration, 0.35)) {
+      throw new Error(
+        `Expected word duration 0.35s, received ${event.duration}.`,
+      );
+    }
+  }
+}
+
+function closeTo(left: number, right: number): boolean {
+  return Math.abs(left - right) < 1e-9;
 }
