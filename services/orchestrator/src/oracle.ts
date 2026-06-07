@@ -54,6 +54,11 @@ class MockOracle implements NeuralOracle {
 const TRIBE_VERTEX_COUNT = 20484;
 const TRIBE_POLL_INTERVAL_MS = 1500;
 const TRIBE_REQUEST_TIMEOUT_MS = 30_000;
+// Still-image hold for the /predict/image route. The server defaults to 2s
+// (2 timesteps), which under-samples — 10s separates targets much better.
+// Configurable via VOLTA_IMAGE_DURATION_S / VOLTA_IMAGE_FPS.
+const IMAGE_DURATION_S = Number(process.env.VOLTA_IMAGE_DURATION_S ?? 10);
+const IMAGE_FPS = Number(process.env.VOLTA_IMAGE_FPS ?? 10);
 
 type TribeJob = {
   job_id: string;
@@ -168,8 +173,17 @@ class HttpTribeOracle implements NeuralOracle {
     const file = await this.readArtifact(stimulus);
     const form = new FormData();
     form.append("file", file.blob, file.name);
+    // A still image is held for `duration` seconds at `fps` to make a clip TRIBE
+    // can encode. The server default is 2s -> only 2 timesteps, which under-
+    // samples: at 10s the painting targets separate far better (mean
+    // cross-painting collinearity 0.855 -> 0.674). Request a longer hold for
+    // images via query params (the route accepts ?duration=&fps=).
+    const query =
+      endpoint === "image"
+        ? `?duration=${IMAGE_DURATION_S}&fps=${IMAGE_FPS}`
+        : "";
     const response = await fetchWithTimeout(
-      `${this.baseUrl}/predict/${endpoint}`,
+      `${this.baseUrl}/predict/${endpoint}${query}`,
       {
         method: "POST",
         body: form,

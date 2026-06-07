@@ -130,6 +130,10 @@ Set in `services/orchestrator/src/config.ts`:
   (hosted TRIBE at `VOLTA_TRIBE_URL`; no Python venv needed, returns real
   20484-dim values).
 - `VOLTA_TRIBE_URL` — hosted TRIBE base URL (default `https://tribe.bryanhu.com`).
+- `VOLTA_IMAGE_DURATION_S` / `VOLTA_IMAGE_FPS` — still-image hold passed to
+  `/predict/image?duration=&fps=` (defaults `10` / `10`). The server default of
+  2s yields only 2 timesteps and under-samples; 10s separates image targets far
+  better (cross-painting collinearity 0.855 → 0.674).
 - `VOLTA_FLUX_URL` — hosted Flux image API (default `https://images.bryanhu.com`).
 - `VOLTA_AUDIO_URL` — hosted audio-description service for the audio describer
   (default `https://audio.ai.bryanhu.com`). Multipart `POST /describe`; failure
