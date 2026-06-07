@@ -813,3 +813,73 @@ Interpretation:
 
 - This makes the cheap text-to-text benchmark closer to real Volta behavior:
   preserve the vibe, change the subject.
+
+## 2026-06-06 19:57 PDT - Cold Benchmark Harness and Hosted TRIBE Canary
+
+Change:
+
+- Added `benchmark:cold`, a generic cold-start benchmark runner with selectable
+  scenarios, oracle, backend, iteration count, population size, scoring
+  concurrency, output path, and archive reuse.
+- Default scenarios now cover:
+  - seeded text-to-text dog topic transfer,
+  - Mona Lisa image-to-text,
+  - Mona Lisa image-to-image.
+- The benchmark runner defaults to `reuseTargetArchive: false` so cold-start
+  claims do not silently depend on old target-specific state.
+- Cleaned the deterministic backend so benchmark/smoke candidates are renderable
+  artifacts derived from the seed, target type, and assigned evolutionary
+  operator. It no longer sends orchestration prompt scaffolding to the scorer as
+  candidate text.
+
+Hosted TRIBE status:
+
+- Ran a one-job hosted text canary. Job `f3c4b91d1fea` completed in `15.846s`
+  and returned both `preds.norm.f16.bin` and Yeo-7 diagnostics.
+- Hosted TRIBE is not down, so I did not switch to local TRIBE.
+- It remains throughput-sensitive: the first hosted benchmark after recovery had
+  one job take `62.6s`, but it completed.
+
+Benchmarks:
+
+- Mock deterministic cold benchmark before deterministic cleanup:
+  `.agent/benchmarks/generic-cold-mock-v1.json`
+  - seeded text-to-text dog: `0.20840908636117636`
+  - Mona image-to-text: `0.35019456831731827`
+  - Mona image-to-image: `0.16876461011322388`
+- Hosted deterministic seeded text benchmark before cleanup:
+  `.agent/benchmarks/seeded-text-http-canary-v1.json`
+  - best neural similarity: `-0.0005951459978818529`
+  - candidate text was prompt scaffolding, not a clean artifact.
+- Mock deterministic cold benchmark after cleanup:
+  `.agent/benchmarks/generic-cold-mock-v3.json`
+  - seeded text-to-text dog: `0.5231534937960899`
+  - Mona image-to-text: `0.3397067159480239`
+  - Mona image-to-image: `0.2745577349508502`
+- Hosted deterministic seeded text benchmark after cleanup:
+  `.agent/benchmarks/seeded-text-http-v2.json`
+  - best neural similarity: `0.08418220497384195`
+  - selected candidate:
+    `A dog moves through terse paragraph cold urgency clipped rhythm, with broad steady attention`
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+- `bun run benchmark:cold -- --backend deterministic --oracle mock --max-iterations 2 --candidate-count 3 --out .agent/benchmarks/generic-cold-mock-v3.json`
+  passed.
+- `bun run benchmark:cold -- --backend deterministic --oracle http --scenario seeded-text-to-text-dog --max-iterations 1 --candidate-count 2 --scoring-concurrency 1 --out .agent/benchmarks/seeded-text-http-v2.json`
+  passed.
+
+Interpretation:
+
+- The harness gives a repeatable, medium-spanning cold-start test instead of
+  judging changes only by the Mona Lisa caption basin.
+- Hosted TRIBE can be used again, but only with serialized scoring and canary
+  checks before larger runs.
+- Clean candidate artifacts matter: removing prompt scaffolding improved the
+  real seeded text benchmark from roughly zero to `0.084`, but the score is
+  still much too low. The next serious experiment should use Codex-generated
+  text candidates under this benchmark harness rather than the deterministic
+  baseline.
