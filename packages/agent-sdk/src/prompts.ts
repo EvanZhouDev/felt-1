@@ -51,7 +51,7 @@ export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
     "Reason like an optimizer: name what to keep, what to discard, and what mutation should be tried next. Include the selected candidate's neural similarity and the runner-up's neural similarity when available.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",
-    `Input object:\n${stableJson(invocation.input)}`,
+    `Input object:\n${stableJson(sanitizeInput(invocation.input))}`,
     inputDescriptionBlock(invocation),
     `Output request:\n${stableJson(invocation.output)}`,
     `Ranked candidate summaries:\n${stableJson(
@@ -77,7 +77,7 @@ function candidateSharedInstructions(
     "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
     "For image output, produce an image node referencing the intended generated image asset URI.",
     "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",
-    `Input object:\n${stableJson(invocation.input)}`,
+    `Input object:\n${stableJson(sanitizeInput(invocation.input))}`,
     inputDescriptionBlock(invocation),
     `Output request:\n${stableJson(invocation.output)}`,
     `Entropy cue:\n${invocation.entropy ?? "none"}`,
@@ -145,4 +145,20 @@ function summarizeEvaluatedOutput(output: EvaluatedOutput) {
 
 function stableJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
+}
+
+// Strip identifying file names / paths from any node source before it reaches a
+// prompt. Otherwise a uri like "file:///tmp/audio/clair_de_lune.wav" leaks the
+// title to the agent, which then writes from recognizing the famous work rather
+// than from the target's actual perceptual content — a leakage path that
+// invalidates vibe-transfer results. Replace the uri with the medium + a short
+// content hash so renders still have a stable id, minus the human-readable name.
+function sanitizeInput<T>(input: T): T {
+  return JSON.parse(JSON.stringify(input), (key, value) => {
+    if (key === "uri" && typeof value === "string") {
+      const ext = value.match(/\.([a-z0-9]+)$/i)?.[1] ?? "bin";
+      return `anonymized-source.${ext}`;
+    }
+    return value;
+  });
 }
