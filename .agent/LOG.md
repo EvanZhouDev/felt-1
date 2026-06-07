@@ -963,3 +963,37 @@ Efficiency fixes this round (verified against this run):
 - Persisted scores.json was 43MB/iteration (full [23,20484] activation matrix per
   candidate). Stripped activation.values for disk (kept in memory for scoring +
   elitism). run-starry.ts now reads the compact iteration.json for live logging.
+
+## 2026-06-07 - v2 run: cross-modal scoring fix (resample to max length)
+
+Root cause of the baseline stall found: the metric aligned target/candidate by
+min(timesteps). The image target is 2 frames; rendered text is 23. So scoring
+used only the candidate's first 2 of 23 frames — discarding 91% and capping the
+score. Fix (commit 9ea1715): resample both traces to common MAX length before
+temporal/dynamics; add length-invariant pooled-cosine backbone. Weights
+0.4 pooled / 0.35 temporal / 0.25 dynamics. Verified: text-text MATCH still #1
+(hackgap +0.076); image->elite on identical text 0.571 -> 0.609.
+
+Also verified TRIBE is fully DETERMINISTIC (5x repeat of identical text =
+bit-identical predictions). Earlier "scoring noise" hypothesis was WRONG; score
+differences between candidates are real signal.
+
+v2 run (`.agent/runs/starry-v2`, http+codex, 6 iters x 3 candidates):
+curve = 0.6118 -> 0.6199 -> 0.6199 -> 0.6199 -> 0.6247 -> 0.6270 (MONOTONIC).
+vs baseline 0.5714 (flat). The loop now genuinely CLIMBS instead of stalling at
+iteration 1. Final best text (candidate-c, sensory-texture operator):
+> Indigo night hums with golden halos and sweeping spiral currents; thick
+> scalloped brushwork turns the sky into restless motion above a compact, hushed
+> village. A black vertical silhouette anchors the dark foreground, calm earth
+> beneath feverish glowing air, cool vastness crossed by warm shimmer, lonely,
+> tender, unsettled.
+
+Remaining weaknesses (next: improve the evolution process per user OK):
+- SLOW: +0.0152 over 6 iters with a 3-iter plateau (iters 2-4 flat at 0.6199).
+- LOW DIVERSITY: candidate-c ("sensory-texture") wins every improving iteration;
+  candidates a/b consistently underperform and never win. The population behaves
+  like a single hill-climber, not a diverse search. The UCB bandit exploits the
+  one good operator too hard once it pulls ahead.
+- isEliteStalled triggers wider exploration after just ONE non-improving
+  iteration, but even widened exploration stayed in the same semantic basin
+  (every candidate is a paraphrase of the same Starry-Night description).
