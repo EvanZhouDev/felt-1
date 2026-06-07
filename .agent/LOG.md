@@ -1257,3 +1257,27 @@ strong NON-DESCRIPTIVE emotionally-matched text (e.g. a personal memory evoking
 the same feeling), score both vs the painting target. If non-descriptive scores
 >= descriptive, the loop's image-anchoring is leaving signal on the table and we
 should loosen the seed to allow semantic divergence.
+
+## 2026-06-07 - CONFIRMED: semantically-divergent text beats description (Starry Night)
+
+Scored descriptive vs semantically-divergent-but-emotionally-matched texts vs the
+Starry Night image target (blended metric):
+  0.6079  DESCRIPTIVE (literal night sky)
+  0.6382  DIVERGENT: first love vertigo        (+0.0303 over descriptive)
+  0.6369  DIVERGENT: grandma memory            (+0.0290 over descriptive)  <- replicates the Clair-de-Lune/grandma origin finding!
+  0.6056  DIVERGENT: sleepless dread           (-0.0022)
+  0.6007  DIVERGENT: storm at sea              (-0.0071)
+
+USER HYPOTHESIS CONFIRMED. Two divergent texts with NO night-sky content beat the
+literal description. The grandma-memory result directly replicates the project's
+origin (Clair de Lune -> grandma). TRIBE rewards the emotional/neural RESPONSE,
+not the subject matter.
+
+IMPLICATION - the loop is OVER-CONSTRAINED: seed "carry the vibe of this image" +
+showing the agent the image biases toward DESCRIBING the scene. The real optimum
+lives in semantically-divergent space the loop doesn't explore; the descriptive
+~0.68 texts are likely a LOCAL optimum. ACTION: loosen the seed to explicitly
+INVITE semantic divergence (evoke the same FEELING via any subject, not just
+describe the image). Test whether a divergence-allowed loop climbs higher.
+Note: not all divergent texts win (storm/dread scored below) - it must match the
+SPECIFIC felt quality, so the search still matters; this isn't "anything goes".
