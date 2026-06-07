@@ -306,7 +306,9 @@ type TargetFidelityMode =
   | "crisp-neutral"
   | "crisp-warm"
   | "darker-crisp"
-  | "hard-neutral";
+  | "hard-neutral"
+  | "hard-neutral-sharp"
+  | "hard-neutral-saturated";
 
 async function targetImageStyle(
   targetRendered: RenderedStimulus | undefined,
@@ -342,7 +344,9 @@ function isTargetFidelityMode(
     mode === "crisp-neutral" ||
     mode === "crisp-warm" ||
     mode === "darker-crisp" ||
-    mode === "hard-neutral"
+    mode === "hard-neutral" ||
+    mode === "hard-neutral-sharp" ||
+    mode === "hard-neutral-saturated"
   );
 }
 
@@ -563,6 +567,10 @@ function targetFidelityFilter(mode: TargetFidelityMode): string | undefined {
       return "eq=contrast=1.02:saturation=0.92:brightness=-0.04:gamma_r=1.03:gamma_b=0.95,unsharp=3:3:0.20:3:3:0.0";
     case "hard-neutral":
       return "eq=contrast=1.05:saturation=0.96:brightness=-0.015,unsharp=5:5:0.35:3:3:0.0";
+    case "hard-neutral-sharp":
+      return "eq=contrast=1.05:saturation=0.96:brightness=-0.015,unsharp=5:5:0.45:3:3:0.0";
+    case "hard-neutral-saturated":
+      return "eq=contrast=1.05:saturation=1.00:brightness=-0.015,unsharp=5:5:0.35:3:3:0.0";
   }
 }
 

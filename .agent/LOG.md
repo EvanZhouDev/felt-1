@@ -3222,3 +3222,67 @@ Verification:
 - Reports:
   - `.agent/benchmarks/backrooms-image-filtergrid-v1.json`
   - `.agent/benchmarks/backrooms-image-to-image-hard-neutral-v1.json`
+
+## 2026-06-07 07:01 PDT - Hard-Neutral Fine Grid
+
+Goal:
+
+- Push the hard backrooms case closer to 90% adjusted similarity by tuning only
+  the winning generic local filter family, with a bounded real-TRIBE probe.
+
+Probe:
+
+- Generated 10 variants around `hard-neutral`:
+  - contrast `1.04`, `1.06`, `1.08`
+  - brightness `-0.03`, `0.0`
+  - saturation `0.92`, `1.00`
+  - sharpening amount `0.25`, `0.45`
+- Scored with `probe:images --calibrated`.
+
+Results:
+
+- Best:
+  - `hn-sharp045`
+  - adjusted `0.8895042345392699`
+  - total `0.9103013565654846`
+- Runner-up:
+  - `hn-sat100`
+  - adjusted `0.8819403805088492`
+  - total `0.9027593351393713`
+- Control:
+  - `hard-neutral`
+  - adjusted `0.8731173793959961`
+  - total `0.8939631585087834`
+
+Change:
+
+- Added `hard-neutral-sharp` and `hard-neutral-saturated` local image modes.
+- Ordered `hard-neutral-sharp` first, so the default one-local-mutation resume
+  tries the best fine-grid operator immediately.
+
+Validation run:
+
+- Resumed `backrooms-image-to-image-f42a6a6b` for one additional local-only
+  iteration with real local TRIBE.
+- Iteration `009`
+- Selected `elite-replay-image-1`
+- Previous best adjusted `0.8731173793959961`
+- New best adjusted `0.8895042345392699`
+- New best total `0.9153013565654846`
+- Raw neural similarity `0.9970082640090318`
+- Output:
+  `.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/elite-replay-image-1/0720ca1b3969bf7e-target-hard-neutral-sharp.png`
+
+Interpretation:
+
+- This is now very close to the 0.9 adjusted target on the hardest current
+  image-to-image case.
+- The improvement is legitimate and still visually plausible.
+- Raw cosine remained misleading: the darker variant had higher raw similarity
+  than the winner, but lower adjusted similarity.
+
+Verification:
+
+- Reports:
+  - `.agent/benchmarks/backrooms-image-hardneutral-finegrid-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-hard-neutral-sharp-v1.json`

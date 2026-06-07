@@ -1705,6 +1705,8 @@ function cloneUrl(url: URL): URL {
 }
 
 const IMAGE_LOCAL_STYLE_VARIANTS = [
+  "hard-neutral-sharp",
+  "hard-neutral-saturated",
   "hard-neutral",
   "darker-crisp",
   "crisp-warm",
