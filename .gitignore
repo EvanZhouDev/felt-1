@@ -43,3 +43,4 @@ wandb/
 
 # OS
 .DS_Store
+.agent/runs/
