@@ -3810,3 +3810,20 @@ Interpretation:
 - The result is promising but not yet near the target quality goal. The next
   architecture improvement should make the scorer explicitly separate:
   seed-subject validity, target-vibe similarity, and target-object leakage.
+
+## 2026-06-07 - Trace graph backend migration
+
+- Added a shared trace graph loader for the web app that prefers Weave when
+  `VOLTA_WEAVE_PROJECT` or `WEAVE_PROJECT` is configured, and falls back to the
+  existing `.agent/traces/volta-run-traces.json` snapshot otherwise.
+- The Weave reader fetches recent calls, normalizes full Weave op URIs back to
+  Volta op names, and reconstructs run, target, seed, candidate, judge, and
+  selection edges from `volta.run`, `target.render`, `seed.render`,
+  `candidate.generate`, `candidate.render`, `candidate.score`, and
+  `judge.select`.
+- The current local web process has no Weave project/env visible, so
+  `/api/traces` correctly reports `source: snapshot` with 98 runs, 531 nodes,
+  and 790 edges.
+- Verified the open browser run `backrooms-image-to-image-fcfaf007` renders the
+  static graph with 6 nodes, 3 ranked candidates, selected URL node
+  `candidate-a`, judge winner `candidate-c`, and no console errors.

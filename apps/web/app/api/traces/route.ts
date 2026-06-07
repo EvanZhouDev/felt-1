@@ -1,37 +1,22 @@
-import { readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { loadTraceGraph } from "../../trace-data";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const tracePath = join(
-    repoRoot(),
-    ".agent",
-    "traces",
-    "volta-run-traces.json",
-  );
-
   try {
-    const body = await readFile(tracePath, "utf8");
-    return new Response(body, {
+    return Response.json(await loadTraceGraph(), {
       headers: {
-        "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
       },
     });
-  } catch {
+  } catch (error) {
     return Response.json(
       {
-        error: "Trace snapshot not found.",
-        expectedPath: tracePath,
+        error: "Trace graph unavailable.",
+        detail: error instanceof Error ? error.message : String(error),
       },
       { status: 404 },
     );
   }
-}
-
-function repoRoot(): string {
-  const cwd = process.cwd();
-  return cwd.endsWith("/apps/web") ? resolve(cwd, "../..") : cwd;
 }
