@@ -1605,7 +1605,7 @@ function imageLocalStyleVariants(
   if (!isLocalImageSourceUri(sourceUri)) {
     return [];
   }
-  const currentStyle = localStyle?.style ?? "";
+  const currentStyle = localStyle?.style ?? localImageStyleName(uri) ?? "";
   return IMAGE_LOCAL_STYLE_VARIANTS.filter(
     (variant) => variant !== currentStyle,
   )
@@ -1645,6 +1645,24 @@ function isLocalImageSourceUri(uri: string): boolean {
   return uri.startsWith("/") || uri.startsWith("file://");
 }
 
+function localImageStyleName(uri: string): string | undefined {
+  const localPath = uri.startsWith("file://")
+    ? uri.slice("file://".length)
+    : uri;
+  if (!localPath.startsWith("/")) {
+    return undefined;
+  }
+  if (localPath.endsWith("-target-fidelity.png")) {
+    return "soft-muted";
+  }
+  if (localPath.endsWith("-target-style.png")) {
+    return "style-only";
+  }
+  return IMAGE_LOCAL_STYLE_VARIANTS.find((variant) =>
+    localPath.endsWith(`-target-${variant}.png`),
+  );
+}
+
 function localStyleBaseSourceUri(uri: string): string {
   const localPath = uri.startsWith("file://")
     ? uri.slice("file://".length)
@@ -1653,7 +1671,7 @@ function localStyleBaseSourceUri(uri: string): string {
     return uri;
   }
   const targetStylePath = localPath.replace(
-    /-target(?:-fidelity|-style-only|-soft-muted-strong|-flat-warm|-flat-cool|-crisp-neutral)?\.png$/,
+    /-target(?:-fidelity|-style-only|-soft-muted-strong|-flat-warm|-flat-cool|-crisp-neutral|-crisp-warm)?\.png$/,
     "-target-style.png",
   );
   if (targetStylePath !== localPath && existsSync(targetStylePath)) {
@@ -1687,6 +1705,7 @@ function cloneUrl(url: URL): URL {
 }
 
 const IMAGE_LOCAL_STYLE_VARIANTS = [
+  "crisp-warm",
   "crisp-neutral",
   "flat-warm",
   "style-only",

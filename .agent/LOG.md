@@ -3099,3 +3099,51 @@ Verification:
 
 - Report:
   `.agent/benchmarks/backrooms-image-to-image-local-resume-v1.json`
+
+## 2026-06-07 06:32 PDT - Crisp-Warm Local Image Mutation
+
+Goal:
+
+- Add the strongest local filter from the bounded backrooms probe into the
+  actual evolutionary image loop, then verify it with real local TRIBE.
+
+Change:
+
+- Added `crisp-warm` as a first-class target-fidelity/local-image mutation.
+- Updated local image mutation selection to infer the current style from
+  generated PNG suffixes, so a resume from `*-target-crisp-warm.png` skips
+  `crisp-warm` and tries the next local operator instead of repeating work.
+
+Run:
+
+- Resumed `backrooms-image-to-image-f42a6a6b` for one additional local-only
+  iteration with:
+  - real local TRIBE
+  - deterministic backend
+  - `candidateCount=1`
+  - `imageLocalMutations=1`
+  - no image seed mutations
+
+Result:
+
+- Iteration `007`
+- Selected `elite-replay-image-1`
+- Previous best adjusted `0.8629998557657745`
+- New best adjusted `0.8646997460750855`
+- New best total `0.8902964432632499`
+- Raw neural similarity `0.9944240476728831`
+- Output:
+  `.volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/generated-assets/elite-replay-image-1/70d10f1cfeccc9f9-target-crisp-warm.png`
+
+Interpretation:
+
+- This is a small but real hard-case improvement from a reusable local mutation
+  operator.
+- It is not enough for the 90% target by itself; the next larger gains likely
+  need stronger spatial/local edit operators or a more diverse image generator
+  once hosted Flux is back.
+
+Verification:
+
+- Report:
+  `.agent/benchmarks/backrooms-image-to-image-crisp-warm-v1.json`
