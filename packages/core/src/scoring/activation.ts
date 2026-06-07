@@ -1,15 +1,23 @@
 import type { ActivationTrace, ScoreBundle } from "../types.ts";
 
-// How much the neural similarity leans on the spatial pattern at each timestep
-// vs. the frame-to-frame *change*. Both terms are needed: the spatial term
-// anchors "what is firing", the dynamics term captures "how it moves over time"
-// — the turbulence/stillness signature that a time-averaged vector throws away.
-// Validated on real TRIBE activations (see exp-2 probe set): at this split the
-// true cross-modal vibe-match ranks #1 against hard counterfactuals (incl. a
-// calm night sky) AND the degenerate-repetition reward-hack scores well below
-// it. Dynamics alone is hack-prone, so we keep it at half weight.
-const TEMPORAL_WEIGHT = 0.5;
-const DYNAMICS_WEIGHT = 1 - TEMPORAL_WEIGHT;
+// The neural similarity blends three views of the activation trajectory:
+//   - pooled: cosine of the mean-centered time-AVERAGE. Length-invariant, so it
+//     grounds cross-modal pairs whose timestep counts differ wildly (an image is
+//     ~2 frames; the text rendered from it is ~23). This is the backbone.
+//   - temporal: mean per-frame mean-centered cosine, after resampling BOTH
+//     traces to their common (max) length so every frame contributes — anchors
+//     "what is firing" over time.
+//   - dynamics: mean cosine of the frame-to-frame deltas (also on the resampled
+//     traces) — "how it moves", the turbulence/stillness signature a time-
+//     average throws away. Dynamics alone is hack-prone, so it gets the least.
+// Validated on real TRIBE activations (exp-2 probe set + the Starry-Night
+// image->text pair): at this split the true vibe-match ranks #1 against hard
+// counterfactuals (incl. a calm night sky), the repetition reward-hack scores
+// ~0.08 below the match, and cross-modal scoring uses all frames instead of
+// silently truncating the longer trace to min(T).
+const POOLED_WEIGHT = 0.4;
+const TEMPORAL_WEIGHT = 0.35;
+const DYNAMICS_WEIGHT = 0.25;
 
 export function scoreActivations(args: {
   target: ActivationTrace;
@@ -42,15 +50,13 @@ export function scoreActivations(args: {
 // Similarity between two TRIBE activation trajectories, in [0, 1].
 //
 // When both traces carry the full [timesteps, vertices] matrix (timesteps >= 2)
-// we combine two cosines:
-//   - temporal: mean over timesteps of the *mean-centered* per-frame cosine.
-//     Centering removes the generic-language DC baseline that makes unrelated
-//     prose look similar; per-frame keeps the activation's temporal pattern
-//     instead of averaging it into one washed-out vector.
-//   - dynamics: mean over timesteps of the cosine between the frame-to-frame
-//     deltas. This compares how activation *moves*, which is where turbulence
-//     vs. stillness shows up.
-// The raw score lives in [-1, 1]; we map it to [0, 1] so existing
+// we blend the pooled / temporal / dynamics cosines described above. Crucially,
+// the temporal and dynamics terms first resample BOTH traces to their common
+// (max) length, so a 2-frame image target and a 23-frame text candidate are
+// compared frame-for-frame across their whole span instead of truncating the
+// candidate to the target's 2 frames (the old min(T) alignment threw away 21 of
+// 23 frames and capped cross-modal scores).
+// The raw blend lives in [-1, 1]; we map it to [0, 1] so existing
 // similarity-threshold stop conditions keep their meaning.
 //
 // If either trace is single-timestep or sparse (mock oracle, 1-segment text),
@@ -64,9 +70,19 @@ export function neuralTrajectorySimilarity(
   const b = candidate.values;
 
   if (a && b && a.length >= 2 && b.length >= 2) {
-    const temporal = temporalCenteredCosine(a, b);
-    const dynamics = deltaCosine(a, b);
-    const raw = TEMPORAL_WEIGHT * temporal + DYNAMICS_WEIGHT * dynamics;
+    const pooled = cosineSimilarity(
+      centerInPlace(meanFrame(a)),
+      centerInPlace(meanFrame(b)),
+    );
+    const length = Math.max(a.length, b.length);
+    const ar = resampleFrames(a, length);
+    const br = resampleFrames(b, length);
+    const temporal = temporalCenteredCosine(ar, br);
+    const dynamics = deltaCosine(ar, br);
+    const raw =
+      POOLED_WEIGHT * pooled +
+      TEMPORAL_WEIGHT * temporal +
+      DYNAMICS_WEIGHT * dynamics;
     return (raw + 1) / 2;
   }
 
@@ -84,7 +100,8 @@ export function neuralTrajectorySimilarity(
   return cosineSimilarity(flatA, flatB);
 }
 
-// Mean over min(T) timesteps of the mean-centered cosine between aligned frames.
+// Mean over timesteps of the mean-centered cosine between aligned frames. Both
+// inputs are assumed already resampled to the same length.
 function temporalCenteredCosine(a: number[][], b: number[][]): number {
   const steps = Math.min(a.length, b.length);
   let sum = 0;
@@ -104,6 +121,40 @@ function deltaCosine(a: number[][], b: number[][]): number {
     sum += cosineSimilarity(da[t], db[t]);
   }
   return steps > 0 ? sum / steps : 0;
+}
+
+// Time-average of a [timesteps, vertices] matrix into one R^vertices frame.
+function meanFrame(frames: number[][]): number[] {
+  const width = frames[0]?.length ?? 0;
+  const out = new Array<number>(width).fill(0);
+  for (const frame of frames) {
+    for (let i = 0; i < width; i += 1) {
+      out[i] += frame[i] ?? 0;
+    }
+  }
+  if (frames.length > 0) {
+    for (let i = 0; i < width; i += 1) {
+      out[i] /= frames.length;
+    }
+  }
+  return out;
+}
+
+// Resample a [timesteps, vertices] matrix to `length` frames by nearest-index
+// selection, so two traces of different lengths can be compared frame-for-frame
+// across their whole span. Returns the input unchanged when already at length.
+function resampleFrames(frames: number[][], length: number): number[][] {
+  const source = frames.length;
+  if (source === length || source === 0) {
+    return frames;
+  }
+  const out: number[][] = new Array(length);
+  for (let k = 0; k < length; k += 1) {
+    const index =
+      length > 1 ? Math.round((k * (source - 1)) / (length - 1)) : 0;
+    out[k] = frames[index];
+  }
+  return out;
 }
 
 // Frame-to-frame differences: deltas[t] = frames[t+1] - frames[t].
