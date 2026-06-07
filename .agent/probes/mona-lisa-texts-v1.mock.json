@@ -1,0 +1,152 @@
+{
+  "target": "/var/folders/gy/pplhy6xj63l_7f09587mc3900000gn/T/tmp.IchrK0iOvZ/runs/c0f43ac5-9f74-437a-932b-1d7c1bdca646/target.json",
+  "texts": ".agent/probes/mona-lisa-texts-v1.json",
+  "oracleMode": "mock",
+  "createdAt": "2026-06-07T00:24:17.950Z",
+  "results": [
+    {
+      "id": "visual-first",
+      "text": "Central female figure, half-length seated pose, hands folded in the lower foreground, face and torso turned slightly, dark hair and veil framing pale skin, soft smoky modeling, deep drapery, green-brown landscape background.",
+      "neuralSimilarity": 0.31804755684042707,
+      "total": 0.37263328978829896,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": -0.13268579199390618,
+          "std": 0.5657685128587803,
+          "norm": 3.2873066399810575
+        }
+      }
+    },
+    {
+      "id": "short-caption",
+      "text": "Mona Lisa portrait, seated woman, folded hands, dark veil, subtle smile, direct gaze, sfumato, muted Renaissance colors, hazy landscape, quiet enigmatic calm.",
+      "neuralSimilarity": 0.2188610436912905,
+      "total": 0.30320273058390335,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": 0.0494967664823627,
+          "std": 0.5961182229282611,
+          "norm": 3.3837582211469313
+        }
+      }
+    },
+    {
+      "id": "literal-title",
+      "text": "The Mona Lisa by Leonardo da Vinci: a Renaissance oil portrait of Lisa Gherardini seated before a distant hazy landscape, hands folded, dark veil and dress, subtle smile, direct gaze, sfumato softness, muted green and brown palette, calm enigmatic mood.",
+      "neuralSimilarity": 0.15341024300115608,
+      "total": 0.25738717010080925,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": 0.01104646011920328,
+          "std": 0.5292568602592493,
+          "norm": 2.9945809638753467
+        }
+      }
+    },
+    {
+      "id": "dense-literal",
+      "text": "A dark-clothed seated Renaissance woman occupies the center of a vertical portrait. Her hands rest one over the other at the bottom edge, her shoulders turn subtly, and her eyes meet the viewer. A faint closed-mouth smile, softly shaded cheeks, smooth sfumato transitions, brown-black hair, transparent veil, olive sleeves, warm skin, and a blue-green misty landscape create a calm, enigmatic, aged painting.",
+      "neuralSimilarity": 0.09070433857169628,
+      "total": 0.21349303700018737,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": 0.006549980100023094,
+          "std": 0.5086491401982016,
+          "norm": 2.877592605293143
+        }
+      }
+    },
+    {
+      "id": "emotion-first",
+      "text": "The image feels quiet, watchful, balanced, and private: a restrained human presence with a faint smile, soft shadow, low movement, muted earth colors, and an old atmospheric calm.",
+      "neuralSimilarity": 0.047956878333215755,
+      "total": 0.18356981483325102,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": 0.08049158467165932,
+          "std": 0.6089578827421204,
+          "norm": 3.474748212606932
+        }
+      }
+    },
+    {
+      "id": "prior-best-iteration-4",
+      "text": "An intimate half-length portrait of a seated woman turned slightly from the viewer, her folded hands calm in the foreground and her face held in a quiet, centered stillness. Her direct gaze and barely lifted smile feel composed, private, and difficult to read, carrying a restrained warmth beneath the surface. Soft transitions blur the edges of face, hair, veil, and dark drapery, with muted olive greens, smoky blues, warm umbers, and worn gold light settling into an aged, velvety atmosphere. Behind her, a dreamlike river valley and distant paths recede into mist, giving the figure a suspended, timeless presence. The mood is serene, balanced, and watchful, with a low, contemplative energy and an elusive emotional charge.",
+      "neuralSimilarity": 0.047600787700415405,
+      "total": 0.18332055139029077,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": 0.025306290909137184,
+          "std": 0.6311839973214685,
+          "norm": 3.573384487946565
+        }
+      }
+    },
+    {
+      "id": "object-list",
+      "text": "woman portrait hands face eyes smile hair veil dark dress chair river valley mountains bridge winding path earth tones green brown gold soft shadows blurred edges stillness mystery",
+      "neuralSimilarity": -0.04032198720983634,
+      "total": 0.12177460895311457,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": -0.000595388293870569,
+          "std": 0.6403853265374408,
+          "norm": 3.6225680214198777
+        }
+      }
+    },
+    {
+      "id": "museum-label",
+      "text": "A sixteenth-century painted portrait shows a woman seated in three-quarter view with crossed hands, dark clothing, transparent veil, softly modeled face, ambiguous smile, and a distant blue-green landscape behind her.",
+      "neuralSimilarity": -0.1263609011711255,
+      "total": 0.06154736918021216,
+      "activation": {
+        "model": "mock-neural-oracle",
+        "shape": [
+          1,
+          32
+        ],
+        "summary": {
+          "mean": -0.04903375784902221,
+          "std": 0.6412919808763661,
+          "norm": 3.6382840533202137
+        }
+      }
+    }
+  ]
+}

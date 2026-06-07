@@ -28,3 +28,31 @@ Expected effect:
 
 - Long multi-iteration runs should no longer lose all progress when the hosted TRIBE service restarts mid-score.
 - Recovery should continue from the last complete iteration instead of repeating already scored iterations.
+
+Validation:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+
+## 2026-06-06 17:28 PDT - Text Candidate Calibration 1
+
+Added `bun run probe:texts` for scoring arbitrary text probes against a saved target activation without running candidate agents or re-encoding the target.
+
+Probe:
+
+- Target: saved Mona Lisa activation from old run `c0f43ac5-9f74-437a-932b-1d7c1bdca646`.
+- Oracle: hosted TRIBE HTTP.
+- Texts: 8 hand-written candidates in `.agent/probes/mona-lisa-texts-v1.json`.
+
+Results:
+
+- Best: `prior-best-iteration-4`, neural similarity `0.0446379915415347`.
+- Runner-up: `object-list`, neural similarity `0.03276093506673319`.
+- Direct title/name description performed poorly: `literal-title` scored `-0.1353451610439663`.
+- Literal captions and museum-label prose also failed to beat the old best.
+
+Interpretation:
+
+- Plain semantic accuracy is not enough. The old best seems to have landed on a text style TRIBE likes better than more factual Mona Lisa captions.
+- The next search strategy should use larger parallel variation and explicit mutation styles rather than only refining toward a "better description."
+- We should add score-history feedback and mutation strategies to candidate prompts before spending on another full Codex+TRIBE loop.
