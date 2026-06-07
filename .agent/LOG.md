@@ -1618,3 +1618,76 @@ Interpretation:
 - The system still is not near 90% adjusted similarity; the next experiment
   should run at least two iterations so the judge can seed visible specificity
   while the micro-mutation layer keeps pruning harmful wording.
+
+## 2026-06-07 00:51 PDT - Fixed Cross-Modal Contrast Calibration Contamination
+
+Problem found:
+
+- The backrooms cross-input sanity check exposed a scoring bug:
+  `backrooms-image-to-text-ae47d255` produced the plausible caption
+  `An empty yellow room with beige carpet and fluorescent lights is framed by patterned walls.`
+  but received adjusted `0` with contrast similarity `0.978568`.
+- Nearest-neighbor audit showed the top contrast activations were not unrelated
+  target images. They were previous dog text candidates such as
+  `A white puppy sits on green grass facing the camera.` with candidate-to-
+  candidate cosine about `0.976796`.
+- That means image-to-text scoring was mixing generated text candidates into the
+  contrast bank. Text activations are very close to other text activations, so a
+  room caption was being punished for being close to dog captions. This is a
+  modality artifact, not a legitimate target-specificity signal.
+
+Code changes:
+
+- Added `includeScoreActivations` to the calibration loader.
+- The run loop now excludes prior score/candidate activations from contrast
+  calibration when `inputNode.type !== outputType`. For image-to-text, contrast
+  now comes from target caches / explicit target roots, not other generated
+  text candidates.
+- Added a minimum of six contrast targets before calibrated retrieval can
+  override the score. With only two target-cache negatives, calibrated retrieval
+  was too sparse and clamped plausible captions to `0`; sparse cases now fall
+  back to residual / target-specificity scoring.
+- Added caption reward-hack guards after a two-iteration dog run selected a
+  malformed micro-child ending in `in.`:
+  - malformed trailing preposition penalty in natural-caption priors
+  - cleaner removes dangling prepositions after phrase ablations
+  - camera-clause mutation for `and looks toward the camera`
+  - close-up / close-frame / centered framing ablations
+  - optional `with ...` detail ablation so added visible details can be tested
+    and rejected.
+
+Real local TRIBE evidence:
+
+- Bad pre-fix backrooms run `backrooms-image-to-text-ae47d255`:
+  - parent raw `0.164781`
+  - contrast `0.978568`
+  - calibrated `0`
+  - adjusted `0`
+- After excluding cross-modal score activations but before the sparse-calibration
+  threshold, `backrooms-image-to-text-181cbbfd` still clamped adjusted to `0`
+  because calibrated retrieval had only two contrast targets.
+- After both fixes, `backrooms-image-to-text-bb7011ea` generated:
+  `An empty yellow hallway opens into a carpeted room with patterned walls.`
+  - raw `0.367514`
+  - contrast `0.383887`
+  - residual `0.039623`
+  - adjusted `0.023250`
+  - total `0.048250`
+- Dog rerun under corrected scorer `dog-image-to-text-e1e881e0` selected:
+  `A white puppy sits on green grass facing the camera.`
+  - raw `0.215005`
+  - contrast `0.230333`
+  - residual `-0.004498`
+  - adjusted `-0.019826`
+  - total `0.005174`
+
+Interpretation:
+
+- This was a real scoring root-cause fix, not just a prompt tweak. The old
+  contrast bank was comparing cross-modal candidates against previous generated
+  text, which made natural captions appear spuriously generic.
+- We still need a larger, cleaner target cache for stable adjusted scores across
+  images, but sparse calibration now degrades more gracefully.
+- The caption micro-mutation layer is useful beyond dog, but it needs more
+  scene-general mutations for room/interior captions; the backrooms parent had
+  no useful micro-child beyond optional detail ablation.

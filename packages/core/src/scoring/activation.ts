@@ -1,5 +1,7 @@
 import type { ActivationTrace, ScoreBundle } from "../types.ts";
 
+const MIN_CALIBRATED_CONTRAST_TARGETS = 6;
+
 export function scoreActivations(args: {
   target: ActivationTrace;
   candidate: ActivationTrace;
@@ -148,7 +150,7 @@ function calibratedRetrievalSimilarity(args: {
       calibrationVertexCount: number;
     }
   | undefined {
-  if (args.contrastTargets.length < 2) {
+  if (args.contrastTargets.length < MIN_CALIBRATED_CONTRAST_TARGETS) {
     return undefined;
   }
 

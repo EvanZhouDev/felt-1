@@ -16,6 +16,7 @@ export function loadCalibrationActivations(args: {
   targetSha?: string;
   explicitTargetRoots?: string[];
   maxActivations?: number;
+  includeScoreActivations?: boolean;
 }): ActivationTrace[] {
   const maxActivations = args.maxActivations ?? 96;
   const items: CalibrationItem[] = [];
@@ -44,16 +45,18 @@ export function loadCalibrationActivations(args: {
     addItem(item, targetCacheLimit);
   }
 
-  for (const scorePath of aggregateScoreFiles(args.repoRoot, args.runsRoot)) {
-    if (items.length >= maxActivations) {
-      break;
-    }
-    const sourceTargetSha = scoreTargetSha(scorePath);
-    if (sourceTargetSha && sourceTargetSha === args.targetSha) {
-      continue;
-    }
-    for (const item of loadScoreItems(scorePath, sourceTargetSha)) {
-      addItem(item);
+  if (args.includeScoreActivations !== false) {
+    for (const scorePath of aggregateScoreFiles(args.repoRoot, args.runsRoot)) {
+      if (items.length >= maxActivations) {
+        break;
+      }
+      const sourceTargetSha = scoreTargetSha(scorePath);
+      if (sourceTargetSha && sourceTargetSha === args.targetSha) {
+        continue;
+      }
+      for (const item of loadScoreItems(scorePath, sourceTargetSha)) {
+        addItem(item);
+      }
     }
   }
 

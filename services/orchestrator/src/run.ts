@@ -856,6 +856,8 @@ function loadContrastTargets(
     targetSha: args.target.rendered.sha256,
     explicitTargetRoots: args.loop.contrastTargetRoots,
     maxActivations: 96,
+    includeScoreActivations:
+      args.input.inputNode.type === args.output.outputType,
   });
 }
 
@@ -906,9 +908,10 @@ function naturalCaptionScoringPriors(text: string): {
     sentenceCount === 0 ? 0.04 : sentenceCount > 2 ? 0.06 : 0;
   const inventoryPenalty =
     commaCount >= 4 ? Math.min(0.12, commaCount * 0.02) : 0;
+  const grammarPenalty = hasMalformedCaptionEnding(text) ? 0.15 : 0;
   const penalty = Math.min(
     0.25,
-    wordPenalty + sentencePenalty + inventoryPenalty,
+    wordPenalty + sentencePenalty + inventoryPenalty + grammarPenalty,
   );
 
   return {
@@ -934,6 +937,12 @@ function naturalCaptionScoringPriors(text: string): {
 function captionSentenceCount(text: string): number {
   const terminalCount = (text.match(/[.!?]+/g) ?? []).length;
   return terminalCount > 0 ? terminalCount : text.trim().length > 0 ? 1 : 0;
+}
+
+function hasMalformedCaptionEnding(text: string): boolean {
+  return /\b(in|with|at|on|toward|towards|of|for|to)\s*[.!?]?$/i.test(
+    text.trim(),
+  );
 }
 
 function textStructureScore(args: {
@@ -1261,18 +1270,26 @@ const captionTransforms: TextTransform[] = [
           .replace(/\bcream\b/gi, "white")
           .replace(/\blight[- ]colored\b/gi, "white")
           .replace(/\bgolden retriever puppy\b/gi, "puppy")
+          .replace(/\bcentered\s+/gi, "")
+          .replace(/\bcentrally\s+/gi, "")
           .replace(/\bsoft green grass\b/gi, "green grass")
           .replace(/\bsoft grass\b/gi, "green grass")
           .replace(/\bin a close view\b/gi, "")
           .replace(/\bin a close frame\b/gi, "")
           .replace(/\bin close framing\b/gi, "")
+          .replace(/\bin close[- ]?up\b/gi, "")
           .replace(/\bclose[- ]up view\b/gi, "")
+          .replace(/\bclose[- ]?up\b/gi, "")
           .replace(/\bclose view\b/gi, "")
           .replace(/\bclose frame\b/gi, "")
           .replace(/\bclose framing\b/gi, "")
           .replace(
             /\blooking\s+(?:gently\s+)?toward the camera\b/gi,
             "looking at the camera",
+          )
+          .replace(
+            /\band looks\s+(?:gently\s+)?toward the camera\b/gi,
+            ", looking at the camera",
           )
           .replace(/\band looks at the camera\b/gi, ", looking at the camera")
           .replace(/\bis sitting\b/gi, "sits")
@@ -1298,7 +1315,44 @@ const captionTransforms: TextTransform[] = [
             "looking at the camera",
           )
           .replace(/\bfacing toward the camera\b/gi, "facing the camera")
+          .replace(
+            /\band looks\s+(?:gently\s+)?toward the camera\b/gi,
+            ", looking at the camera",
+          )
           .replace(/\band looks at the camera\b/gi, ", looking at the camera"),
+      ),
+  },
+  {
+    name: "caption-camera-facing",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(/,\s*looking at the camera\b/gi, " facing the camera")
+          .replace(/,\s*looking toward the camera\b/gi, " facing the camera")
+          .replace(/\blooking at the camera\b/gi, "facing the camera")
+          .replace(/\blooking toward the camera\b/gi, "facing the camera"),
+      ),
+  },
+  {
+    name: "caption-framing-detail-ablation",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(/\bin a close view\b/gi, "")
+          .replace(/\bin a close frame\b/gi, "")
+          .replace(/\bin close framing\b/gi, "")
+          .replace(/\bin close[- ]?up\b/gi, "")
+          .replace(/\bcentered\s+/gi, "")
+          .replace(/\bcentrally\s+/gi, "")
+          .replace(/\bclose[- ]up view\b/gi, "")
+          .replace(/\bclose[- ]?up\b/gi, "")
+          .replace(/\bclose view\b/gi, "")
+          .replace(/\bclose frame\b/gi, "")
+          .replace(/\bclose framing\b/gi, "")
+          .replace(
+            /\s+with\s+[^,]+?\s+(?=(sits|stands|lies|looks|faces|is|are)\b)/gi,
+            " ",
+          ),
       ),
   },
   {
@@ -1327,7 +1381,9 @@ const captionTransforms: TextTransform[] = [
           .replace(/\bin a close view\b/gi, "")
           .replace(/\bin a close frame\b/gi, "")
           .replace(/\bin close framing\b/gi, "")
+          .replace(/\bin close[- ]?up\b/gi, "")
           .replace(/\bclose[- ]up view\b/gi, "")
+          .replace(/\bclose[- ]?up\b/gi, "")
           .replace(/\bclose view\b/gi, "")
           .replace(/\bclose frame\b/gi, "")
           .replace(/\bclose framing\b/gi, ""),
@@ -1387,6 +1443,8 @@ function cleanCaptionText(text: string): string {
     .replace(/\s+/g, " ")
     .replace(/\s+\./g, ".")
     .replace(/,\s*\./g, ".")
+    .replace(/\s+(in|with|at|on|toward|towards|of|for|to)\s*([.!?])$/i, "$2")
+    .replace(/\s+(in|with|at|on|toward|towards|of|for|to)$/i, "")
     .trim();
 }
 
