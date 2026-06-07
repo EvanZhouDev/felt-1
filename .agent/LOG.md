@@ -2464,3 +2464,41 @@ Verification:
 - `bun run check` passed before the backrooms v2 run.
 - Backrooms v1 report: `.agent/benchmarks/backrooms-image-to-image-flux-v1.json`
 - Backrooms v2 report: `.agent/benchmarks/backrooms-image-to-image-flux-v2.json`
+
+## 2026-06-07 03:59 PDT - Backrooms 3-Candidate Population Check
+
+Goal:
+
+- Test whether a tiny Flux population improves the harder backrooms
+  image-to-image target without a long run.
+
+Run:
+
+- `backrooms-image-to-image-0ba5857e`
+- 3 Codex candidates, 1 iteration, serial Flux/TRIBE scoring.
+- Result:
+  - best candidate `candidate-a`
+  - raw `0.9706166108391445`
+  - adjusted `0.5598353008866586`
+  - total `0.5858477722632702`
+- Candidate C was nearly tied:
+  - adjusted `0.5589308513390606`
+  - raw `0.9754576990589982`
+
+Interpretation:
+
+- Simple prompt/seed diversity did not materially improve over the one-candidate
+  backrooms v2 run (`0.551644` adjusted).
+- The generated images are plausible backrooms-like interiors, but Flux keeps
+  adding richer hallway/door geometry and cleaner high-detail composition than
+  the target's small, sparse, low-resolution room crop.
+- Next backrooms-specific architecture should use either:
+  1. stronger visual prompt extraction from the target image,
+  2. reference-conditioned image generation/editing instead of text-only Flux,
+  3. a crop/low-resolution postprocess operator before TRIBE scoring, or
+  4. a multi-iteration loop where the judge receives visual thumbnails and
+     explicitly penalizes hallway/cinematic drift.
+
+Verification:
+
+- Report: `.agent/benchmarks/backrooms-image-to-image-flux-v3-pop3.json`
