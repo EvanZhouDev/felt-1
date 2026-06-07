@@ -617,6 +617,59 @@ Verification:
 - `bun run smoke` passed.
 - `bun run smoke:generic` passed.
 
+## 2026-06-07 01:11 PDT - Backrooms Scene-Layout Mutation Probe
+
+Question:
+
+- Does the natural-caption mutation layer need scene-general interior/layout
+  operators, or are dog/Mona camera/color mutations enough?
+
+Probe:
+
+- Target: backrooms local TRIBE target from
+  `backrooms-image-to-text-bb7011ea`.
+- Scored hand-written backrooms caption variants with local TRIBE raw cosine.
+
+Top probe results:
+
+- `A yellow carpeted hallway opens into an empty maze-like room.`
+  - raw `0.390392`
+- `A yellow hallway opens into an empty carpeted room.`
+  - raw `0.386256`
+- `An empty yellow hallway opens into a carpeted room under fluorescent ceiling lights.`
+  - raw `0.372549`
+- `An empty yellow hallway opens into a carpeted room with patterned walls.`
+  - raw `0.367514`
+- `An empty yellow room with beige carpet and patterned walls.`
+  - raw `0.302557`
+- Longer object-inventory captions with beige carpet / fluorescent lights /
+  patterned walls scored much lower, down to raw `0.164781`.
+
+Code change:
+
+- Added a generic `caption-interior-layout-focus` micro-mutation for hallway /
+  room / doorway captions. It moves emphasis from static object inventory toward
+  spatial layout: hallway opening into an empty carpeted room.
+
+Validation:
+
+- `bun run check` passed.
+- Backrooms rerun `backrooms-image-to-text-624e2042` generated:
+  `A dim yellow hallway opens into an empty carpeted room with patterned walls.`
+  - raw `0.379446`
+  - contrast `0.392942`
+  - residual `0.064126`
+  - adjusted `0.050630`
+  - total `0.075630`
+
+Interpretation:
+
+- For room/interior targets, spatial layout words are more important than
+  exhaustive inventory words.
+- The scene-layout mutation did not need to fire in this run because the base
+  agent already generated a better layout caption, but the operator is now
+  available when the agent emits doorway/room inventory phrasing.
+
 Interpretation:
 
 - This makes the generic evolutionary algorithm safer to scale: we can explore

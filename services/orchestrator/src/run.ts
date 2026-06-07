@@ -1309,6 +1309,25 @@ const captionTransforms: TextTransform[] = [
     apply: (text) => cleanCaptionText(text.replace(/\bsmall\b/gi, "little")),
   },
   {
+    name: "caption-interior-layout-focus",
+    apply: (text) =>
+      cleanCaptionText(
+        text
+          .replace(
+            /^An empty ([a-z-]+) hallway opens into a carpeted room(?:\s+(?:with|under|before|within)\s+[^.]+)?\.?$/i,
+            "A $1 hallway opens into an empty carpeted room.",
+          )
+          .replace(
+            /^An empty ([a-z-]+) hallway opens into a ([a-z-]+) room(?:\s+(?:with|under|before|within)\s+[^.]+)?\.?$/i,
+            "A $1 hallway opens into an empty $2 room.",
+          )
+          .replace(
+            /^An empty ([a-z-]+) room is viewed through a doorway,?\s*(?:with\s+[^.]+)?\.?$/i,
+            "A $1 hallway opens into an empty carpeted room.",
+          ),
+      ),
+  },
+  {
     name: "caption-size-ablation",
     apply: (text) =>
       cleanCaptionText(text.replace(/\b(small|little|tiny)\s+/gi, "")),
