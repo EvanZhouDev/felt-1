@@ -900,3 +900,67 @@ Framing:
 - The doc explicitly avoids overclaiming: Volta preserves a frozen model's
   predicted neural activation, not measured human brain state or semantic
   identity.
+
+## 2026-06-06 20:49 PDT - Compact Genotype Scheduler
+
+Problem:
+
+- The real Codex + hosted TRIBE Mona image-to-text run was improving, but too
+  much of the gain came from a few lucky operator/syntax turns rather than from
+  efficient short-run architecture.
+- The old refinement scheduler round-robined through many operators, so a
+  4-candidate or 6-candidate generation could miss the operators that actually
+  moved the score.
+
+Real TRIBE evidence:
+
+- Run: `.volta/real-runs-retry/ef462a9a-5975-4278-bd0c-7496b0d10a66`
+- Cold from scratch with real Codex candidates and hosted TRIBE, no target
+  archive reuse in the initial request.
+- Best neural score rose from `0.146230` on iteration 1 to `0.351552` by
+  iteration 12; total score reached `0.408586`.
+- Main jumps:
+  - iteration 6: `0.319336` from syntax/order change
+    `gaze quieted, amber age-warmth, haze softened, figure centered, stillness folded, distance receding, calm uncertain`
+  - iteration 12: `0.351552` from one slot replacement
+    `gaze quieted, ochre age-warmth, edges feathered, figure centered, stillness folded, distance receding, calm uncertain`
+- The curve also showed wasted turns: iterations 8-11 mostly stayed below the
+  iteration-7 elite.
+
+Change:
+
+- Text outputs now default to compact activation-code genotypes: 6-8
+  comma-separated phrase units, 10-18 words total, no explanatory sentence.
+- Text mutation prompts treat comma-separated units as genotype slots and ask
+  agents to mutate only the requested slot.
+- Added text-specific refinement operators:
+  - `syntax-order exploit`
+  - `slot-library exploit`
+  - `slot-crossover exploit`
+- Replaced pure refinement round-robin for text outputs with a short-run
+  exploit front:
+  - candidate 1: syntax/order exploit
+  - candidate 2: slot-library exploit
+  - candidate 3: operator-fitness exploit
+  - candidate 4: elitist point mutation
+  - candidate 5: slot-crossover exploit
+  - additional candidates rotate through the broader tail operators
+- Kept non-text outputs on the generic rotating evolutionary strategy schedule.
+- Hardened hosted TRIBE polling to retry transient `5xx` and `429` job-status
+  responses instead of failing an otherwise useful run.
+- Fixed local/TRIBE text event rendering by stripping punctuation from word
+  events and adding context/sentence fields for contextualized text extraction.
+
+Verification:
+
+- `bun run format && bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+- Smoke artifact check confirmed a 2-candidate text refinement now starts with
+  `syntax-order exploit` and `slot-library exploit`.
+
+Interpretation:
+
+- This is an architecture refinement, not just more iterations. The next real
+  test should be a short cold run with a fresh runs root and no target archive
+  reuse, so the result measures whether the productive operators arrive early.

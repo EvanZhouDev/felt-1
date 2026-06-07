@@ -138,7 +138,7 @@ function assetEvent(
 }
 
 function textEvents(text: string, duration: number): StimulusEvent[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
+  const words = normalizedWords(text);
   const wordDuration = duration / Math.max(words.length, 1);
   const events: StimulusEvent[] = [
     {
@@ -161,12 +161,20 @@ function textEvents(text: string, duration: number): StimulusEvent[] {
       timeline: "main",
       subject: "stimulus",
       text: word,
+      context: words.slice(0, index + 1).join(" "),
+      sentence: text,
       language: "english",
       modality: "heard",
     });
   });
 
   return events;
+}
+
+function normalizedWords(text: string): string[] {
+  return [...text.matchAll(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g)].map(
+    (match) => match[0],
+  );
 }
 
 function sha256(value: string): string {

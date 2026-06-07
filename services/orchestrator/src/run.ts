@@ -701,24 +701,24 @@ type MutationStrategy = {
 
 const coldStartStrategies: MutationStrategy[] = [
   {
-    name: "broad gestalt genotype",
+    name: "minimal activation code",
     instruction:
-      "Create a first-generation candidate from the target's broad perceptual genotype: dominant energy level, attention or salience pattern, spatial/compositional feel, sensory texture, and affect. Use only anchors supported by the input.",
+      "Create a first-generation compact activation code: 6-8 comma-separated phrase units, 10-18 words total, no full sentence. Encode motion level, attention or salience, atmosphere or density, distance, central presence, and ambiguity.",
   },
   {
-    name: "affect-energy genotype",
+    name: "affect-density code",
     instruction:
-      "Create a first-generation candidate emphasizing affect and energy: calm/tense, fast/slow, dense/sparse, intimate/distant, warm/cool, certain/ambiguous. Keep concrete details sparse unless they are central to the input.",
+      "Create a first-generation compact activation code emphasizing affect and density: calm/tense, fast/slow, dense/sparse, intimate/distant, warm/cool, certain/ambiguous. Use phrase fragments, not explanatory prose.",
   },
   {
-    name: "sensory-texture genotype",
+    name: "sensory-surface code",
     instruction:
-      "Create a first-generation candidate emphasizing modality-neutral sensory texture: brightness, contrast, rhythm, edge quality, surface/timbre, color or tone, and softness/sharpness.",
+      "Create a first-generation compact activation code emphasizing modality-neutral sensory surface: light or tone, contrast, rhythm, edge quality, surface/timbre, softness/sharpness, and one concrete anchor if helpful.",
   },
   {
-    name: "structure-space genotype",
+    name: "structure-proximity code",
     instruction:
-      "Create a first-generation candidate emphasizing structure and space: foreground/background weight, density, symmetry/asymmetry, proximity, scale, repetition, and compositional balance.",
+      "Create a first-generation compact activation code emphasizing structure and proximity: foreground/background weight, centrality, density, symmetry/asymmetry, scale, repetition, and compositional balance.",
   },
   {
     name: "sparse latent code",
@@ -757,6 +757,21 @@ const refinementStrategies: MutationStrategy[] = [
     name: "operator-fitness exploit",
     instruction:
       "Use the archive's operatorStats to identify the strongest operator family so far. Generate a child that follows that family more deliberately while preserving the current elite's strongest traits. If no stats exist, fall back to conservative point mutation.",
+  },
+  {
+    name: "syntax-order exploit",
+    instruction:
+      "Exploit a high-scoring representation pattern by preserving the elite's slot order, fragment count, and word order style. Mutate exactly one content variable inside that syntax while keeping the morphology of the strongest slots stable.",
+  },
+  {
+    name: "slot-library exploit",
+    instruction:
+      "Treat a text elite as genotype slots. Preserve slot order and mutate exactly one weak slot using the closest generic perceptual axis: temperature/light, motion/stillness, attention/gaze/salience, atmosphere/air/density, proximity/distance/depth, surface/texture, central anchor, or ambiguity/calm/tension. Do not add a sentence.",
+  },
+  {
+    name: "slot-crossover exploit",
+    instruction:
+      "Treat archive text candidates as compatible slot genotypes. Preserve the current elite's strongest slots, then replace one slot with the best same-axis slot from another high-scoring archive parent. Do not average all parents; make one decisive inheritance.",
   },
   {
     name: "generic focus-axis mutation",
@@ -810,20 +825,33 @@ const refinementStrategies: MutationStrategy[] = [
   },
 ];
 
+const textRefinementLeadStrategyNames = [
+  "syntax-order exploit",
+  "slot-library exploit",
+  "operator-fitness exploit",
+  "elitist point mutation",
+  "slot-crossover exploit",
+] as const;
+
+const textRefinementLeadStrategyNameSet = new Set<string>(
+  textRefinementLeadStrategyNames,
+);
+
+const textRefinementLeadStrategies = textRefinementLeadStrategyNames.map(
+  (name) => strategyByName(refinementStrategies, name),
+);
+
+const textRefinementTailStrategies = refinementStrategies.filter(
+  (strategy) => !textRefinementLeadStrategyNameSet.has(strategy.name),
+);
+
 function mutationStrategy(args: {
   iteration: number;
   index: number;
   candidateCount: number;
   outputType: OutputObj["outputType"];
 }): string {
-  const strategies =
-    args.iteration === 1 ? coldStartStrategies : refinementStrategies;
-  const generationOffset =
-    args.iteration === 1
-      ? 0
-      : Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
-  const strategy =
-    strategies[(generationOffset + args.index) % strategies.length];
+  const strategy = selectMutationStrategy(args);
   return [
     `iteration=${args.iteration}`,
     `strategy=${strategy.name}`,
@@ -833,9 +861,65 @@ function mutationStrategy(args: {
   ].join(" | ");
 }
 
+function selectMutationStrategy(args: {
+  iteration: number;
+  index: number;
+  candidateCount: number;
+  outputType: OutputObj["outputType"];
+}): MutationStrategy {
+  if (args.iteration === 1) {
+    return rotatingStrategy(coldStartStrategies, args.index);
+  }
+  if (args.outputType === "text") {
+    return selectTextRefinementStrategy(args);
+  }
+  const generationOffset =
+    Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
+  return rotatingStrategy(refinementStrategies, generationOffset + args.index);
+}
+
+function selectTextRefinementStrategy(args: {
+  iteration: number;
+  index: number;
+  candidateCount: number;
+}): MutationStrategy {
+  const leadCount = Math.min(
+    args.candidateCount,
+    textRefinementLeadStrategies.length,
+  );
+  if (args.index < leadCount) {
+    return textRefinementLeadStrategies[args.index];
+  }
+  const tailWidth = Math.max(1, args.candidateCount - leadCount);
+  const generationOffset = Math.max(0, args.iteration - 2) * tailWidth;
+  const tailIndex = generationOffset + args.index - leadCount;
+  return rotatingStrategy(textRefinementTailStrategies, tailIndex);
+}
+
+function rotatingStrategy(
+  strategies: MutationStrategy[],
+  index: number,
+): MutationStrategy {
+  if (strategies.length === 0) {
+    throw new Error("Mutation strategy pool is empty.");
+  }
+  return strategies[index % strategies.length];
+}
+
+function strategyByName(
+  strategies: MutationStrategy[],
+  name: string,
+): MutationStrategy {
+  const strategy = strategies.find((candidate) => candidate.name === name);
+  if (!strategy) {
+    throw new Error(`Missing mutation strategy: ${name}`);
+  }
+  return strategy;
+}
+
 function outputTypeInstruction(outputType: OutputObj["outputType"]): string {
   if (outputType === "text") {
-    return "For text output, encode the candidate as compact descriptive prose or comma-separated semantic units. Keep it short unless the operator explicitly asks for a syntax reset.";
+    return "For text output, use compact comma-separated semantic units by default: 6-8 phrase fragments, 10-18 words total, no full sentence, no labels, no proper names, no explanatory prose.";
   }
   if (outputType === "image") {
     return "For image output, express the operator through image-generation intent: composition, subject anchors, light/color, texture, camera/framing, and atmosphere.";

@@ -194,6 +194,10 @@ class HttpTribeOracle implements NeuralOracle {
         `GET /jobs/${jobId}`,
       );
       if (!response.ok) {
+        if (response.status >= 500 || response.status === 429) {
+          await delay(TRIBE_POLL_INTERVAL_MS);
+          continue;
+        }
         throw new Error(`GET /jobs/${jobId} failed: ${response.status}`);
       }
       const status = (await response.json()) as TribeJobStatus;
