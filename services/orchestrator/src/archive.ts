@@ -121,6 +121,7 @@ export function archivePromptContext(
     top,
     diverse,
     recent,
+    operatorStats: operatorStats(archive.entries).slice(0, 8),
     notes: [
       "This archive is the evolving population for the current target, not a source of text to copy exactly.",
       "Use top examples for elitist inheritance, diverse examples for MAP-Elites-style coverage, and recent examples for local search momentum.",
@@ -315,6 +316,51 @@ function bestPerBehavior(
     }
   }
   return [...best.values()];
+}
+
+function operatorStats(entries: CandidateArchiveEntry[]) {
+  const byOperator = new Map<
+    string,
+    {
+      count: number;
+      totalNeuralSimilarity: number;
+      bestNeuralSimilarity: number;
+    }
+  >();
+
+  for (const entry of entries) {
+    const operator = operatorName(entry.entropy);
+    const current = byOperator.get(operator) ?? {
+      count: 0,
+      totalNeuralSimilarity: 0,
+      bestNeuralSimilarity: Number.NEGATIVE_INFINITY,
+    };
+    current.count += 1;
+    current.totalNeuralSimilarity += entry.neuralSimilarity;
+    current.bestNeuralSimilarity = Math.max(
+      current.bestNeuralSimilarity,
+      entry.neuralSimilarity,
+    );
+    byOperator.set(operator, current);
+  }
+
+  return [...byOperator.entries()]
+    .map(([operator, stats]) => ({
+      operator,
+      count: stats.count,
+      bestNeuralSimilarity: stats.bestNeuralSimilarity,
+      meanNeuralSimilarity: stats.totalNeuralSimilarity / stats.count,
+    }))
+    .sort(
+      (left, right) =>
+        right.bestNeuralSimilarity - left.bestNeuralSimilarity ||
+        right.meanNeuralSimilarity - left.meanNeuralSimilarity,
+    );
+}
+
+function operatorName(entropy: string | undefined): string {
+  const match = entropy?.match(/strategy=([^|]+)/);
+  return match?.[1]?.trim() || "unknown";
 }
 
 function promptItem(entry: CandidateArchiveEntry): CandidateArchivePromptItem {

@@ -75,6 +75,7 @@ export type CandidateArchiveContext = {
   top: CandidateArchivePromptItem[];
   diverse: CandidateArchivePromptItem[];
   recent: CandidateArchivePromptItem[];
+  operatorStats: CandidateArchiveOperatorStat[];
   notes: string[];
 };
 
@@ -86,4 +87,11 @@ export type CandidateArchivePromptItem = {
   total: number;
   behaviorKey: string;
   text?: string;
+};
+
+export type CandidateArchiveOperatorStat = {
+  operator: string;
+  count: number;
+  bestNeuralSimilarity: number;
+  meanNeuralSimilarity: number;
 };

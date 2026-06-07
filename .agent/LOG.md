@@ -701,3 +701,32 @@ Interpretation:
 
 - This is a better default for 10-turn convergence: even two candidates per turn
   can cover multiple evolutionary operator families over time.
+
+## 2026-06-06 19:30 PDT - Operator Fitness Feedback
+
+Problem:
+
+- The archive preserved candidate scores and behavior keys, but did not summarize
+  which evolutionary operators were actually producing useful children.
+- Without that, the next generation could see good examples but not whether
+  mutation, crossover, novelty, ablation, or representation reset was working.
+
+Change:
+
+- Added `operatorStats` to the archive prompt context.
+- Stats include operator name, sample count, best neural similarity, and mean
+  neural similarity.
+- Operator names are parsed from the entropy/operator lineage already attached
+  to candidates.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Interpretation:
+
+- This makes the archive more like a real evolutionary journal. Future agents can
+  adapt based on operator performance instead of treating all archive entries as
+  undifferentiated examples.
