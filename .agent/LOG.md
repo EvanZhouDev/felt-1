@@ -147,3 +147,30 @@ Validation:
 - Initial `bun run check` found formatter drift in `archive.ts`; fixed with Biome format.
 - `bun run check` passed after formatting.
 - Smoke artifact wrote `candidate-archive.json` with 4 entries across the two smoke iterations.
+
+## 2026-06-06 18:00 PDT - Bounded Real Run 1 Exposed Scoring Observability Bug
+
+Run attempted:
+
+- Run id: `353ee43a-86b2-45d4-823b-efaa43747d04`
+- Hosted TRIBE HTTP, Codex backend, Mona Lisa cached target, 4 candidates, 2 max iterations.
+- Target cache worked: run moved quickly into `predicting`, then `scoring`.
+- Candidate diversity improved: generated compact inventory, spatial composition, affect/energy, and restrained portrait candidates.
+
+Problem:
+
+- Run stayed in `scoring` after remote TRIBE queue cleared.
+- No `scores.json` existed because the code only writes scores after all candidates finish.
+- This creates all-or-nothing scoring observability and wastes recoverable partial progress.
+
+Changes in progress:
+
+- Added 30s bounded fetches around hosted TRIBE submit, job polling, artifact fetch, and prediction download.
+- Marked timeout/abort errors as retryable for the existing HTTP retry loop.
+- Added per-candidate score snapshots under `iterations/<NNN>/scores/<agent>.json` immediately after each candidate finishes scoring.
+
+Validation:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- Smoke artifacts include per-candidate score snapshots for both iterations.

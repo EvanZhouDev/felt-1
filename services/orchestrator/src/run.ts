@@ -462,14 +462,20 @@ async function executeIteration(
   await writeJson(join(iterationPath, "candidates.json"), candidateOutputs);
 
   args.store.updateStatus(args.id, "scoring");
+  await mkdir(join(iterationPath, "scores"), { recursive: true });
   const evaluatedOutputs = await Promise.all(
-    candidateOutputs.map((candidate) =>
-      evaluateCandidate({
+    candidateOutputs.map(async (candidate) => {
+      const evaluated = await evaluateCandidate({
         ...args,
         candidate,
         targetActivation: args.target.activation,
-      }),
-    ),
+      });
+      await writeJson(
+        join(iterationPath, "scores", `${candidate.agentId}.json`),
+        evaluated,
+      );
+      return evaluated;
+    }),
   );
   evaluatedOutputs.sort((left, right) => right.score.total - left.score.total);
   await writeJson(join(iterationPath, "scores.json"), evaluatedOutputs);
