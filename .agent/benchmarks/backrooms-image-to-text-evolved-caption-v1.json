@@ -1,0 +1,108 @@
+{
+  "target": ".volta/benchmarks/runs/backrooms-image-to-text-3245e761/target.json",
+  "texts": "/tmp/volta-backrooms-text-evolve-v1/probes-score.json",
+  "oracleMode": "tribe",
+  "createdAt": "2026-06-07T14:23:48.993Z",
+  "updatedAt": "2026-06-07T14:28:37.802Z",
+  "status": "completed",
+  "calibrated": false,
+  "contrastTargetCount": 0,
+  "results": [
+    {
+      "id": "elite-candidate-c",
+      "text": "A yellow carpeted room opens into another empty room under fluorescent lights.",
+      "neuralSimilarity": 0.402311085819489,
+      "adjustedSimilarity": 0.402311085819489,
+      "total": 0.402311085819489,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.01682378724217415,
+          "std": 0.14933514595031738,
+          "norm": 21.508397081594232
+        }
+      }
+    },
+    {
+      "id": "mutate-candidate-c-1-dense",
+      "text": "A dense yellow carpeted room opens into another empty room under fluorescent lights.",
+      "neuralSimilarity": 0.382750316881502,
+      "adjustedSimilarity": 0.382750316881502,
+      "total": 0.382750316881502,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.028042947873473167,
+          "std": 0.15623490512371063,
+          "norm": 22.71805014181661
+        }
+      }
+    },
+    {
+      "id": "axis-candidate-c-low-motion",
+      "text": "A yellow carpeted room opens into another empty room under fluorescent lights with low motion.",
+      "neuralSimilarity": 0.29828225869282043,
+      "adjustedSimilarity": 0.29828225869282043,
+      "total": 0.29828225869282043,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.027191579341888428,
+          "std": 0.14715762436389923,
+          "norm": 21.41807739519681
+        }
+      }
+    },
+    {
+      "id": "mutate-candidate-b-1-dense",
+      "text": "A dense empty yellow room with beige carpet opens into a fluorescent-lit space with patterned wallpaper.",
+      "neuralSimilarity": 0.2901174915913841,
+      "adjustedSimilarity": 0.2901174915913841,
+      "total": 0.2901174915913841,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.015422148630023003,
+          "std": 0.15994025766849518,
+          "norm": 22.997190884414966
+        }
+      }
+    },
+    {
+      "id": "elite-candidate-b",
+      "text": "An empty yellow room with beige carpet opens into a fluorescent-lit space with patterned wallpaper.",
+      "neuralSimilarity": 0.26780013312977063,
+      "adjustedSimilarity": 0.26780013312977063,
+      "total": 0.26780013312977063,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.012793146073818207,
+          "std": 0.15048517286777496,
+          "norm": 21.61547641854746
+        }
+      }
+    },
+    {
+      "id": "elite-candidate-a",
+      "text": "An empty yellow room with beige carpet extends past patterned walls under fluorescent lights.",
+      "neuralSimilarity": 0.2598112642688902,
+      "adjustedSimilarity": 0.2598112642688902,
+      "total": 0.2598112642688902,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.019024716690182686,
+          "std": 0.16330567002296448,
+          "norm": 23.530755877531192
+        }
+      }
+    }
+  ]
+}

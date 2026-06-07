@@ -221,6 +221,9 @@ function crossoverParents(
       const right = parents[rightIndex];
       const leftUnits = splitUnits(left.text);
       const rightUnits = splitUnits(right.text);
+      if (leftUnits.length === 1 && rightUnits.length === 1) {
+        continue;
+      }
       const leftCut = Math.max(1, Math.ceil(leftUnits.length / 2));
       const rightCut = Math.floor(rightUnits.length / 2);
       const childUnits = [
@@ -247,14 +250,10 @@ function crossoverParents(
 
 function injectAxes(parent: ParentText, generation: number): TextProbe[] {
   const units = splitUnits(parent.text);
-  return genericAxes
-    .slice(0, Math.min(8, genericAxes.length))
-    .map((axis, index) => ({
+  return genericAxes.slice(0, Math.min(8, genericAxes.length)).map((axis) => {
+    return {
       id: `axis-${slug(parent.id)}-${slug(axis)}`,
-      text: joinUnits([
-        ...units,
-        genericAxes[(index + generation) % genericAxes.length],
-      ]),
+      text: appendAxis(parent.text, units, axis),
       metadata: {
         operator: "axis-injection",
         parents: [parent.id],
@@ -263,14 +262,18 @@ function injectAxes(parent: ParentText, generation: number): TextProbe[] {
           axis,
         },
       },
-    }));
+    };
+  });
 }
 
 function syntaxReset(parent: ParentText, generation: number): TextProbe {
   const units = splitUnits(parent.text);
   return {
     id: `syntax-reset-${slug(parent.id)}`,
-    text: units.join(". "),
+    text:
+      units.length === 1
+        ? ensureTerminalPunctuation(units[0])
+        : units.map(ensureTerminalPunctuation).join(" "),
     metadata: {
       operator: "syntax-reset",
       parents: [parent.id],
@@ -283,11 +286,29 @@ function syntaxReset(parent: ParentText, generation: number): TextProbe {
 }
 
 function applyModifier(unit: string, modifier: string): string {
-  const normalized = normalizeText(unit);
+  const trimmed = unit.trim();
+  const normalized = normalizeText(trimmed);
   if (normalized.startsWith(`${modifier} `)) {
     return unit;
   }
-  return `${modifier} ${unit}`;
+  const articleMatch = trimmed.match(/^(a|an|the)\s+(.+)$/i);
+  if (articleMatch) {
+    const article =
+      articleMatch[1].toLowerCase() === "the"
+        ? articleMatch[1]
+        : articleForWord(modifier, articleMatch[1]);
+    return `${article} ${modifier} ${articleMatch[2]}`;
+  }
+  return `${modifier} ${trimmed}`;
+}
+
+function articleForWord(word: string, fallback: string): string {
+  const article = /^[aeiou]/i.test(word) ? "an" : "a";
+  return /^[A-Z]/.test(fallback) ? capitalize(article) : article;
+}
+
+function capitalize(value: string): string {
+  return value.replace(/^./, (char) => char.toUpperCase());
 }
 
 function replaceUnit(units: string[], index: number, replacement: string) {
@@ -297,6 +318,9 @@ function replaceUnit(units: string[], index: number, replacement: string) {
 }
 
 function splitUnits(text: string): string[] {
+  if (isSingleNaturalSentence(text)) {
+    return [text.trim()];
+  }
   const separator = inferSeparator(text);
   const units = text
     .split(separator)
@@ -314,10 +338,37 @@ function splitUnits(text: string): string[] {
 }
 
 function joinUnits(units: string[]): string {
+  if (units.length === 1) {
+    return units[0].trim();
+  }
   return units
     .map((unit) => unit.trim())
     .filter(Boolean)
     .join(", ");
+}
+
+function appendAxis(text: string, units: string[], axis: string): string {
+  if (units.length === 1 && isSingleNaturalSentence(text)) {
+    return `${stripTerminalPunctuation(units[0])} with ${axis}.`;
+  }
+  return joinUnits([...units, axis]);
+}
+
+function isSingleNaturalSentence(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.includes(",")) {
+    return false;
+  }
+  return (trimmed.match(/[.!?]/g) ?? []).length <= 1;
+}
+
+function ensureTerminalPunctuation(text: string): string {
+  const trimmed = text.trim();
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+function stripTerminalPunctuation(text: string): string {
+  return text.trim().replace(/[.!?]+$/, "");
 }
 
 function inferSeparator(text: string): string | RegExp {

@@ -3409,6 +3409,58 @@ Evidence:
 Verification:
 
 - `bun run check`
+
+## 2026-06-07 07:29 PDT - Caption Evolution Grammar Cleanup and No-Go Probe
+
+Goal:
+
+- Re-test text-side evolution under the corrected scorer without recreating
+  malformed comma-fragment reward hacks.
+
+Problem found:
+
+- `probe:evolve-texts` split natural one-sentence captions into artificial
+  halves and produced malformed children such as comma-spliced full captions
+  and article errors like `An dense ...`.
+- Axis injection also offset the named axis, so a `low motion` probe could turn
+  into `high motion`.
+
+Change:
+
+- Natural single-sentence captions are no longer split into midpoint fragments.
+- Modifier insertion is article-aware (`An empty...` -> `A dense empty...`).
+- Crossover skips pairs where both parents are single complete sentences.
+- Axis injection now uses the named axis and appends it grammatically for
+  natural captions.
+
+Real TRIBE probe:
+
+- Target: `backrooms-image-to-text-3245e761`
+- Scored 6 evolved caption probes with local TRIBE.
+- Best remained the prior elite:
+  - `elite-candidate-c`
+  - adjusted `0.402311085819489`
+  - text:
+    `A yellow carpeted room opens into another empty room under fluorescent lights.`
+- Best mutation:
+  - `mutate-candidate-c-1-dense`
+  - adjusted `0.382750316881502`
+  - text:
+    `A dense yellow carpeted room opens into another empty room under fluorescent lights.`
+
+Interpretation:
+
+- The grammar cleanup is worth keeping because it prevents invalid future text
+  populations.
+- This simple natural-caption mutation neighborhood did not improve backrooms
+  image-to-text; do not keep spending real TRIBE on adjective/axis caption
+  tweaks for this target without a stronger representation change.
+
+Verification:
+
+- Report:
+  `.agent/benchmarks/backrooms-image-to-text-evolved-caption-v1.json`
+- `bun run check`
 - `bun run smoke`
 
 ## 2026-06-07 07:19 PDT - Archive-Ranked Image Local Mutation Ordering
