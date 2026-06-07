@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import {
   type AgentBackend,
   type AgentSpec,
+  type CandidateArchiveOperatorStat,
   createAgentWorkspace,
   DeterministicAgentBackend,
   runCandidateAgent,
@@ -26,6 +27,7 @@ import {
   loadCandidateArchive,
   loadTargetCandidateArchive,
   mergeCandidateArchives,
+  operatorFitnessStats,
 } from "./archive.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import {
@@ -252,12 +254,14 @@ async function executeRunLoop(
       "iterations",
       iterationId(iteration),
     );
+    const stalled = isEliteStalled(iterations);
     const iterationResult = await executeIteration({
       ...args,
       iteration,
       candidateSpecs,
       previous,
       target,
+      stalled,
     });
     const bestBefore = bestOverallOutput(iterations);
     const best = iterationResult.rankedOutputs[0];
@@ -324,6 +328,29 @@ async function executeRunLoop(
       : undefined,
   };
 
+  // Operator-fitness curve: per-iteration best neural similarity plus the
+  // archive's final operator ranking. This is the signal that answers "is the
+  // discrete-operator regime plateauing?" — i.e. whether a continuous-search
+  // rewrite (CMA-ES / gradient guidance) is warranted, or operator tuning still
+  // climbs.
+  const finalArchive = loadCandidateArchive(args.runPath);
+  const finalArchiveContext = archivePromptContext(finalArchive);
+  const operatorFitness = {
+    perIteration: iterations.map((iteration) => ({
+      iteration: iteration.iteration,
+      bestNeuralSimilarity: iteration.rankedOutputs.reduce(
+        (best, output) => Math.max(best, output.score.neuralSimilarity),
+        Number.NEGATIVE_INFINITY,
+      ),
+      operators: iteration.rankedOutputs.map((output) => ({
+        agentId: output.agentId,
+        operator: operatorFromEntropy(output.entropy),
+        neuralSimilarity: output.score.neuralSimilarity,
+      })),
+    })),
+    ranking: finalArchiveContext?.operatorStats ?? [],
+  };
+
   await writeJson(join(args.runPath, "evolution-journal.json"), {
     runId: args.id,
     target: targetSummary(target),
@@ -331,6 +358,7 @@ async function executeRunLoop(
     stopReason: result.stopReason,
     bestScore: result.bestScore,
     bestNeuralSimilarity: result.bestNeuralSimilarity,
+    operatorFitness,
     iterations: iterations.map((iteration) =>
       iterationSummary({
         iteration: iteration.iteration,
@@ -453,6 +481,7 @@ async function executeIteration(
     candidateSpecs: Extract<AgentSpec, { role: "candidate" }>[];
     previous: NextIterationSeed;
     target: RunLoopResult["target"];
+    stalled?: boolean;
   },
 ): Promise<IterationResult> {
   const iterationPath = join(
@@ -470,6 +499,18 @@ async function executeIteration(
   );
   const archiveContext = archivePromptContext(archive);
 
+  // Bandit operator selection: rank refinement operators by their measured
+  // fitness in the archive (UCB over operatorStats) instead of round-robin, so
+  // the N candidates this iteration draw the N best distinct operators. When the
+  // global elite has stalled, widen exploration; when it is climbing, exploit.
+  const operatorPlan = planOperators({
+    iteration: args.iteration,
+    candidateCount: args.loop.candidateCount,
+    operatorStats: operatorFitnessStats(archive),
+    stalled: args.stalled ?? false,
+  });
+  await writeJson(join(iterationPath, "operator-plan.json"), operatorPlan);
+
   args.store.updateStatus(args.id, "predicting");
   const candidateOutputs = await Promise.all(
     args.candidateSpecs.map(async (spec, index) => {
@@ -478,6 +519,7 @@ async function executeIteration(
         index,
         candidateCount: args.loop.candidateCount,
         outputType: args.output.outputType,
+        operator: operatorPlan[index]?.operator,
       });
       const workspace = await createAgentWorkspace({
         runsRoot: args.runsRoot,
@@ -850,15 +892,22 @@ function mutationStrategy(args: {
   index: number;
   candidateCount: number;
   outputType: OutputObj["outputType"];
+  operator?: string;
 }): string {
   const strategies =
     args.iteration === 1 ? coldStartStrategies : refinementStrategies;
+  // The bandit (planOperators) chooses the operator for refinement iterations;
+  // fall back to round-robin for the cold start (no archive history yet) or if
+  // the named operator is somehow missing.
+  const named = args.operator
+    ? strategies.find((strategy) => strategy.name === args.operator)
+    : undefined;
   const generationOffset =
     args.iteration === 1
       ? 0
       : Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
   const strategy =
-    strategies[(generationOffset + args.index) % strategies.length];
+    named ?? strategies[(generationOffset + args.index) % strategies.length];
   return [
     `iteration=${args.iteration}`,
     `strategy=${strategy.name}`,
@@ -866,6 +915,128 @@ function mutationStrategy(args: {
     strategy.instruction,
     outputTypeInstruction(args.outputType),
   ].join(" | ");
+}
+
+export type OperatorPlanEntry = {
+  index: number;
+  operator: string;
+  ucb: number;
+  meanNeuralSimilarity: number | null;
+  count: number;
+  reason: "explore-cold" | "exploit" | "explore-untried";
+};
+
+// UCB1-style operator selection over the archive's measured operator fitness.
+// Each refinement operator gets a score = exploitation (its mean neural
+// similarity so far) + exploration bonus (optimistic for under-tried operators).
+// The N candidates this iteration take the N best *distinct* operators, so we
+// still cover N regions but bias the population toward proven winners. Untried
+// operators get an optimistic prior so they are always eventually sampled —
+// this is what converts the previously-ignored operatorStats into real
+// selection pressure (the round-robin read none of it).
+//
+// Deterministic given the archive (no Math.random), so smokes stay stable.
+function planOperators(args: {
+  iteration: number;
+  candidateCount: number;
+  operatorStats: CandidateArchiveOperatorStat[];
+  stalled: boolean;
+}): OperatorPlanEntry[] {
+  // Iteration 1 has no operator history; keep the diverse cold-start sweep.
+  if (args.iteration === 1) {
+    return Array.from({ length: args.candidateCount }, (_, index) => ({
+      index,
+      operator:
+        coldStartStrategies[index % coldStartStrategies.length]?.name ??
+        "broad gestalt genotype",
+      ucb: 0,
+      meanNeuralSimilarity: null,
+      count: 0,
+      reason: "explore-cold" as const,
+    }));
+  }
+
+  const statsByName = new Map(
+    args.operatorStats.map((stat) => [stat.operator, stat]),
+  );
+  const totalPlays = Math.max(
+    1,
+    args.operatorStats.reduce((sum, stat) => sum + stat.count, 0),
+  );
+  // Stall → widen exploration (bigger bonus); climbing → exploit (smaller).
+  const explorationWeight = args.stalled ? 1.5 : 0.6;
+  // Optimistic prior for operators with no measured fitness yet, so untried
+  // operators outrank mediocre proven ones and the search keeps probing.
+  const optimisticMean = bestMean(args.operatorStats) + 0.05;
+
+  const scored = refinementStrategies.map((strategy) => {
+    const stat = statsByName.get(strategy.name);
+    const count = stat?.count ?? 0;
+    const mean = stat ? stat.meanNeuralSimilarity : optimisticMean;
+    const bonus =
+      explorationWeight *
+      Math.sqrt((2 * Math.log(totalPlays + 1)) / (count + 1));
+    return {
+      operator: strategy.name,
+      ucb: mean + bonus,
+      meanNeuralSimilarity: stat ? stat.meanNeuralSimilarity : null,
+      count,
+      reason: (stat ? "exploit" : "explore-untried") as
+        | "exploit"
+        | "explore-untried",
+    };
+  });
+
+  // Deterministic tie-break by name so identical archives plan identically.
+  scored.sort(
+    (left, right) =>
+      right.ucb - left.ucb || left.operator.localeCompare(right.operator),
+  );
+
+  return Array.from({ length: args.candidateCount }, (_, index) => {
+    const pick = scored[index % scored.length];
+    return {
+      index,
+      operator: pick.operator,
+      ucb: pick.ucb,
+      meanNeuralSimilarity: pick.meanNeuralSimilarity,
+      count: pick.count,
+      reason:
+        index === 0 && args.stalled && pick.reason === "exploit"
+          ? "explore-untried"
+          : pick.reason,
+    };
+  });
+}
+
+function operatorFromEntropy(entropy: string | undefined): string {
+  return entropy?.match(/strategy=([^|]+)/)?.[1]?.trim() ?? "unknown";
+}
+
+function bestMean(stats: CandidateArchiveOperatorStat[]): number {
+  return stats.reduce(
+    (best, stat) => Math.max(best, stat.meanNeuralSimilarity),
+    0,
+  );
+}
+
+// The global elite has stalled if the best neural similarity has not improved
+// between the two most recent completed iterations. Drives wider exploration.
+function isEliteStalled(iterations: IterationResult[]): boolean {
+  if (iterations.length < 2) {
+    return false;
+  }
+  const bestUpTo = (count: number): number =>
+    iterations
+      .slice(0, count)
+      .flatMap((iteration) => iteration.rankedOutputs)
+      .reduce(
+        (best, output) => Math.max(best, output.score.neuralSimilarity),
+        Number.NEGATIVE_INFINITY,
+      );
+  const previous = bestUpTo(iterations.length - 1);
+  const latest = bestUpTo(iterations.length);
+  return latest <= previous;
 }
 
 function outputTypeInstruction(outputType: OutputObj["outputType"]): string {

@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type {
   CandidateArchiveContext,
+  CandidateArchiveOperatorStat,
   CandidateArchivePromptItem,
 } from "@volta/agent-sdk";
 import type { EvaluatedOutput, OutputNode } from "@volta/core";
@@ -316,6 +317,16 @@ function bestPerBehavior(
     }
   }
   return [...best.values()];
+}
+
+// Full (untruncated) operator fitness for the bandit. archivePromptContext
+// slices operatorStats to the top 8 for the LLM prompt; operator *selection*
+// must see every operator's real count/mean so previously-tried operators are
+// not mistaken for untried ones.
+export function operatorFitnessStats(
+  archive: CandidateArchive,
+): CandidateArchiveOperatorStat[] {
+  return operatorStats(archive.entries);
 }
 
 function operatorStats(entries: CandidateArchiveEntry[]) {
