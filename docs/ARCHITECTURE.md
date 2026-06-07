@@ -45,14 +45,36 @@ optional seed constrains what the output should be about.
 
 ## The Iteration
 
-The loop behaves like a genetic algorithm over output states, repeating until a
-fixed number of iterations or a similarity threshold (~90%). Layer A agents see
-only the input node and seed; later layers may also receive the previous best
-output, archive population, and the judge's reasoning. Each agent carries an
-assigned evolutionary operator — for example elite preservation, point mutation,
-crossover, ablation, novelty injection, diagnostic-axis correction, or
-representation reset — so candidates explore different behavior regions without
-hard-coding a particular target artifact.
+The loop is a **(1 + λ) evolutionary strategy** over output states, repeating
+until a fixed number of iterations or a similarity threshold (default ~90%).
+`λ` (`VOLTA_CANDIDATE_COUNT`) challenger candidates are generated each
+generation; the reigning global best — the **elite** — is carried forward
+unchanged and re-injected as an already-scored candidate, so by construction
+`best(N+1) >= best(N)` (and re-injecting it costs zero TRIBE calls). The elite,
+not the judge's pick, is what seeds the next generation: every challenger is a
+mutation *of the champion*.
+
+Each candidate carries an **operator** drawn from two libraries
+(`run.ts`):
+
+- **Generation 1 — cold-start registers.** Nine distinct *emotional registers*
+  (sublime-dread, intimate-tender, visceral-bodily, ecstatic-rapturous,
+  naive-wonder, desolate-still, lyric-incantatory, contrastive-tension,
+  anti-literal-perceptual). These are affective stances toward the *same*
+  target, not feature checklists — TRIBE scores the predicted emotional
+  response, so the first generation's job is to span affective space and let the
+  optimizer keep whichever the target rewards.
+- **Generations 2+ — refinement operators.** Twelve mutation operators (elitist
+  point mutation, elite crossover, ablation, novelty injection,
+  diagnostic-axis correction, operator-fitness exploit, …) applied to the elite.
+
+Operator selection is a **UCB1 bandit** (`planOperators`) over the candidate
+archive's measured per-operator fitness: each operator's score is its mean
+neural similarity so far (exploitation) plus an optimistic exploration bonus, so
+proven winners are favored while under-tried operators are always eventually
+sampled. A **stall detector** (`isEliteStalled`) widens the exploration weight
+when the best score stops improving. The plan is deterministic given the archive
+(no `Math.random`), so smokes stay reproducible.
 
 ```mermaid
 flowchart TD
@@ -60,28 +82,56 @@ flowchart TD
         Target["Target — required<br>code / image / audio / text<br>the vibe to match"]
         Seed["Seed — optional<br>directs the output"]
     end
-    InputNode --> Agents
-    subgraph Iteration["One iteration (repeats up to N times)"]
-        Agents["Layer A agents<br>take input node (incl. seed)<br>generate output in target medium"]
-        Operator["Evolutionary operator<br>mutation / crossover / novelty / reset"]
-        Operator -.-> Agents
-        Agents --> Payload["Output payload"]
-        Payload --> Render["Render function"]
-        Render --> Tribe["TRIBE v2<br>brain-similarity vs. target"]
-        Tribe --> Rank["Rankings + scores"]
+    InputNode --> Target0["Render target → TRIBE → target activation"]
+    Target0 --> Bandit
+    subgraph Iteration["One generation (repeats up to N times)"]
+        Bandit["UCB1 bandit picks operators<br>(gen 1: cold-start registers)"]
+        Bandit --> Agents["λ generator agents (Codex CLI)<br>generate output in target medium"]
+        Elite["Elite (reigning best)<br>re-injected, already scored"] -.-> Rank
+        Agents --> Render["Render → still-video / text"]
+        Render --> Tribe["TRIBE v2<br>neural similarity vs. target"]
+        Tribe --> Rank["Rank λ + elite by score"]
         Rank --> Judge["Judge LLM<br>reasons why the best worked"]
+        Rank --> Archive["Candidate archive<br>operator-fitness stats"]
+        Archive -.-> Bandit
     end
-    Judge --> Terminate{"N iterations OR similarity >= 90%?"}
-    Terminate -->|Yes| Final["Final output"]
-    Terminate -->|No| NextGen{"What carries forward?"}
-    NextGen -->|"Nothing — fresh"| Agents
-    NextGen -->|"Best output only"| Agents
-    NextGen -->|"Best output + judge reasoning"| Agents
+    Rank --> Terminate{"N iterations OR similarity >= threshold?"}
+    Terminate -->|Yes| Final["Best-ever output"]
+    Terminate -->|No| Forward["Forward rank-0 elite as next seed"]
+    Forward --> Bandit
 ```
 
-The judge sees only rankings/scores plus the seed and input; its reasoning is
-carried forward via `NextIterationSeed` to preserve context the next generation
-would otherwise lose.
+The judge sees the ranked candidates plus the seed and input and records *why*
+the best one worked; that reasoning is preserved in `NextIterationSeed`. The
+loop always forwards the post-injection rank-0 output (the elite) as the seed,
+so the next generation's challengers mutate the champion rather than
+re-deriving from scratch — the climbing half of the (1 + λ) strategy.
+
+## Scoring the Vibe
+
+Fitness is **neural similarity** between the candidate's activation trajectory
+and the target's, in `[0, 1]` (`packages/core/src/scoring/activation.ts`). A
+naive full-vector cosine is *gameable* — repetition and generic language inflate
+it — so the metric blends three views of the `[timesteps, vertices]` trajectory:
+
+- **Pooled (0.4)** — cosine of the mean-centered time-*average*. Length-invariant,
+  so a ~2-frame image and the ~23-frame text rendered from it stay comparable;
+  this is the term that makes a true text↔text vibe-match outrank a
+  same-topic/opposite-vibe counterfactual.
+- **Resampled trajectory (0.3)** — per-frame *pattern* (temporal cosine) plus
+  frame-to-frame *motion* (dynamics cosine), after resampling both traces to
+  their common length so every frame contributes. Captures the
+  turbulence/stillness signature a time-average discards.
+- **Best-match (0.3)** — for each target frame, its cosine to the *best-matching*
+  candidate frame (averaged both directions), widening the cross-modal gradient.
+
+Validated on real TRIBE activations (exp-2 probe set, a Starry-Night image→text
+transfer, and an 8-persona style sweep): the true vibe-match ranks #1, the
+repetition reward-hack scores ~0.08 below it, and flat semantic description
+ranks last — **TRIBE rewards predicted emotional response, not literal
+description.** `ScoreBundle.total` blends `neuralSimilarity` (0.7) with
+`seedAdherence` / `coherence` / `diversity` placeholders; neural similarity is
+the only term currently computed from activations.
 
 ## Current Scaffold
 
@@ -98,11 +148,22 @@ target activation and latest `NextIterationSeed`, then appends new
 `iterations/NNN` folders. On resume, `loop.maxIterations` means additional
 iterations to append, not total run length.
 
-The Codex backend uses prompt-template functions for first-generation
+The Codex backend (`packages/agent-sdk`) is the only agent backend: it shells
+out to `codex exec` with prompt-template functions for first-generation
 candidates, refinement candidates, and judges, then asks Codex for strict JSON
-output nodes/decisions. When image or code-screenshot nodes point at local image
-files, the backend also passes those files to `codex exec --image` so visual
-targets can be inspected directly. Weave can trace the Evolution Journal. The
-MCP tool gateway, Flux image generation, audio vibe description/cache, and
-production renderers are still open implementation work. See
+output nodes/decisions via `--output-schema`. When image or code-screenshot
+nodes point at local image files, the backend also passes those files to
+`codex exec --image` so visual targets can be inspected directly. The candidate
+archive (`archive.ts`) accumulates per-operator fitness stats that feed the
+UCB1 bandit and supply prompt context (top/diverse/recent prior candidates).
+
+The render boundary (`services/orchestrator/src/render.ts`) is implemented for
+all four media: text becomes a word-timed text stimulus, audio passes through as
+an audio artifact, and image/code render to a still-hold video for TRIBE. Audio
+targets are also described by the hosted audio service (`describer.ts`,
+soft-fail) so agents get perceptual context they can't hear. **Flux image
+generation is configured but not yet wired into the agent backend** — image-
+output agents currently emit a conceptual asset URI rather than a generated
+image — and the MCP tool gateway and code-screenshot capture remain open. Weave
+traces the Evolution Journal. See
 [IO Modules](./IO_MODULES.md#scaffold-status) for the broader checklist.
