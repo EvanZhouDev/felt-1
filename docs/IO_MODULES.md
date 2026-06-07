@@ -305,18 +305,26 @@ Next iteration:
 InputObj + OutputObj + NextIterationSeed + entropy -> AgentOutput[]
 ```
 
-### API integration notes (verified live 2026-06-06)
+### API integration notes (re-verified live 2026-06-07)
 
-- **Do not batch TRIBE text scoring.** `tribe.bryanhu.com` has a
-  `POST /predict/text/batch` (≤64 texts) endpoint, but its result omits the raw
-  per-vertex predictions: the batch job's `preds.norm.f16.bin` is empty and there
-  is no per-item binary route (all 404). `result.json` exposes only the 7
-  `yeo7_means` per item. Our cosine (`scoring/activation.ts`) runs over the full
-  pooled `R^20484` vector, so batching would silently collapse scoring to 7
-  dimensions. The N-candidate scoring loop therefore issues N single
-  `POST /predict/text` jobs. `loop.scoringConcurrency` controls how many
-  candidate evaluations can be in flight at once; keep it low for hosted TRIBE
+- **Batch text scoring still cannot drive the full-vector cosine.**
+  `tribe.bryanhu.com` exposes `POST /predict/text/batch` (≤64 texts), and the
+  server now *computes* full per-vertex predictions for batch items —
+  `result.json` reports `preds_shape: [timesteps, 20484]` per item. **But those
+  per-vertex values are not retrievable over HTTP for batch jobs:** the only
+  artifact routes are `result.json` and `/jobs/{id}/preds.norm.f16.bin` (see
+  `/openapi.json`), and the binary route 404s for batch jobs (it returns real
+  data only for single jobs — 81936 bytes = `2×20484` f16). Per item,
+  `result.json` carries only the 7 `yeo7_means` scalars, no inline preds array.
+  Our cosine (`scoring/activation.ts`) runs over the full pooled `R^20484`
+  vector, so batching would silently collapse scoring to 7 dimensions. The
+  N-candidate scoring loop therefore issues N single `POST /predict/text` jobs and
+  downloads each job's `preds.norm.f16.bin`. `loop.scoringConcurrency` controls how
+  many candidate evaluations are in flight at once; keep it low for hosted TRIBE
   and raise it only for deliberate throughput experiments.
+  - The batch route *is* usable if you only need Yeo-7 network means (e.g. the
+    `probe:yeo` diagnostic), where one ≤64-text request replaces N jobs. It is
+    not usable as the fitness oracle while fitness is full-vector cosine.
 - **Flux has no batch endpoint.** `images.bryanhu.com` is one prompt per request
   (`GET/POST /generate?prompt=...&model=klein&steps=4&seed=N`). When the agent
   backend generates N image candidates, vary `seed`/`prompt`; concurrency should
