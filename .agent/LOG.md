@@ -1632,3 +1632,32 @@ Reproducible/cheap: 19 activations banked in
 `--offline` (zero TRIBE calls); drop `--offline` to top up the 2 missing adversaries
 when TRIBE is calmer. Production metric (scoring/activation.ts) UNTOUCHED - this was
 a probe only.
+
+## 2026-06-07 - CONFOUND: audio results invalid — agent read the FILENAME, not the audio
+
+User asked how GPT (can't hear audio) produced on-target text. Investigation:
+1. The audio DESCRIBER (audio.ai.bryanhu.com - a real waveform model, handles
+   music) is DOWN (curl -> 000 unreachable). It fails soft, so the agent got
+   NO audio description.
+2. The candidate prompt dumps the full input JSON (prompts.ts:80
+   `stableJson(invocation.input)`), which INCLUDES the source uri
+   `file:///tmp/audio/clair_de_lune.wav`. So the agent literally read the title
+   "clair_de_lune" / "moonlight_3rd" and recognized the famous pieces.
+
+=> The on-target audio text (moonlit/tender for Clair de Lune, stormy/driving for
+Moonlight 3rd) came from GPT KNOWING THOSE TITLES, not from any audio
+understanding. The audio specificity result is CONFOUNDED and must be discarded.
+TRIBE scoring was honest (it really encoded the waveform), but the GENERATOR was
+guessing from the filename - a leakage path.
+
+This also retroactively taints any conclusion that "audio scores higher than
+images": the agent had a title-based head start on audio it didn't have on the
+paintings (paintings were attached as pixels, semantically anonymous).
+
+FIXES NEEDED:
+1. Describer must be up for a valid audio run (or the agent has zero audio info).
+2. STRIP/anonymize the source uri (and any filename) from the prompt's input
+   JSON - the agent should never see "clair_de_lune". This is a real leakage bug
+   in prompts.ts, not just an experiment artifact. Same risk for image paths
+   (e.g. starrynight.jpg) - check whether the image path also leaks the title.
+3. Re-run audio with describer up + filename stripped to get a valid result.
