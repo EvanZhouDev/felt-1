@@ -2903,6 +2903,8 @@ Changes:
   - `--image-seed-mutations`
   - `--image-local-mutations`
   - env: `VOLTA_IMAGE_LOCAL_MUTATIONS`
+- Defaulted `imageLocalMutations` to `1`, so image-to-image runs get one
+  cheap scored local postprocess child by default. This does not add Flux calls.
 - Added an explicit `elite-replay` candidate on refinement turns so the
   previous selected elite participates in ranking, archive updates, judging, and
   local mutation. This makes the loop genuinely elitist instead of relying only

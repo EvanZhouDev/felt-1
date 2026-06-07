@@ -78,7 +78,7 @@ export function loadConfig(): OrchestratorConfig {
       reuseTargetArchive: process.env.VOLTA_REUSE_TARGET_ARCHIVE === "true",
       textMicroMutations: integerFromEnv("VOLTA_TEXT_MICRO_MUTATIONS", 0),
       imageSeedMutations: integerFromEnv("VOLTA_IMAGE_SEED_MUTATIONS", 0),
-      imageLocalMutations: integerFromEnv("VOLTA_IMAGE_LOCAL_MUTATIONS", 0),
+      imageLocalMutations: integerFromEnv("VOLTA_IMAGE_LOCAL_MUTATIONS", 1),
       textProbeCount: integerFromEnv("VOLTA_TEXT_PROBE_COUNT", 0),
       textProbeRecombinations: integerFromEnv(
         "VOLTA_TEXT_PROBE_RECOMBINATIONS",
@@ -111,7 +111,7 @@ export function normalizeLoopConfig(
     reuseTargetArchive: config?.reuseTargetArchive === true,
     textMicroMutations: nonNegativeInteger(config?.textMicroMutations, 0),
     imageSeedMutations: nonNegativeInteger(config?.imageSeedMutations, 0),
-    imageLocalMutations: nonNegativeInteger(config?.imageLocalMutations, 0),
+    imageLocalMutations: nonNegativeInteger(config?.imageLocalMutations, 1),
     textProbeCount: nonNegativeInteger(config?.textProbeCount, 0),
     textProbeRecombinations: nonNegativeInteger(
       config?.textProbeRecombinations,
