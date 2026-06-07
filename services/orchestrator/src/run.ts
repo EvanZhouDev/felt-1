@@ -677,6 +677,10 @@ async function evaluateCandidate(
     candidate: args.candidate,
     runPath: args.runPath,
     fluxUrl: args.fluxUrl,
+    targetRendered: args.target.rendered,
+    inheritTargetStyle:
+      args.input.inputNode.type === "image" &&
+      args.output.outputType === "image",
   });
   const rendered = await args.journal.trace({
     name: "candidate.render",

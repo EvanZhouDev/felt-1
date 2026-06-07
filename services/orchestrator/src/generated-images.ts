@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentOutput, ImagePayload } from "@volta/core";
+import type { AgentOutput, ImagePayload, RenderedStimulus } from "@volta/core";
 
 const DEFAULT_FLUX_URL = "https://images.bryanhu.com";
 const DEFAULT_FLUX_MODEL = "klein";
@@ -16,16 +16,22 @@ export async function materializeGeneratedImageCandidate(args: {
   candidate: AgentOutput;
   runPath: string;
   fluxUrl?: string;
+  targetRendered?: RenderedStimulus;
+  inheritTargetStyle?: boolean;
 }): Promise<AgentOutput> {
   if (args.candidate.outputNode.type !== "image") {
     return args.candidate;
   }
 
+  const targetStyle = args.inheritTargetStyle
+    ? await targetImageStyle(args.targetRendered)
+    : undefined;
   const materialized = await materializeFluxImagePayload({
     payload: args.candidate.outputNode.payload,
     runPath: args.runPath,
     agentId: args.candidate.agentId,
     fluxUrl: args.fluxUrl,
+    targetStyle,
   });
   if (materialized === args.candidate.outputNode.payload) {
     return args.candidate;
@@ -33,7 +39,13 @@ export async function materializeGeneratedImageCandidate(args: {
 
   return {
     ...args.candidate,
-    entropy: [args.candidate.entropy, "materialized=flux-image"]
+    entropy: [
+      args.candidate.entropy,
+      "materialized=flux-image",
+      targetStyle
+        ? `targetStyle=${targetStyle.width}x${targetStyle.height}`
+        : undefined,
+    ]
       .filter(Boolean)
       .join(" | "),
     outputNode: {
@@ -48,6 +60,7 @@ async function materializeFluxImagePayload(args: {
   runPath: string;
   agentId: string;
   fluxUrl?: string;
+  targetStyle?: ImageGeometry;
 }): Promise<ImagePayload> {
   const request = parseFluxGenerationUri(args.payload.source.uri);
   if (!request) {
@@ -67,18 +80,30 @@ async function materializeFluxImagePayload(args: {
     16,
   );
   const assetRoot = join(args.runPath, "generated-assets", args.agentId);
-  const imagePath = join(assetRoot, `${key}.png`);
-  const videoPath = join(assetRoot, `${key}-0.5s.mp4`);
+  const rawImagePath = join(assetRoot, `${key}.png`);
+  const styledImagePath = join(assetRoot, `${key}-target-style.png`);
+  const imagePath = args.targetStyle ? styledImagePath : rawImagePath;
+  const videoPath = join(
+    assetRoot,
+    args.targetStyle ? `${key}-target-style-0.5s.mp4` : `${key}-0.5s.mp4`,
+  );
   await mkdir(assetRoot, { recursive: true });
 
-  if (!existsSync(imagePath)) {
+  if (!existsSync(rawImagePath)) {
     await downloadFluxImage({
       url: args.fluxUrl ?? DEFAULT_FLUX_URL,
       prompt,
       model,
       steps,
       seed,
-      outPath: imagePath,
+      outPath: rawImagePath,
+    });
+  }
+  if (args.targetStyle && !existsSync(styledImagePath)) {
+    await createTargetStyleImage({
+      inputPath: rawImagePath,
+      outputPath: styledImagePath,
+      geometry: args.targetStyle,
     });
   }
   if (!existsSync(videoPath)) {
@@ -88,6 +113,7 @@ async function materializeFluxImagePayload(args: {
       durationSec:
         args.payload.timing?.durationSec ?? DEFAULT_IMAGE_DURATION_SEC,
       fps: args.payload.timing?.fps ?? DEFAULT_IMAGE_FPS,
+      geometry: args.targetStyle,
     });
   }
 
@@ -109,6 +135,22 @@ async function materializeFluxImagePayload(args: {
     fit: args.payload.fit ?? "contain",
     background: args.payload.background ?? "#000000",
   };
+}
+
+type ImageGeometry = {
+  width: number;
+  height: number;
+};
+
+async function targetImageStyle(
+  targetRendered: RenderedStimulus | undefined,
+): Promise<ImageGeometry | undefined> {
+  const artifactPath = targetRendered?.encoderInput.artifactPath;
+  const localPath = localArtifactPath(artifactPath);
+  if (!localPath) {
+    return undefined;
+  }
+  return probeVideoGeometry(localPath).catch(() => undefined);
 }
 
 function parseFluxGenerationUri(uri: string):
@@ -161,40 +203,110 @@ async function downloadFluxImage(args: {
   await writeFile(args.outPath, new Uint8Array(await response.arrayBuffer()));
 }
 
+function createTargetStyleImage(args: {
+  inputPath: string;
+  outputPath: string;
+  geometry: ImageGeometry;
+}): Promise<void> {
+  return runProcess("ffmpeg", [
+    "-y",
+    "-i",
+    args.inputPath,
+    "-vf",
+    `scale=${args.geometry.width}:${args.geometry.height}:force_original_aspect_ratio=increase,crop=${args.geometry.width}:${args.geometry.height}`,
+    "-frames:v",
+    "1",
+    "-update",
+    "1",
+    args.outputPath,
+  ]).then(() => undefined);
+}
+
 function createStillVideo(args: {
   imagePath: string;
   videoPath: string;
   durationSec: number;
   fps: number;
+  geometry?: ImageGeometry;
 }): Promise<void> {
+  const geometry = args.geometry ?? { width: 512, height: 512 };
+  return runProcess("ffmpeg", [
+    "-y",
+    "-loop",
+    "1",
+    "-i",
+    args.imagePath,
+    "-t",
+    String(args.durationSec),
+    "-r",
+    String(args.fps),
+    "-vf",
+    `scale=${geometry.width}:${geometry.height}:force_original_aspect_ratio=decrease,pad=${geometry.width}:${geometry.height}:-1:-1:color=black`,
+    "-pix_fmt",
+    "yuv420p",
+    args.videoPath,
+  ]).then(() => undefined);
+}
+
+async function probeVideoGeometry(path: string): Promise<ImageGeometry> {
+  const output = await runProcess("ffprobe", [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_entries",
+    "stream=width,height",
+    "-of",
+    "json",
+    path,
+  ]);
+  const parsed = JSON.parse(output.stdout) as {
+    streams?: Array<{ width?: number; height?: number }>;
+  };
+  const stream = parsed.streams?.[0];
+  if (!stream?.width || !stream.height) {
+    throw new Error(`ffprobe found no video dimensions for ${path}.`);
+  }
+  return {
+    width: stream.width,
+    height: stream.height,
+  };
+}
+
+function localArtifactPath(path: string | undefined): string | undefined {
+  if (!path) {
+    return undefined;
+  }
+  if (path.startsWith("file://")) {
+    return path.slice("file://".length);
+  }
+  if (path.includes("://")) {
+    return undefined;
+  }
+  return path;
+}
+
+function runProcess(
+  command: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn("ffmpeg", [
-      "-y",
-      "-loop",
-      "1",
-      "-i",
-      args.imagePath,
-      "-t",
-      String(args.durationSec),
-      "-r",
-      String(args.fps),
-      "-vf",
-      "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:-1:-1:color=black",
-      "-pix_fmt",
-      "yuv420p",
-      args.videoPath,
-    ]);
+    const child = spawn(command, args);
+    let stdout = "";
     let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
     child.stderr.on("data", (chunk) => {
       stderr += String(chunk);
     });
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) {
-        resolve();
+        resolve({ stdout, stderr });
         return;
       }
-      reject(new Error(`ffmpeg still-video generation failed: ${stderr}`));
+      reject(new Error(`${command} failed with code ${code}: ${stderr}`));
     });
   });
 }

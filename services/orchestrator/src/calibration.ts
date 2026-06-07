@@ -60,11 +60,14 @@ export function loadCalibrationActivations(args: {
       if (items.length >= maxActivations) {
         break;
       }
-      const sourceTargetSha = scoreTargetSha(scorePath);
-      if (sourceTargetSha && sourceTargetSha === args.targetSha) {
+      const sourceTarget = scoreTargetArtifact(scorePath);
+      if (sameSourceTarget(sourceTarget, args)) {
         continue;
       }
-      for (const item of loadScoreItems(scorePath, sourceTargetSha)) {
+      for (const item of loadScoreItems(
+        scorePath,
+        sourceTarget?.rendered?.sha256,
+      )) {
         addItem(item);
       }
     }
@@ -198,13 +201,27 @@ function nearDuplicateTarget(
   );
 }
 
-function scoreTargetSha(scorePath: string): string | undefined {
+function scoreTargetArtifact(scorePath: string): TargetArtifact | undefined {
   return (
-    readOptionalJson<TargetArtifact>(join(dirname(scorePath), "target.json"))
-      ?.rendered?.sha256 ??
+    readOptionalJson<TargetArtifact>(join(dirname(scorePath), "target.json")) ??
     readOptionalJson<TargetArtifact>(
       join(dirname(scorePath), "..", "..", "target.json"),
-    )?.rendered?.sha256
+    )
+  );
+}
+
+function sameSourceTarget(
+  sourceTarget: TargetArtifact | undefined,
+  args: {
+    targetActivation: ActivationTrace;
+    targetSha?: string;
+  },
+): boolean {
+  return Boolean(
+    (sourceTarget?.rendered?.sha256 &&
+      sourceTarget.rendered.sha256 === args.targetSha) ||
+      (sourceTarget?.activation &&
+        nearDuplicateTarget(sourceTarget.activation, args.targetActivation)),
   );
 }
 

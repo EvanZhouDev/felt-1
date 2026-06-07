@@ -2502,3 +2502,81 @@ Interpretation:
 Verification:
 
 - Report: `.agent/benchmarks/backrooms-image-to-image-flux-v3-pop3.json`
+
+## 2026-06-07 04:15 PDT - Target-Style Image Rendering Fix
+
+Goal:
+
+- Move same-medium image matching toward legitimate high scores without
+  hard-coding a target or using old states.
+
+Finding:
+
+- Generated Flux candidates were always rendered/scored as square 512x512 still
+  videos, while image targets keep their source-style video geometry.
+- The backrooms and dog targets both score as 250x188 videos. Postprocessing a
+  candidate back to the target geometry materially improved TRIBE similarity,
+  which means render-boundary style was a real generic mismatch, not just prompt
+  noise.
+- Score archive calibration also leaked prior same-target outputs when the
+  target was rendered through a different path/sha. That could punish good
+  candidates or contaminate contrast banks. The loader now skips archived score
+  files whose source target activation is a near-duplicate of the current target,
+  not just exact sha matches.
+
+Change:
+
+- Image-to-image Flux candidates now inherit the target rendered video geometry:
+  the raw Flux PNG is preserved, a `*-target-style.png` is scaled/cropped to the
+  target dimensions, and the scored 0.5s video is encoded at that same geometry.
+- The candidate entropy records `targetStyle=<width>x<height>` so these runs are
+  auditable.
+
+Runs:
+
+- `backrooms-image-to-image-dcb0831c`
+  - one Codex candidate, one Flux image, one local TRIBE score
+  - raw `0.9796106897102876`
+  - adjusted `0.7060327167800182`
+  - total `0.7315710974656411`
+  - output: `.volta/benchmarks/runs/backrooms-image-to-image-dcb0831c/generated-assets/candidate-a/d2629fbeaf3fcc74-target-style.png`
+  - prior best on the same scenario was `0.5598353008866586` adjusted with a
+    3-candidate population, so this is a large one-turn improvement.
+- `dog-image-to-image-54481a08`
+  - one Codex candidate, one Flux image, one local TRIBE score
+  - raw `0.9970680558909037`
+  - adjusted `0.9652789874348456`
+  - total `0.9948509124680877`
+  - output: `.volta/benchmarks/runs/dog-image-to-image-54481a08/generated-assets/candidate-a/05342b58e050d601-target-style.png`
+
+Cross-target audit:
+
+- Real TRIBE target pairs still show high raw cosine across images, but
+  residual-adjusted scoring suppresses the false positives:
+  - Mona -> backrooms adjusted `0.04191216686716267`
+  - Mona -> dog adjusted `0.00000046124201867109683`
+  - Backrooms -> dog adjusted `0`
+- Styled dog output:
+  - vs dog adjusted `0.9591713892811988`, total `0.9863277677887478`
+  - vs backrooms adjusted `0`, total `0`
+  - vs Mona adjusted `0`, total `0`
+- Styled backrooms output:
+  - vs backrooms adjusted `0.5920127862880633`, total `0.614178336853687`
+  - vs dog adjusted `0.20173755480755992`, total `0.20173755480755992`
+  - vs Mona adjusted `0`, total `0`
+
+Interpretation:
+
+- This is a generic render-boundary fix, not a dog-specific optimization.
+- Dog reached the 90% adjusted target in a single turn under the corrected
+  scorer. Backrooms improved substantially but remains below target because Flux
+  still beautifies/adds geometry; next work should add reference-aware image
+  prompting/editing or score multiple postprocess operators rather than only
+  increasing iterations.
+
+Verification:
+
+- `bun run check` passed.
+- Reports:
+  - `.agent/benchmarks/backrooms-image-to-image-style-v1.json`
+  - `.agent/benchmarks/dog-image-to-image-style-v1.json`
