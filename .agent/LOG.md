@@ -1503,3 +1503,46 @@ Interpretation:
   out. The next high-leverage step is to build a small local `tribev2`
   calibration bank for dog/backrooms/Mona/anonymous negatives, then rerun the
   same agentic test.
+
+## 2026-06-06 23:51 PDT - Direct Dog Description Probe
+
+Question:
+
+- Compare the agent-generated dog text activations with directly describing the
+  dog image concisely.
+
+Setup:
+
+- Same target as `dog-image-to-text-dedb4f9c`:
+  `/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-256-0.5s.mp4`
+- Local TRIBE with `VOLTA_TRIBE_DEVICE=mps`.
+- Output saved to `/tmp/volta-dog-direct-description-probe.json`.
+
+Results:
+
+- Direct natural sentence:
+  `A small white puppy sits in green grass, looking at the camera.`
+  - raw `neuralSimilarity`: `0.166500`
+  - `adjustedSimilarity`: `-0.112308`
+  - `total`: `-0.092308`
+- Direct comma fragments:
+  `small white puppy, green grass, close gaze, soft fur, shallow background`
+  - raw `neuralSimilarity`: `0.042044`
+  - `adjustedSimilarity`: `-0.257216`
+  - `total`: `-0.237216`
+- Best agentic candidate from the full run:
+  `soft attentive stillness, mild warmth, sparse green hush, close gaze, fuzzy light, gentle uncertainty`
+  - raw `neuralSimilarity`: `0.166480`
+  - `adjustedSimilarity`: `-0.233446`
+  - `total`: `-0.208446`
+
+Interpretation:
+
+- A literal, concise natural sentence is materially better than the generated
+  activation-code fragments on adjusted score, even though raw cosine is almost
+  identical to the best agentic candidate.
+- The comma-fragment literal description is worse, suggesting local TRIBE's text
+  path benefits from ordinary sentence structure and context.
+- Next prompt change to test: for image-to-text outputs, ask agents for concise
+  natural captions first, then optionally mutate caption attributes, instead of
+  defaulting to comma-separated activation codes.
