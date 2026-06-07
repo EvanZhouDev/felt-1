@@ -15,6 +15,116 @@ type PageProps = {
 
 const nodeWidth = 286;
 const fallbackNodeHeight = 270;
+const panZoomScript = `
+(() => {
+  const init = () => {
+    const viewport = document.querySelector("[data-pan-zoom-graph]");
+    if (!viewport) return false;
+    if (viewport.dataset.panZoomReady === "true") return true;
+    const spacer = viewport.querySelector(".static-graph-spacer");
+    const world = viewport.querySelector(".static-graph-world");
+    if (!spacer || !world) return false;
+    const zoomIn = document.querySelector("[data-graph-zoom-in]");
+    const zoomOut = document.querySelector("[data-graph-zoom-out]");
+    const reset = document.querySelector("[data-graph-reset]");
+    const readout = document.querySelector("[data-graph-zoom-readout]");
+    const baseWidth = Number(spacer.dataset.baseWidth || spacer.clientWidth || 1);
+    const baseHeight = Number(spacer.dataset.baseHeight || spacer.clientHeight || 1);
+    let scale = 1, dragging = false, dragMoved = false;
+    let startX = 0, startY = 0, startLeft = 0, startTop = 0, movedTimer;
+    const update = () => {
+      viewport.dataset.zoom = scale.toFixed(2);
+      if (readout) readout.textContent = Math.round(scale * 100) + "%";
+    };
+    const applyScale = (nextScale, originX, originY) => {
+      const rect = viewport.getBoundingClientRect();
+      const localX = originX - rect.left, localY = originY - rect.top;
+      const graphX = (viewport.scrollLeft + localX) / scale;
+      const graphY = (viewport.scrollTop + localY) / scale;
+      scale = Math.min(3, Math.max(0.35, nextScale));
+      spacer.style.width = baseWidth * scale + "px";
+      spacer.style.height = baseHeight * scale + "px";
+      world.style.transformOrigin = "0 0";
+      world.style.transform = "scale(" + scale + ")";
+      viewport.scrollLeft = graphX * scale - localX;
+      viewport.scrollTop = graphY * scale - localY;
+      update();
+    };
+    const start = (x, y) => {
+      dragging = true; dragMoved = false; startX = x; startY = y;
+      startLeft = viewport.scrollLeft; startTop = viewport.scrollTop;
+      viewport.classList.add("is-panning");
+    };
+    const move = (x, y) => {
+      if (!dragging) return;
+      const dx = x - startX, dy = y - startY;
+      if (Math.abs(dx) + Math.abs(dy) > 4) dragMoved = true;
+      viewport.scrollLeft = startLeft - dx;
+      viewport.scrollTop = startTop - dy;
+    };
+    const stop = () => {
+      if (!dragging) return;
+      dragging = false; viewport.classList.remove("is-panning");
+      if (movedTimer !== undefined) clearTimeout(movedTimer);
+      movedTimer = setTimeout(() => { dragMoved = false; }, 0);
+    };
+    const mouseMove = (event) => move(event.clientX, event.clientY);
+    const mouseUp = () => {
+      removeEventListener("mousemove", mouseMove);
+      stop();
+    };
+    viewport.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault(); start(event.clientX, event.clientY);
+      viewport.setPointerCapture?.(event.pointerId);
+    });
+    viewport.addEventListener("pointermove", (event) => move(event.clientX, event.clientY));
+    viewport.addEventListener("pointerup", (event) => { viewport.releasePointerCapture?.(event.pointerId); stop(); });
+    viewport.addEventListener("pointercancel", (event) => { viewport.releasePointerCapture?.(event.pointerId); stop(); });
+    viewport.addEventListener("mousedown", (event) => {
+      if (event.button !== 0 || dragging) return;
+      event.preventDefault(); start(event.clientX, event.clientY);
+      addEventListener("mousemove", mouseMove);
+      addEventListener("mouseup", mouseUp, { once: true });
+    });
+    viewport.addEventListener("dragstart", (event) => event.preventDefault());
+    viewport.addEventListener("click", (event) => {
+      if (!dragMoved) return;
+      event.preventDefault(); event.stopPropagation();
+    }, true);
+    viewport.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      applyScale(scale * (event.deltaY < 0 ? 1.12 : 1 / 1.12), event.clientX, event.clientY);
+    }, { passive: false });
+    zoomIn?.addEventListener("click", () => {
+      const rect = viewport.getBoundingClientRect();
+      applyScale(scale * 1.2, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    });
+    zoomOut?.addEventListener("click", () => {
+      const rect = viewport.getBoundingClientRect();
+      applyScale(scale / 1.2, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    });
+    reset?.addEventListener("click", () => {
+      const rect = viewport.getBoundingClientRect();
+      applyScale(1, rect.left + rect.width / 2, rect.top + rect.height / 2);
+      viewport.scrollLeft = 0; viewport.scrollTop = 0;
+    });
+    viewport.dataset.panZoomReady = "true";
+    update();
+    return true;
+  };
+  let attempts = 0;
+  const retry = () => {
+    if (init() || attempts++ > 120) return;
+    requestAnimationFrame(retry);
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", retry, { once: true });
+  } else {
+    retry();
+  }
+})();
+`;
 
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
@@ -145,9 +255,45 @@ export default async function Home({ searchParams }: PageProps) {
           ))}
         </nav>
 
-        <div className="static-graph-scroll">
+        <div
+          aria-label="Graph zoom controls"
+          className="graph-tools"
+          role="toolbar"
+        >
+          <button
+            aria-label="Zoom out"
+            data-graph-zoom-out
+            title="Zoom out"
+            type="button"
+          >
+            -
+          </button>
+          <button
+            aria-label="Reset graph view"
+            data-graph-reset
+            title="Reset graph view"
+            type="button"
+          >
+            Reset
+          </button>
+          <button
+            aria-label="Zoom in"
+            data-graph-zoom-in
+            title="Zoom in"
+            type="button"
+          >
+            +
+          </button>
+          <span className="zoom-readout" data-graph-zoom-readout>
+            100%
+          </span>
+        </div>
+
+        <div className="static-graph-scroll" data-pan-zoom-graph>
           <div
             className="static-graph-spacer"
+            data-base-height={bounds.height}
+            data-base-width={bounds.width}
             style={{ height: bounds.height, width: bounds.width }}
           >
             <div
@@ -244,6 +390,7 @@ export default async function Home({ searchParams }: PageProps) {
           <p>No node selected.</p>
         )}
       </aside>
+      <script>{panZoomScript}</script>
     </main>
   );
 }

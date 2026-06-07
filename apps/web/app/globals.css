@@ -285,6 +285,44 @@ h3 {
   scrollbar-color: #908776 #efe9db;
   scrollbar-gutter: stable both-edges;
   scroll-behavior: smooth;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.static-graph-scroll.is-panning {
+  cursor: grabbing;
+}
+
+.graph-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-bottom: 1px solid var(--line);
+  background: #fffdf8;
+  padding: 0.5rem 0.75rem;
+}
+
+.graph-tools button {
+  min-width: 44px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fffefa;
+  color: var(--foreground);
+  font-weight: 800;
+  padding: 0.42rem 0.6rem;
+}
+
+.graph-tools button:hover {
+  border-color: var(--line-strong);
+}
+
+.zoom-readout {
+  min-width: 48px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: right;
 }
 
 .graph-nav {

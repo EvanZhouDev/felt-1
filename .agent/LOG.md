@@ -3827,3 +3827,27 @@ Interpretation:
 - Verified the open browser run `backrooms-image-to-image-fcfaf007` renders the
   static graph with 6 nodes, 3 ranked candidates, selected URL node
   `candidate-a`, judge winner `candidate-c`, and no console errors.
+
+## 2026-06-07 09:55 PDT - Backrooms greenhouse 3x3 graph demo
+
+- Ran the requested 3-iteration x 3-candidate demo for
+  `backrooms-image-to-image` with seed
+  `a plant nursery greenhouse with rows of potted flowers`.
+- Successful run: `backrooms-image-to-image-5a7d21d4`.
+- Report: `.agent/benchmarks/backrooms-greenhouse-3x3-mock-v2.json`.
+- Run artifacts:
+  `.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4`.
+- Config: `VOLTA_MAX_ITERATIONS=3`, `VOLTA_CANDIDATE_COUNT=3`,
+  `VOLTA_SCORING_CONCURRENCY=1`, `VOLTA_SIMILARITY_THRESHOLD=2`.
+- Image generation used local Flux on `127.0.0.1:8799`; scoring used the mock
+  oracle because hosted TRIBE stalled in feature extraction and local TRIBE
+  errored during connection.
+- Result: status `completed`, best adjusted `0.20043980490342128`, best neural
+  `0.22337580591371514`, best total `0.20543980490342129`, selected agent
+  `elite-replay`.
+- Exported trace snapshot after the run: 98 runs, 531 nodes, 790 edges, 200
+  image nodes, 312 text nodes.
+- Browser verified on
+  `http://127.0.0.1:3001/?run=backrooms-image-to-image-5a7d21d4&node=backrooms-image-to-image-5a7d21d4%3Acandidate%3Ai3%3Aelite-replay#node-backrooms-image-to-image-5a7d21d4-candidate-i3-elite-replay`:
+  19 graph nodes, 15 images, selected best node, toolbar zoom works, graph node
+  clicks update the selected node, and the pan/zoom initializer reports ready.

@@ -85,9 +85,11 @@ const config = {
   loop,
 };
 const selectedScenarioIds = new Set(args.scenarios ?? defaultScenarioIds());
-const scenarios = buildScenarios().filter((scenario) =>
-  selectedScenarioIds.has(scenario.id),
-);
+const scenarios = buildScenarios()
+  .filter((scenario) => selectedScenarioIds.has(scenario.id))
+  .map((scenario) =>
+    args.seedPrompt ? withSeedPrompt(scenario, args.seedPrompt) : scenario,
+  );
 if (scenarios.length === 0) {
   throw new Error(
     `No benchmark scenarios selected. Available: ${buildScenarios()
@@ -454,6 +456,23 @@ function defaultScenarioIds(): string[] {
   ];
 }
 
+function withSeedPrompt(
+  scenario: BenchmarkScenario,
+  prompt: string,
+): BenchmarkScenario {
+  return {
+    ...scenario,
+    input: {
+      ...scenario.input,
+      seed: {
+        ...scenario.input.seed,
+        prompt,
+      },
+    },
+    tags: [...scenario.tags, "custom-seed"],
+  };
+}
+
 function createAgentBackend(config: AgentBackendConfig): AgentBackend {
   if (config.mode === "deterministic") {
     return new DeterministicAgentBackend();
@@ -513,6 +532,7 @@ function parseArgs(argv: string[]): {
   reuseTargetArchive?: boolean;
   runsRoot?: string;
   databasePath?: string;
+  seedPrompt?: string;
 } {
   const parsed: ReturnType<typeof parseArgs> = {};
   for (let index = 0; index < argv.length; index += 1) {
@@ -584,6 +604,9 @@ function parseArgs(argv: string[]): {
       index += 1;
     } else if (flag === "--database-path") {
       parsed.databasePath = value;
+      index += 1;
+    } else if (flag === "--seed-prompt") {
+      parsed.seedPrompt = value;
       index += 1;
     } else {
       throw new Error(`Unknown argument: ${flag}`);

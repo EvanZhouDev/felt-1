@@ -1,19 +1,178 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-07T15:56:04.843Z",
+  "generatedAt": "2026-06-07T16:36:05.085Z",
   "sourceRoots": [
     "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
     "/Users/evan/Desktop/project-volta-2/.volta/runs"
   ],
   "stats": {
-    "runCount": 92,
-    "completedRunCount": 79,
-    "nodeCount": 494,
-    "edgeCount": 722,
-    "imageNodeCount": 174,
-    "textNodeCount": 301
+    "runCount": 98,
+    "completedRunCount": 82,
+    "nodeCount": 531,
+    "edgeCount": 790,
+    "imageNodeCount": 200,
+    "textNodeCount": 312
   },
   "runs": [
+    {
+      "id": "backrooms-image-to-image-5a7d21d4",
+      "status": "completed",
+      "createdAt": "2026-06-07T16:32:49.526Z",
+      "updatedAt": "2026-06-07T16:35:44.357Z",
+      "inputType": "image",
+      "outputType": "image",
+      "seedPrompt": "a plant nursery greenhouse with rows of potted flowers",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4",
+      "runJsonPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/run.json",
+      "runJsonSha256": "028f10b62ade4f44fab502bd0cb546752d021fdcf88c934de79a320b6feedf90",
+      "sourceRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+      "artifactFiles": [
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/run.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/evolution-journal.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/candidate-archive.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/target.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/seed-target.json"
+      ],
+      "iterationCount": 3,
+      "candidateCount": 14,
+      "bestScore": 0.20543980490342129,
+      "bestNeuralSimilarity": 0.22337580591371514,
+      "bestAdjustedSimilarity": 0.20043980490342128,
+      "stopReason": "max_iterations",
+      "selectedAgentId": "elite-replay",
+      "targetNodeId": "backrooms-image-to-image-5a7d21d4:target",
+      "seedNodeId": "backrooms-image-to-image-5a7d21d4:seed",
+      "bestNodeId": "backrooms-image-to-image-5a7d21d4:candidate:i1:elite-replay",
+      "tags": ["image", "seeded", "backrooms"]
+    },
+    {
+      "id": "backrooms-image-to-image-bd2fa123",
+      "status": "failed",
+      "createdAt": "2026-06-07T16:29:28.066Z",
+      "updatedAt": "2026-06-07T16:29:59.299Z",
+      "inputType": "image",
+      "outputType": "image",
+      "seedPrompt": "a plant nursery greenhouse with rows of potted flowers",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-bd2fa123",
+      "runJsonPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-bd2fa123/run.json",
+      "runJsonSha256": "5917fc95a6a4bde8aa8719c8eaea0b716c124a7861da582a3350bae68d166f05",
+      "sourceRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+      "artifactFiles": [
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-bd2fa123/run.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-bd2fa123/target.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-bd2fa123/seed-target.json"
+      ],
+      "iterationCount": 0,
+      "candidateCount": 0,
+      "targetNodeId": "backrooms-image-to-image-bd2fa123:target",
+      "seedNodeId": "backrooms-image-to-image-bd2fa123:seed",
+      "tags": ["image", "seeded", "backrooms"]
+    },
+    {
+      "id": "backrooms-image-to-image-cfc61e07",
+      "status": "failed",
+      "createdAt": "2026-06-07T16:29:14.128Z",
+      "updatedAt": "2026-06-07T16:29:18.644Z",
+      "inputType": "image",
+      "outputType": "image",
+      "seedPrompt": "a plant nursery greenhouse with rows of potted flowers",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-cfc61e07",
+      "runJsonPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-cfc61e07/run.json",
+      "runJsonSha256": "29c7b977ac1b0a80e065bd08400cdb96bdc7f12440fa0168fb859e9f19c190a0",
+      "sourceRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+      "artifactFiles": [
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-cfc61e07/run.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-cfc61e07/target.json"
+      ],
+      "iterationCount": 0,
+      "candidateCount": 0,
+      "targetNodeId": "backrooms-image-to-image-cfc61e07:target",
+      "seedNodeId": "backrooms-image-to-image-cfc61e07:seed",
+      "tags": ["image", "seeded", "backrooms"]
+    },
+    {
+      "id": "backrooms-image-to-image-2e18b912",
+      "status": "extracting_features",
+      "createdAt": "2026-06-07T16:25:53.642Z",
+      "updatedAt": "2026-06-07T16:25:53.644Z",
+      "inputType": "image",
+      "outputType": "image",
+      "seedPrompt": "a plant nursery greenhouse with rows of potted flowers",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-2e18b912",
+      "runJsonPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-2e18b912/run.json",
+      "runJsonSha256": "6ae1f714273b68e1ac76364ec9ff3bd99cded0d2b49148568e87db777faf94b3",
+      "sourceRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+      "artifactFiles": [
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-2e18b912/run.json"
+      ],
+      "iterationCount": 0,
+      "candidateCount": 0,
+      "targetNodeId": "backrooms-image-to-image-2e18b912:target",
+      "seedNodeId": "backrooms-image-to-image-2e18b912:seed",
+      "tags": ["image", "seeded", "backrooms"]
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb",
+      "status": "completed",
+      "createdAt": "2026-06-07T16:18:49.842Z",
+      "updatedAt": "2026-06-07T16:21:10.276Z",
+      "inputType": "image",
+      "outputType": "image",
+      "seedPrompt": "Create an image whose main subject is the empty yellow backrooms interior from the attached seed image. The output should be a backrooms image in the perceptual vibe of the dog target: close low camera attention, soft puppy-like warmth, shallow focus, gentle rounded texture, muted green-yellow softness, and small-scale friendly stillness. Do not include a dog, animal, person, or pet prop.",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb",
+      "runJsonPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/run.json",
+      "runJsonSha256": "dbec0951cc79893511c89c2fc0ce565ab72991fb2acc99abbc9a2b7740126856",
+      "sourceRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+      "artifactFiles": [
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/run.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/evolution-journal.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/candidate-archive.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/target.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/seed-target.json"
+      ],
+      "iterationCount": 1,
+      "candidateCount": 3,
+      "bestScore": 0.48102662614022823,
+      "bestNeuralSimilarity": 0.8906228388064314,
+      "bestAdjustedSimilarity": 0.4498728570931595,
+      "stopReason": "max_iterations",
+      "selectedAgentId": "candidate-a",
+      "targetNodeId": "dog-backrooms-real-seed-119dd6eb:target",
+      "seedNodeId": "dog-backrooms-real-seed-119dd6eb:seed",
+      "bestNodeId": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a",
+      "tags": ["image", "seeded", "dog", "backrooms", "real", "seed"]
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af",
+      "status": "completed",
+      "createdAt": "2026-06-07T16:08:23.448Z",
+      "updatedAt": "2026-06-07T16:14:03.613Z",
+      "inputType": "image",
+      "outputType": "image",
+      "seedPrompt": "Create an image whose main subject is an empty yellow backrooms interior. The entire output should read as a backrooms image, not a dog image with a room added. Use /Users/evan/Desktop/project-volta/backrooms.jpeg as the seed visual reference. Preserve the dog target image only as perceptual feel: close low camera attention, soft puppy-like warmth, shallow focus, gentle rounded texture, and small-scale friendly energy.",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af",
+      "runJsonPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/run.json",
+      "runJsonSha256": "74c6fb43e28e911c48d77636d504efad5c3df2d097b0c7016e6c9fc318e30605",
+      "sourceRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+      "artifactFiles": [
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/run.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/evolution-journal.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/candidate-archive.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/target.json",
+        "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/seed-target.json"
+      ],
+      "iterationCount": 1,
+      "candidateCount": 3,
+      "bestScore": 0.7216526786707536,
+      "bestNeuralSimilarity": 0.9213585477566094,
+      "bestAdjustedSimilarity": 0.6831368552368903,
+      "stopReason": "max_iterations",
+      "selectedAgentId": "candidate-a",
+      "targetNodeId": "dog-backrooms-seed-0a5923af:target",
+      "seedNodeId": "dog-backrooms-seed-0a5923af:seed",
+      "bestNodeId": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a",
+      "tags": ["image", "seeded", "dog", "backrooms", "seed"]
+    },
     {
       "id": "backrooms-flowers-visual-seed-ab-9589e6ce",
       "status": "completed",
@@ -5136,6 +5295,134 @@
       "entropy": "iteration=1 | strategy=image visual reconstruction | inputType=image | outputType=image | Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject. | For image output, express the operator through a Flux image prompt encoded in source.uri as flux://generate?prompt=<urlencoded prompt>&model=klein&steps=4&seed=<integer>. The prompt should specify subject anchors, composition, light/color, texture, camera/framing, and atmosphere. Use a different seed for parallel candidates. | materialized=flux-image"
     },
     {
+      "id": "dog-backrooms-seed-0a5923af:target",
+      "runId": "dog-backrooms-seed-0a5923af",
+      "role": "target",
+      "modality": "image",
+      "label": "Target",
+      "subtitle": "TRIBE activation source",
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/demo-assets/dog-256.jpg",
+        "alt": "target"
+      }
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:seed",
+      "runId": "dog-backrooms-seed-0a5923af",
+      "role": "seed",
+      "modality": "text",
+      "label": "Seed",
+      "subtitle": "content constraint",
+      "media": {
+        "kind": "text",
+        "text": "n empty yellow backrooms interior"
+      }
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:judge:i1",
+      "runId": "dog-backrooms-seed-0a5923af",
+      "role": "judge",
+      "modality": "decision",
+      "label": "Iteration 1",
+      "subtitle": "selected candidate-a",
+      "iteration": 1,
+      "media": {
+        "kind": "text",
+        "text": "Selected candidate-a with total 0.7216526786707536, adjusted 0.6831368552368903, neural 0.9213585477566094, seed 1, promptSeed 1."
+      }
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a",
+      "runId": "dog-backrooms-seed-0a5923af",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a",
+      "subtitle": "seed subject reconstruction",
+      "iteration": 1,
+      "rank": 1,
+      "agentId": "candidate-a",
+      "selected": true,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/generated-assets/candidate-a/d2e81abbb70d6526-target-fidelity.png",
+        "alt": "candidate-a"
+      },
+      "score": {
+        "total": 0.7216526786707536,
+        "neuralSimilarity": 0.9213585477566094,
+        "adjustedSimilarity": 0.6831368552368903,
+        "calibratedSimilarity": 0.21963213080027763,
+        "contrastSimilarity": 0.9768439401851462,
+        "targetSpecificity": -0.055485392428536784,
+        "seedAdherence": 1,
+        "seedSimilarity": 0.9762798571049746,
+        "seedTargetSimilarity": 0.8454488140419715,
+        "seedSpecificity": 0.13083104306300308
+      },
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=seed-correct-backrooms-subject | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a-image-1",
+      "runId": "dog-backrooms-seed-0a5923af",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a-image-1",
+      "subtitle": "seed subject reconstruction",
+      "iteration": 1,
+      "rank": 2,
+      "agentId": "candidate-a-image-1",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/generated-assets/candidate-a-image-1/d2e81abbb70d6526-target-hard-neutral-sharp.png",
+        "alt": "candidate-a-image-1"
+      },
+      "score": {
+        "total": 0.631967990614932,
+        "neuralSimilarity": 0.919626269122442,
+        "adjustedSimilarity": 0.596053886645597,
+        "calibratedSimilarity": 0.17735418950169385,
+        "contrastSimilarity": 0.981439286308598,
+        "targetSpecificity": -0.06181301718615595,
+        "seedAdherence": 1,
+        "seedSimilarity": 0.9742700120873916,
+        "seedTargetSimilarity": 0.8454488140419715,
+        "seedSpecificity": 0.12882119804542014
+      },
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=seed-correct-backrooms-subject | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=hard-neutral-sharp"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-b",
+      "runId": "dog-backrooms-seed-0a5923af",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-b",
+      "subtitle": "seed composition transplant",
+      "iteration": 1,
+      "rank": 3,
+      "agentId": "candidate-b",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/generated-assets/candidate-b/70a5d85f1d4e73a4-target-fidelity.png",
+        "alt": "candidate-b"
+      },
+      "score": {
+        "total": 0.44024480272864497,
+        "neuralSimilarity": 0.980870296423915,
+        "adjustedSimilarity": 0.9009151992199811,
+        "calibratedSimilarity": 0.34631529447932974,
+        "contrastSimilarity": 0.9770544243732836,
+        "targetSpecificity": 0.003815872050631386,
+        "seedAdherence": 0.7004473269791657,
+        "seedSimilarity": 0.8855382794378046,
+        "seedTargetSimilarity": 0.8454488140419715,
+        "seedSpecificity": 0.040089465395833135
+      },
+      "entropy": "iteration=1 | strategy=seed composition transplant | inputType=image | outputType=image | Use the seed prompt as the subject authority and the target image as the layout/lighting authority. Build a prompt for a seed-subject image with target-like framing, empty-space rhythm, perspective depth, surface texture, color cast, and camera artifacts. Avoid naming or preserving target-specific objects unless they are purely structural analogies. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=additive-dog-in-backrooms | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=soft-muted"
+    },
+    {
       "id": "mona-image-to-image-00d1a4d0:target",
       "runId": "mona-image-to-image-00d1a4d0",
       "role": "target",
@@ -6073,6 +6360,134 @@
         "seedAdherence": 0.5
       },
       "entropy": "iteration=1 | strategy=affect-density code | outputType=text | Create a first-generation compact activation code emphasizing affect and density: calm/tense, fast/slow, dense/sparse, intimate/distant, warm/cool, certain/ambiguous. Use phrase fragments, not explanatory prose. | For text output, use compact comma-separated semantic units by default: 6-8 phrase fragments, 10-18 words total, no full sentence, no labels, no proper names, no explanatory prose. | microMutation=axis-replacement-temperature | parentAgentId=candidate-b"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:target",
+      "runId": "dog-backrooms-real-seed-119dd6eb",
+      "role": "target",
+      "modality": "image",
+      "label": "Target",
+      "subtitle": "TRIBE activation source",
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/demo-assets/dog-256.jpg",
+        "alt": "target"
+      }
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:seed",
+      "runId": "dog-backrooms-real-seed-119dd6eb",
+      "role": "seed",
+      "modality": "text",
+      "label": "Seed",
+      "subtitle": "content constraint",
+      "media": {
+        "kind": "text",
+        "text": "Create an image whose main subject is the empty yellow backrooms interior from the attached seed image. The output should be a backrooms image in the perceptual vibe of the dog target: close low camera attention, soft puppy-like warmth, shallow focus, gentle rounded texture, muted green-yellow softness, and small-scale friendly stillness. Do not include a dog, animal, person, or pet prop."
+      }
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:judge:i1",
+      "runId": "dog-backrooms-real-seed-119dd6eb",
+      "role": "judge",
+      "modality": "decision",
+      "label": "Iteration 1",
+      "subtitle": "selected candidate-a",
+      "iteration": 1,
+      "media": {
+        "kind": "text",
+        "text": "Selected candidate-a with total 0.48102662614022823, adjusted 0.4498728570931595, neural 0.8906228388064314, seed 1, promptSeed 1."
+      }
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a",
+      "runId": "dog-backrooms-real-seed-119dd6eb",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a",
+      "subtitle": "seed subject reconstruction",
+      "iteration": 1,
+      "rank": 1,
+      "agentId": "candidate-a",
+      "selected": true,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/generated-assets/candidate-a/3b94660ae4d40869-target-fidelity.png",
+        "alt": "candidate-a"
+      },
+      "score": {
+        "total": 0.48102662614022823,
+        "neuralSimilarity": 0.8906228388064314,
+        "adjustedSimilarity": 0.4498728570931595,
+        "calibratedSimilarity": 0.09999874701486688,
+        "contrastSimilarity": 0.9870277874102688,
+        "targetSpecificity": -0.0964049486038373,
+        "seedAdherence": 1,
+        "seedSimilarity": 0.9691433020438232,
+        "seedTargetSimilarity": 0.8631993182659696,
+        "seedSpecificity": 0.10594398377785352
+      },
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=real-seed-backrooms-dog-vibe | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-b",
+      "runId": "dog-backrooms-real-seed-119dd6eb",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-b",
+      "subtitle": "seed composition transplant",
+      "iteration": 1,
+      "rank": 2,
+      "agentId": "candidate-b",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/generated-assets/candidate-b/8dc7d38a1a13193e-target-fidelity.png",
+        "alt": "candidate-b"
+      },
+      "score": {
+        "total": 0.47825609446727224,
+        "neuralSimilarity": 0.9920418160965292,
+        "adjustedSimilarity": 0.9411752064448146,
+        "calibratedSimilarity": 0.34356303807939664,
+        "contrastSimilarity": 0.9617885764451757,
+        "targetSpecificity": 0.030253239651353514,
+        "seedAdherence": 0.6484636804392914,
+        "seedSimilarity": 0.8928920543538279,
+        "seedTargetSimilarity": 0.8631993182659696,
+        "seedSpecificity": 0.029692736087858274
+      },
+      "entropy": "iteration=1 | strategy=seed composition transplant | inputType=image | outputType=image | Use the seed prompt as the subject authority and the target image as the layout/lighting authority. Build a prompt for a seed-subject image with target-like framing, empty-space rhythm, perspective depth, surface texture, color cast, and camera artifacts. Avoid naming or preserving target-specific objects unless they are purely structural analogies. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=additive-dog-in-backrooms | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-c",
+      "runId": "dog-backrooms-real-seed-119dd6eb",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-c",
+      "subtitle": "seed low-fidelity style transfer",
+      "iteration": 1,
+      "rank": 3,
+      "agentId": "candidate-c",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/generated-assets/candidate-c/e7e374117de6f3f0-target-fidelity.png",
+        "alt": "candidate-c"
+      },
+      "score": {
+        "total": 0.050984540022493474,
+        "neuralSimilarity": 0.9171648818011178,
+        "adjustedSimilarity": 0.25766944981991796,
+        "calibratedSimilarity": 0.2569952157918513,
+        "contrastSimilarity": 0.9907560885301226,
+        "targetSpecificity": -0.07359120672900488,
+        "seedAdherence": 1,
+        "seedSimilarity": 0.9637567222509725,
+        "seedTargetSimilarity": 0.8631993182659696,
+        "seedSpecificity": 0.1005574039850029
+      },
+      "entropy": "iteration=1 | strategy=seed low-fidelity style transfer | inputType=image | outputType=image | Create a seed-subject image rendered with the target's low-level capture style: aspect ratio, blur, compression/grain, contrast, saturation, color temperature, camera distance, and awkward framing. The result should be immediately recognizable as the seed subject, not a target reconstruction with seed decoration. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=real-seed-backrooms-dog-vibe | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=soft-muted"
     },
     {
       "id": "mona-image-to-image-e701e1af:target",
@@ -8708,6 +9123,31 @@
       }
     },
     {
+      "id": "backrooms-image-to-image-cfc61e07:target",
+      "runId": "backrooms-image-to-image-cfc61e07",
+      "role": "target",
+      "modality": "image",
+      "label": "Target",
+      "subtitle": "TRIBE activation source",
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta/backrooms.jpeg",
+        "alt": "target"
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-cfc61e07:seed",
+      "runId": "backrooms-image-to-image-cfc61e07",
+      "role": "seed",
+      "modality": "text",
+      "label": "Seed",
+      "subtitle": "content constraint",
+      "media": {
+        "kind": "text",
+        "text": "a plant nursery greenhouse with rows of potted flowers"
+      }
+    },
+    {
       "id": "dog-image-to-image-57dfe8fe:target",
       "runId": "dog-image-to-image-57dfe8fe",
       "role": "target",
@@ -9380,6 +9820,490 @@
       "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=hard-neutral-sharp"
     },
     {
+      "id": "backrooms-image-to-image-5a7d21d4:target",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "target",
+      "modality": "image",
+      "label": "Target",
+      "subtitle": "TRIBE activation source",
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta/backrooms.jpeg",
+        "alt": "target"
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "seed",
+      "modality": "text",
+      "label": "Seed",
+      "subtitle": "content constraint",
+      "media": {
+        "kind": "text",
+        "text": "a plant nursery greenhouse with rows of potted flowers"
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:judge:i1",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "judge",
+      "modality": "decision",
+      "label": "Iteration 1",
+      "subtitle": "selected candidate-a-image-1",
+      "iteration": 1,
+      "media": {
+        "kind": "text",
+        "text": "Select candidate-a-image-1 because score.total is best (-0.008794 vs runner-up tie at -0.05), and its adjustedSimilarity is also highest (0.041206). Selected neuralSimilarity is -0.01798647993772802; runner-up candidate-a neuralSimilarity is 0.13276412265256046, but raw neuralSimilarity is diagnostic only and candidate-a has adjustedSimilarity 0. Keep candidate-a-image-1's central aisle, low-resolution green-yellow fluorescent cast, flat documentary camera distance, and dense nursery-row seed subject. Discard the overt clean greenhouse specificity, visible truss/roof structure, and generic plant-attractor feel because contrastSimilarity remains high and targetSpecificity is negative. Next mutation should preserve the nursery as the semantic subject while pushing the space toward backrooms geometry: lower ceiling, beige carpet/wallpaper texture, fluorescent panels, awkward empty corridor turns, sparser plant tables along the sides, and harsher low-res surveillance-like compression."
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a-image-1",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a-image-1",
+      "subtitle": "seed subject reconstruction",
+      "iteration": 1,
+      "rank": 1,
+      "agentId": "candidate-a-image-1",
+      "selected": true,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-a-image-1/47f53a03b6cd055f-target-hard-neutral-sharp.png",
+        "alt": "candidate-a-image-1"
+      },
+      "score": {
+        "total": -0.008794303452216955,
+        "neuralSimilarity": -0.01798647993772802,
+        "adjustedSimilarity": 0.04120569654778304,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.329829863801598,
+        "targetSpecificity": -0.347816343739326,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.07049595983239683,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.00511735218143354
+      },
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=hard-neutral-sharp"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a",
+      "subtitle": "seed subject reconstruction",
+      "iteration": 1,
+      "rank": 2,
+      "agentId": "candidate-a",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-a/47f53a03b6cd055f-target-fidelity.png",
+        "alt": "candidate-a"
+      },
+      "score": {
+        "total": -0.049999999999999996,
+        "neuralSimilarity": 0.13276412265256046,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.2563845365544762,
+        "targetSpecificity": -0.12362041390191572,
+        "seedAdherence": 0.5,
+        "seedSimilarity": -0.09605116822785645,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.17166448024168682
+      },
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-b",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-b",
+      "subtitle": "seed composition transplant",
+      "iteration": 1,
+      "rank": 3,
+      "agentId": "candidate-b",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-b/f2a813dfe29458ec-target-fidelity.png",
+        "alt": "candidate-b"
+      },
+      "score": {
+        "total": -0.049999999999999996,
+        "neuralSimilarity": -0.03899188033177182,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.31479299188762266,
+        "targetSpecificity": -0.3537848722193945,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.14568117722679608,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": 0.07006786521296571
+      },
+      "entropy": "iteration=1 | strategy=seed composition transplant | inputType=image | outputType=image | Use the seed prompt as the subject authority and the target image as the layout/lighting authority. Build a prompt for a seed-subject image with target-like framing, empty-space rhythm, perspective depth, surface texture, color cast, and camera artifacts. Avoid naming or preserving target-specific objects unless they are purely structural analogies. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-c",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-c",
+      "subtitle": "seed low-fidelity style transfer",
+      "iteration": 1,
+      "rank": 4,
+      "agentId": "candidate-c",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-c/f6f6510ab9d3cdf3-target-fidelity.png",
+        "alt": "candidate-c"
+      },
+      "score": {
+        "total": -0.2214578451467024,
+        "neuralSimilarity": -0.0963701633898826,
+        "adjustedSimilarity": 0.021042154853297614,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.28134321721320643,
+        "targetSpecificity": -0.377713380603089,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.30998328111816925,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": 0.23436996910433888
+      },
+      "entropy": "iteration=1 | strategy=seed low-fidelity style transfer | inputType=image | outputType=image | Create a seed-subject image rendered with the target's low-level capture style: aspect ratio, blur, compression/grain, contrast, saturation, color temperature, camera distance, and awkward framing. The result should be immediately recognizable as the seed subject, not a target reconstruction with seed decoration. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "judge",
+      "modality": "decision",
+      "label": "Iteration 2",
+      "subtitle": "selected candidate-a",
+      "iteration": 2,
+      "media": {
+        "kind": "text",
+        "text": "Select candidate-a because score.total is highest at 0.1504398049034213, with adjustedSimilarity 0.20043980490342128. Its neuralSimilarity is 0.22337580591371514; the runner-up elite-replay has neuralSimilarity -0.01798647993772802 and total 0.04620569654778304. Keep candidate-a's seed-dominant greenhouse rows, low-resolution yellow-green cast, fluorescent corridor rhythm, and backrooms-like depth. Discard the weaker elite replay's overly sharp greenhouse structure and its stronger contrast/generic-attractor profile, plus candidate-c/b variants that improve seed subject adherence but lose target-specific score. Next mutation should preserve candidate-a's potted-flower nursery subject while shifting the space closer to the target: lower ceiling, flatter beige/yellow walls, emptier central floor, softer blur, less greenhouse roof geometry, and more fluorescent office-room/wallpaper texture without reintroducing an empty backrooms-only scene."
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a",
+      "subtitle": "seed subject correction",
+      "iteration": 2,
+      "rank": 1,
+      "agentId": "candidate-a",
+      "selected": true,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-a/3f19cef20cbc7d9d-target-fidelity.png",
+        "alt": "candidate-a"
+      },
+      "score": {
+        "total": 0.1504398049034213,
+        "neuralSimilarity": 0.22337580591371514,
+        "adjustedSimilarity": 0.20043980490342128,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.27371887401409234,
+        "targetSpecificity": -0.0503430681003772,
+        "seedAdherence": 0.5,
+        "seedSimilarity": -0.06297418485954988,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.13858749687338023
+      },
+      "entropy": "iteration=2 | strategy=seed subject correction | inputType=image | outputType=image | Inspect the target and previous selected image. Preserve only target-like perceptual traits that helped score, but correct the child so the seed subject remains the dominant image subject. Remove target-scene remnants that make the output look like the original scene plus seed objects. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:elite-replay",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "elite-replay",
+      "subtitle": "elite replay",
+      "iteration": 2,
+      "rank": 2,
+      "agentId": "elite-replay",
+      "selected": true,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-a-image-1/47f53a03b6cd055f-target-hard-neutral-sharp.png",
+        "alt": "elite-replay"
+      },
+      "score": {
+        "total": 0.04620569654778304,
+        "neuralSimilarity": -0.01798647993772802,
+        "adjustedSimilarity": 0.04120569654778304,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.329829863801598,
+        "targetSpecificity": -0.347816343739326,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.07049595983239683,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.00511735218143354
+      },
+      "entropy": "iteration=2 | strategy=elite replay | inputType=image | outputType=image | Carry the previous selected elite forward unchanged so refinement is truly elitist and local mutation can exploit it."
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-c",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-c",
+      "subtitle": "seed composition correction",
+      "iteration": 2,
+      "rank": 3,
+      "agentId": "candidate-c",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-c/fffe7e6ff232b212-target-fidelity.png",
+        "alt": "candidate-c"
+      },
+      "score": {
+        "total": 0.005,
+        "neuralSimilarity": -0.22044464551624823,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.22323455518967547,
+        "targetSpecificity": -0.4436792007059237,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.09939808043573618,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": 0.023784768421905814
+      },
+      "entropy": "iteration=2 | strategy=seed composition correction | inputType=image | outputType=image | Keep the seed subject dominant while correcting one layout variable toward the target: crop, depth, empty-space rhythm, foreground/background balance, horizon/ceiling analogue, or camera distance. Avoid additive props. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-b",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-b",
+      "subtitle": "seed style exploit",
+      "iteration": 2,
+      "rank": 4,
+      "agentId": "candidate-b",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-b/7110fef5bf2d9e79-target-fidelity.png",
+        "alt": "candidate-b"
+      },
+      "score": {
+        "total": -0.049999999999999996,
+        "neuralSimilarity": 0.07961711977156216,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.299753353987916,
+        "targetSpecificity": -0.22013623421635387,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.3445411137852454,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": 0.268927801771415
+      },
+      "entropy": "iteration=2 | strategy=seed style exploit | inputType=image | outputType=image | Use archive scores to keep the strongest target-like style family, then regenerate around the seed subject as the central form. Preserve light/color, camera quality, texture, and spacing; do not preserve target-specific setting nouns. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a-image-1",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a-image-1",
+      "subtitle": "seed subject correction",
+      "iteration": 2,
+      "rank": 5,
+      "agentId": "candidate-a-image-1",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-a-image-1/3f19cef20cbc7d9d-target-hard-neutral-sharp.png",
+        "alt": "candidate-a-image-1"
+      },
+      "score": {
+        "total": -0.049999999999999996,
+        "neuralSimilarity": -0.029384629642801894,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.13750374108979085,
+        "targetSpecificity": -0.16688837073259274,
+        "seedAdherence": 0.5,
+        "seedSimilarity": -0.1528153484073836,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.22842866042121396
+      },
+      "entropy": "iteration=2 | strategy=seed subject correction | inputType=image | outputType=image | Inspect the target and previous selected image. Preserve only target-like perceptual traits that helped score, but correct the child so the seed subject remains the dominant image subject. Remove target-scene remnants that make the output look like the original scene plus seed objects. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=hard-neutral-sharp"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:judge:i3",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "judge",
+      "modality": "decision",
+      "label": "Iteration 3",
+      "subtitle": "selected elite-replay",
+      "iteration": 3,
+      "media": {
+        "kind": "text",
+        "text": "Select elite-replay because score.total is authoritative and it is far ahead: total 0.20543980490342129 with adjustedSimilarity 0.20043980490342128. Its neuralSimilarity is 0.22337580591371514; the runner-up candidate-c has neuralSimilarity 0.0979497081239284 and total 0.005. Keep the selected image's muted yellow-green fluorescent cast, central receding aisle, low-resolution softness, and dense potted-flower subject. Discard the overly clean greenhouse/tent identity and excess botanical specificity that makes it generic, especially given contrastSimilarity 0.27371887401409234 and negative targetSpecificity. Next mutation should locally preserve the plant rows but push the envelope toward the target's liminal backrooms structure: flatter beige carpet/floor, plain wallpaper-like side panels, lower dropped ceiling, rectangular doorway/alcove geometry, less skylit greenhouse framing, and more empty corridor rhythm around the nursery benches."
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "elite-replay",
+      "subtitle": "elite replay",
+      "iteration": 3,
+      "rank": 1,
+      "agentId": "elite-replay",
+      "selected": true,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-a/3f19cef20cbc7d9d-target-fidelity.png",
+        "alt": "elite-replay"
+      },
+      "score": {
+        "total": 0.20543980490342129,
+        "neuralSimilarity": 0.22337580591371514,
+        "adjustedSimilarity": 0.20043980490342128,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.27371887401409234,
+        "targetSpecificity": -0.0503430681003772,
+        "seedAdherence": 0.5,
+        "seedSimilarity": -0.06297418485954988,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.13858749687338023
+      },
+      "entropy": "iteration=3 | strategy=elite replay | inputType=image | outputType=image | Carry the previous selected elite forward unchanged so refinement is truly elitist and local mutation can exploit it."
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-c",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-c",
+      "subtitle": "seed composition correction",
+      "iteration": 3,
+      "rank": 2,
+      "agentId": "candidate-c",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-c/e2f589d749c8a6bf-target-fidelity.png",
+        "alt": "candidate-c"
+      },
+      "score": {
+        "total": 0.005,
+        "neuralSimilarity": 0.0979497081239284,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.3558107766176638,
+        "targetSpecificity": -0.2578610684937354,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.09955225880879655,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": 0.02393894679496618
+      },
+      "entropy": "iteration=3 | strategy=seed composition correction | inputType=image | outputType=image | Keep the seed subject dominant while correcting one layout variable toward the target: crop, depth, empty-space rhythm, foreground/background balance, horizon/ceiling analogue, or camera distance. Avoid additive props. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay-image-1",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "elite-replay-image-1",
+      "subtitle": "elite replay",
+      "iteration": 3,
+      "rank": 3,
+      "agentId": "elite-replay-image-1",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/elite-replay-image-1/d78a915498facd72-target-hard-neutral-sharp.png",
+        "alt": "elite-replay-image-1"
+      },
+      "score": {
+        "total": 0.005,
+        "neuralSimilarity": -0.03774261726255222,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.28885719708961194,
+        "targetSpecificity": -0.3265998143521642,
+        "seedAdherence": 0.5,
+        "seedSimilarity": 0.2668009435810376,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": 0.19118763156720725
+      },
+      "entropy": "iteration=3 | strategy=elite replay | inputType=image | outputType=image | Carry the previous selected elite forward unchanged so refinement is truly elitist and local mutation can exploit it. | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=base | parentAgentId=elite-replay | materialized=local-image-style | targetStyle=250x188 | targetFidelity=hard-neutral-sharp"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-a",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-a",
+      "subtitle": "seed subject correction",
+      "iteration": 3,
+      "rank": 4,
+      "agentId": "candidate-a",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-a/594067a51c3ee2a8-target-fidelity.png",
+        "alt": "candidate-a"
+      },
+      "score": {
+        "total": -0.007862184240545536,
+        "neuralSimilarity": 0.06539740450750776,
+        "adjustedSimilarity": 0.04213781575945446,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.29922317030176915,
+        "targetSpecificity": -0.2338257657942614,
+        "seedAdherence": 0.5,
+        "seedSimilarity": -0.03640445039778893,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.1120177624116193
+      },
+      "entropy": "iteration=3 | strategy=seed subject correction | inputType=image | outputType=image | Inspect the target and previous selected image. Preserve only target-like perceptual traits that helped score, but correct the child so the seed subject remains the dominant image subject. Remove target-scene remnants that make the output look like the original scene plus seed objects. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-b",
+      "runId": "backrooms-image-to-image-5a7d21d4",
+      "role": "candidate",
+      "modality": "image",
+      "label": "candidate-b",
+      "subtitle": "seed style exploit",
+      "iteration": 3,
+      "rank": 5,
+      "agentId": "candidate-b",
+      "selected": false,
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-5a7d21d4/generated-assets/candidate-b/8ca98c08f7109531-target-fidelity.png",
+        "alt": "candidate-b"
+      },
+      "score": {
+        "total": -0.1875,
+        "neuralSimilarity": -0.1727180529626995,
+        "adjustedSimilarity": 0,
+        "calibratedSimilarity": 0,
+        "contrastSimilarity": 0.07461989250302693,
+        "targetSpecificity": -0.2473379454657264,
+        "seedAdherence": 0.5,
+        "seedSimilarity": -0.1154615340884477,
+        "seedTargetSimilarity": 0.07561331201383037,
+        "seedSpecificity": -0.19107484610227807
+      },
+      "entropy": "iteration=3 | strategy=seed style exploit | inputType=image | outputType=image | Use archive scores to keep the strongest target-like style family, then regenerate around the seed subject as the central form. Preserve light/color, camera quality, texture, and spacing; do not preserve target-specific setting nouns. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | materialized=flux-image | targetStyle=250x188 | fluxSize=768x576 | targetFidelity=soft-muted"
+    },
+    {
       "id": "mona-image-to-text-3071cd1e:target",
       "runId": "mona-image-to-text-3071cd1e",
       "role": "target",
@@ -9936,6 +10860,31 @@
         "seedAdherence": 0.5
       },
       "entropy": "iteration=1 | strategy=perceptual caption | inputType=image | outputType=text | Create one natural caption sentence, 10-20 words, that names the main visible subject and preserves attention, distance, light, texture, and setting. Keep it literal and grounded; do not list every detail. | For image-to-text output, prefer one concise natural caption sentence, usually 8-20 words, that directly describes the visible target with simple subject, verb or visible relation, color, setting, gaze, and framing anchors. Keep only the strongest visible anchors. Avoid label-only phrases, vague mood adverbs, over-specific labels, comma-separated phrase fragments, and abstract activation codes."
+    },
+    {
+      "id": "backrooms-image-to-image-bd2fa123:target",
+      "runId": "backrooms-image-to-image-bd2fa123",
+      "role": "target",
+      "modality": "image",
+      "label": "Target",
+      "subtitle": "TRIBE activation source",
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta/backrooms.jpeg",
+        "alt": "target"
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-bd2fa123:seed",
+      "runId": "backrooms-image-to-image-bd2fa123",
+      "role": "seed",
+      "modality": "text",
+      "label": "Seed",
+      "subtitle": "content constraint",
+      "media": {
+        "kind": "text",
+        "text": "a plant nursery greenhouse with rows of potted flowers"
+      }
     },
     {
       "id": "dog-image-to-text-95d0ec2a:target",
@@ -11074,6 +12023,31 @@
         "seedSpecificity": -0.10394039822429299
       },
       "entropy": "iteration=1 | strategy=minimal activation code | inputType=text | outputType=text | Create a first-generation compact activation code: 6-8 comma-separated phrase units, 10-18 words total, no full sentence. Encode motion level, attention or salience, atmosphere or density, distance, central presence, and ambiguity. | For text output, use compact comma-separated semantic units by default: 6-8 phrase fragments, 10-18 words total, no full sentence, no labels, no proper names, no explanatory prose."
+    },
+    {
+      "id": "backrooms-image-to-image-2e18b912:target",
+      "runId": "backrooms-image-to-image-2e18b912",
+      "role": "target",
+      "modality": "image",
+      "label": "Target",
+      "subtitle": "TRIBE activation source",
+      "media": {
+        "kind": "image",
+        "path": "/Users/evan/Desktop/project-volta/backrooms.jpeg",
+        "alt": "target"
+      }
+    },
+    {
+      "id": "backrooms-image-to-image-2e18b912:seed",
+      "runId": "backrooms-image-to-image-2e18b912",
+      "role": "seed",
+      "modality": "text",
+      "label": "Seed",
+      "subtitle": "content constraint",
+      "media": {
+        "kind": "text",
+        "text": "a plant nursery greenhouse with rows of potted flowers"
+      }
     },
     {
       "id": "backrooms-flowers-image-to-image-42ae84be:target",
@@ -13144,6 +14118,74 @@
       "label": "selected"
     },
     {
+      "id": "dog-backrooms-seed-0a5923af:seed->dog-backrooms-seed-0a5923af:target",
+      "source": "dog-backrooms-seed-0a5923af:seed",
+      "target": "dog-backrooms-seed-0a5923af:target",
+      "kind": "seed",
+      "label": "steers"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:target->dog-backrooms-seed-0a5923af:candidate:i1:candidate-a",
+      "source": "dog-backrooms-seed-0a5923af:target",
+      "target": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:seed->dog-backrooms-seed-0a5923af:candidate:i1:candidate-a",
+      "source": "dog-backrooms-seed-0a5923af:seed",
+      "target": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a->dog-backrooms-seed-0a5923af:judge:i1",
+      "source": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a",
+      "target": "dog-backrooms-seed-0a5923af:judge:i1",
+      "kind": "selection",
+      "label": "selected"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:target->dog-backrooms-seed-0a5923af:candidate:i1:candidate-a-image-1",
+      "source": "dog-backrooms-seed-0a5923af:target",
+      "target": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a-image-1",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:seed->dog-backrooms-seed-0a5923af:candidate:i1:candidate-a-image-1",
+      "source": "dog-backrooms-seed-0a5923af:seed",
+      "target": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a-image-1",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a-image-1->dog-backrooms-seed-0a5923af:judge:i1",
+      "source": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-a-image-1",
+      "target": "dog-backrooms-seed-0a5923af:judge:i1",
+      "kind": "candidate"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:target->dog-backrooms-seed-0a5923af:candidate:i1:candidate-b",
+      "source": "dog-backrooms-seed-0a5923af:target",
+      "target": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-b",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:seed->dog-backrooms-seed-0a5923af:candidate:i1:candidate-b",
+      "source": "dog-backrooms-seed-0a5923af:seed",
+      "target": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-b",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-b->dog-backrooms-seed-0a5923af:judge:i1",
+      "source": "dog-backrooms-seed-0a5923af:candidate:i1:candidate-b",
+      "target": "dog-backrooms-seed-0a5923af:judge:i1",
+      "kind": "candidate"
+    },
+    {
       "id": "mona-image-to-image-00d1a4d0:seed->mona-image-to-image-00d1a4d0:target",
       "source": "mona-image-to-image-00d1a4d0:seed",
       "target": "mona-image-to-image-00d1a4d0:target",
@@ -13617,6 +14659,74 @@
       "id": "seeded-text-to-text-dog-35aba236:candidate:i1:candidate-b-micro-1->seeded-text-to-text-dog-35aba236:judge:i1",
       "source": "seeded-text-to-text-dog-35aba236:candidate:i1:candidate-b-micro-1",
       "target": "seeded-text-to-text-dog-35aba236:judge:i1",
+      "kind": "candidate"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:seed->dog-backrooms-real-seed-119dd6eb:target",
+      "source": "dog-backrooms-real-seed-119dd6eb:seed",
+      "target": "dog-backrooms-real-seed-119dd6eb:target",
+      "kind": "seed",
+      "label": "steers"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:target->dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a",
+      "source": "dog-backrooms-real-seed-119dd6eb:target",
+      "target": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:seed->dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a",
+      "source": "dog-backrooms-real-seed-119dd6eb:seed",
+      "target": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a->dog-backrooms-real-seed-119dd6eb:judge:i1",
+      "source": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-a",
+      "target": "dog-backrooms-real-seed-119dd6eb:judge:i1",
+      "kind": "selection",
+      "label": "selected"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:target->dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-b",
+      "source": "dog-backrooms-real-seed-119dd6eb:target",
+      "target": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-b",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:seed->dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-b",
+      "source": "dog-backrooms-real-seed-119dd6eb:seed",
+      "target": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-b",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-b->dog-backrooms-real-seed-119dd6eb:judge:i1",
+      "source": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-b",
+      "target": "dog-backrooms-real-seed-119dd6eb:judge:i1",
+      "kind": "candidate"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:target->dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-c",
+      "source": "dog-backrooms-real-seed-119dd6eb:target",
+      "target": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-c",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:seed->dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-c",
+      "source": "dog-backrooms-real-seed-119dd6eb:seed",
+      "target": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-c",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-c->dog-backrooms-real-seed-119dd6eb:judge:i1",
+      "source": "dog-backrooms-real-seed-119dd6eb:candidate:i1:candidate-c",
+      "target": "dog-backrooms-real-seed-119dd6eb:judge:i1",
       "kind": "candidate"
     },
     {
@@ -15260,6 +16370,13 @@
       "label": "steers"
     },
     {
+      "id": "backrooms-image-to-image-cfc61e07:seed->backrooms-image-to-image-cfc61e07:target",
+      "source": "backrooms-image-to-image-cfc61e07:seed",
+      "target": "backrooms-image-to-image-cfc61e07:target",
+      "kind": "seed",
+      "label": "steers"
+    },
+    {
       "id": "dog-image-to-image-57dfe8fe:seed->dog-image-to-image-57dfe8fe:target",
       "source": "dog-image-to-image-57dfe8fe:seed",
       "target": "dog-image-to-image-57dfe8fe:target",
@@ -15558,6 +16675,311 @@
       "kind": "candidate"
     },
     {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:target",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:target",
+      "kind": "seed",
+      "label": "steers"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a-image-1",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a-image-1",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a-image-1",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a-image-1",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a-image-1->backrooms-image-to-image-5a7d21d4:judge:i1",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a-image-1",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i1",
+      "kind": "selection",
+      "label": "selected"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a->backrooms-image-to-image-5a7d21d4:judge:i1",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-a",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i1",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-b",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-b",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-b",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-b",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-b->backrooms-image-to-image-5a7d21d4:judge:i1",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-b",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i1",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-c",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-c",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-c",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-c",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-c->backrooms-image-to-image-5a7d21d4:judge:i1",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i1:candidate-c",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i1",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a->backrooms-image-to-image-5a7d21d4:judge:i2",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "kind": "selection",
+      "label": "selected"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i2:elite-replay",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:elite-replay",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i2:elite-replay",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:elite-replay",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:elite-replay->backrooms-image-to-image-5a7d21d4:judge:i2",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i2:elite-replay",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "kind": "selection",
+      "label": "selected"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-c",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-c",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-c",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-c",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-c->backrooms-image-to-image-5a7d21d4:judge:i2",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-c",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-b",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-b",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-b",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-b",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-b->backrooms-image-to-image-5a7d21d4:judge:i2",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-b",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a-image-1",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a-image-1",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a-image-1",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a-image-1",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a-image-1->backrooms-image-to-image-5a7d21d4:judge:i2",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i2:candidate-a-image-1",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:judge:i1->backrooms-image-to-image-5a7d21d4:judge:i2",
+      "source": "backrooms-image-to-image-5a7d21d4:judge:i1",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "kind": "iteration",
+      "label": "next turn"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay->backrooms-image-to-image-5a7d21d4:judge:i3",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i3",
+      "kind": "selection",
+      "label": "selected"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-c",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-c",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-c",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-c",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-c->backrooms-image-to-image-5a7d21d4:judge:i3",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-c",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i3",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay-image-1",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay-image-1",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay-image-1",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay-image-1",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay-image-1->backrooms-image-to-image-5a7d21d4:judge:i3",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i3:elite-replay-image-1",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i3",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-a",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-a",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-a",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-a",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-a->backrooms-image-to-image-5a7d21d4:judge:i3",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-a",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i3",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:target->backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-b",
+      "source": "backrooms-image-to-image-5a7d21d4:target",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-b",
+      "kind": "target",
+      "label": "vibe target"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:seed->backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-b",
+      "source": "backrooms-image-to-image-5a7d21d4:seed",
+      "target": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-b",
+      "kind": "seed",
+      "label": "subject"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-b->backrooms-image-to-image-5a7d21d4:judge:i3",
+      "source": "backrooms-image-to-image-5a7d21d4:candidate:i3:candidate-b",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i3",
+      "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-5a7d21d4:judge:i2->backrooms-image-to-image-5a7d21d4:judge:i3",
+      "source": "backrooms-image-to-image-5a7d21d4:judge:i2",
+      "target": "backrooms-image-to-image-5a7d21d4:judge:i3",
+      "kind": "iteration",
+      "label": "next turn"
+    },
+    {
       "id": "mona-image-to-text-3071cd1e:target->mona-image-to-text-3071cd1e:candidate:i1:candidate-a-micro-1",
       "source": "mona-image-to-text-3071cd1e:target",
       "target": "mona-image-to-text-3071cd1e:candidate:i1:candidate-a-micro-1",
@@ -15808,6 +17230,13 @@
       "source": "mona-image-to-text-b3fd7c13:candidate:i1:candidate-b",
       "target": "mona-image-to-text-b3fd7c13:judge:i1",
       "kind": "candidate"
+    },
+    {
+      "id": "backrooms-image-to-image-bd2fa123:seed->backrooms-image-to-image-bd2fa123:target",
+      "source": "backrooms-image-to-image-bd2fa123:seed",
+      "target": "backrooms-image-to-image-bd2fa123:target",
+      "kind": "seed",
+      "label": "steers"
     },
     {
       "id": "dog-image-to-text-2e19caca:target->dog-image-to-text-2e19caca:candidate:i1:candidate-a-micro-2",
@@ -16361,6 +17790,13 @@
       "target": "seeded-text-to-text-dog-82b22ab4:judge:i1",
       "kind": "selection",
       "label": "selected"
+    },
+    {
+      "id": "backrooms-image-to-image-2e18b912:seed->backrooms-image-to-image-2e18b912:target",
+      "source": "backrooms-image-to-image-2e18b912:seed",
+      "target": "backrooms-image-to-image-2e18b912:target",
+      "kind": "seed",
+      "label": "steers"
     },
     {
       "id": "backrooms-flowers-image-to-image-42ae84be:seed->backrooms-flowers-image-to-image-42ae84be:target",
