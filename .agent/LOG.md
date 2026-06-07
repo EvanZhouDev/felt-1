@@ -526,3 +526,67 @@ Interpretation:
 - Hosted TRIBE is currently returning file-descriptor failures despite healthy
   `/health`, so pause real scoring briefly before retrying the remaining probes
   or Yeo-7 diagnostics.
+
+## 2026-06-06 19:12 PDT - Course Correction Toward Generic Evolution
+
+Problem:
+
+- The previous slot-search direction was useful experimentally, but it was too
+  close to optimizing directly for the Mona Lisa caption basin.
+- The system objective is now explicitly generic: improve the Volta pipeline for
+  any input/output pairing, using Mona Lisa as one benchmark rather than as the
+  algorithm's hidden target.
+
+Changes:
+
+- Replaced Mona-specific refinement language with medium-neutral evolutionary
+  operators in the orchestrator:
+  - broad first-generation genotypes,
+  - elitist point mutation,
+  - generic semantic-unit mutation,
+  - elite crossover,
+  - ablation,
+  - novelty injection,
+  - diagnostic-axis correction,
+  - representation reset.
+- Added `outputType=...` to entropy/operator strings, with separate guidance for
+  text, image, and code outputs.
+- Added operator lineage (`entropy`) to the candidate archive so the archive is
+  closer to an evolutionary population, not just a string memory.
+- Generalized archive behavior descriptors away from Mona-specific vocabulary
+  into spatial / affect / sensory / concrete buckets.
+- Added `probe:evolve-texts` for cheap, generic text-population generation from
+  scored parents.
+- Added `probe:yeo` as an auxiliary Yeo-7 diagnostic probe. It is deliberately
+  sidecar-only: Yeo deltas can guide mutation axes later, but full-vector TRIBE
+  cosine remains the scorer.
+- Added `smoke:generic`, covering mock text-to-text, text-to-image, and
+  image-to-code runs through the same operator schedule.
+
+Cheap experiment:
+
+- Seeded `.agent/probes/generic-text-parents-v1.json` with three non-Mona text
+  parents.
+- Ran `probe:evolve-texts` to produce
+  `.agent/probes/generic-text-evolution-v1.json`.
+- First version over-produced mutations from the top parent before crossover or
+  novelty under a low child limit. Fixed the generator to round-robin both
+  operator families and parents.
+- Current 24-child output includes elites, unit mutations, crossovers,
+  axis-injections, syntax resets, and ablations across all parents.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed for:
+  - text-to-text,
+  - text-to-image,
+  - image-to-code.
+
+TRIBE status:
+
+- Hosted `/health` is still `ok`, but latest `/list-jobs` entries remain failed
+  with `[Errno 24] Too many open files`.
+- Do not spend more hosted scoring compute until the latest job history shows a
+  successful fresh job or the service is restarted.

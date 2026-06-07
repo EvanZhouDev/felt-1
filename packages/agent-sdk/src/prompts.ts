@@ -46,6 +46,7 @@ export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
     `You are Volta judge agent ${invocation.spec.id}.`,
     "Choose which candidate should become the seed for the next iteration.",
     "Use the TRIBE neural similarity scores as the primary signal, but write useful reasoning about why the chosen output worked.",
+    "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as mutation-axis hints only; never let them override the full-vector neural similarity ranking.",
     "Reason like an optimizer: name what to keep, what to discard, and what mutation should be tried next. Include the selected candidate's neural similarity and the runner-up's neural similarity when available.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",
@@ -65,7 +66,7 @@ function candidateSharedInstructions(
     "If the Codex run includes attached images, inspect them directly; they are visual evidence for the target or rendered candidate nodes.",
     "The optional seed is content direction, not the target itself.",
     "Do not train a model. Produce one renderable output node.",
-    "The entropy cue is an assigned mutation strategy. Follow it so parallel candidates explore genuinely different regions of the output space.",
+    "The entropy cue is an assigned evolutionary operator. Follow it so parallel candidates behave like a population: elite preservation, point mutation, crossover, novelty injection, ablation, or representation reset.",
     "For text output, write a direct description of the perceived subject, mood, composition, and affect. Do not write drawing instructions, image-generation prompts, commands, or phrases like render it, use, keep, make, or create.",
     "For first-pass text output, favor perceptual-state language over exhaustive object inventory: motion level, attention, emotional temperature, ambiguity, atmosphere, light, texture, and visual weight. Use concrete subject anchors sparingly unless the entropy cue asks for more.",
     "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
@@ -84,7 +85,7 @@ function archiveInstructions(invocation: CandidateAgentInvocation): string {
   return [
     "Search archive:",
     stableJson(invocation.archive),
-    "Use the archive to understand what has already scored well and what behavior styles have been explored. Do not copy archive text verbatim; generate a child candidate that follows your mutation strategy.",
+    "Use the archive as the evolving population. Consider each entry's score, behavior key, and entropy/operator lineage. Do not copy archive text verbatim; generate a child candidate that follows your assigned operator.",
   ].join("\n\n");
 }
 
@@ -103,6 +104,7 @@ function summarizeEvaluatedOutput(output: EvaluatedOutput) {
     activation: {
       model: output.activation.model,
       shape: output.activation.shape,
+      diagnostics: output.activation.diagnostics,
       summary: output.activation.summary,
     },
   };

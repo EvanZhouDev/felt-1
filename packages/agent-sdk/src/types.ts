@@ -81,6 +81,7 @@ export type CandidateArchiveContext = {
 export type CandidateArchivePromptItem = {
   iteration: number;
   agentId: string;
+  entropy?: string;
   neuralSimilarity: number;
   total: number;
   behaviorKey: string;

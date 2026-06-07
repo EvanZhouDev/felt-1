@@ -438,6 +438,11 @@ async function executeIteration(
   args.store.updateStatus(args.id, "predicting");
   const candidateOutputs = await Promise.all(
     args.candidateSpecs.map(async (spec, index) => {
+      const entropy = mutationStrategy({
+        iteration: args.iteration,
+        index,
+        outputType: args.output.outputType,
+      });
       const workspace = await createAgentWorkspace({
         runsRoot: args.runsRoot,
         runId: args.id,
@@ -453,7 +458,7 @@ async function executeIteration(
           agentId: spec.id,
           previousType: args.previous.type,
           outputType: args.output.outputType,
-          entropy: mutationStrategy(args.iteration, index),
+          entropy,
         },
         attributes: {
           runId: args.id,
@@ -469,7 +474,7 @@ async function executeIteration(
             input: args.input,
             output: args.output,
             previous: args.previous,
-            entropy: mutationStrategy(args.iteration, index),
+            entropy,
             archive: archiveContext,
             workspace,
           }),
@@ -656,114 +661,135 @@ type MutationStrategy = {
 
 const coldStartStrategies: MutationStrategy[] = [
   {
-    name: "minimal expression-light caption",
+    name: "broad gestalt genotype",
     instruction:
-      "Write a 10-18 word comma-separated phrase set, not a full sentence. Blend one salient subject/expression/posture anchor with light, stillness or motion, distance or air, texture, and ambiguity. Avoid proper names, dates, and full scene explanation.",
+      "Create a first-generation candidate from the target's broad perceptual genotype: dominant energy level, attention or salience pattern, spatial/compositional feel, sensory texture, and affect. Use only anchors supported by the input.",
   },
   {
-    name: "minimal affect-air caption",
+    name: "affect-energy genotype",
     instruction:
-      "Write a 10-18 word comma-separated phrase set, not a full sentence. Emphasize emotional temperature, motion level, attention, air, distance, and ambiguity. Use at most one concrete subject noun.",
+      "Create a first-generation candidate emphasizing affect and energy: calm/tense, fast/slow, dense/sparse, intimate/distant, warm/cool, certain/ambiguous. Keep concrete details sparse unless they are central to the input.",
   },
   {
-    name: "minimal texture-color caption",
+    name: "sensory-texture genotype",
     instruction:
-      "Write a 10-18 word comma-separated phrase set, not a full sentence. Emphasize color temperature, light, shadow, surface age, texture, softness, and one target anchor.",
+      "Create a first-generation candidate emphasizing modality-neutral sensory texture: brightness, contrast, rhythm, edge quality, surface/timbre, color or tone, and softness/sharpness.",
   },
   {
-    name: "minimal posture-depth caption",
+    name: "structure-space genotype",
     instruction:
-      "Write a 10-18 word comma-separated phrase set, not a full sentence. Emphasize posture or placement, stillness or motion, foreground weight, background distance, atmosphere, and ambiguity.",
+      "Create a first-generation candidate emphasizing structure and space: foreground/background weight, density, symmetry/asymmetry, proximity, scale, repetition, and compositional balance.",
   },
   {
-    name: "affect phrase cloud",
+    name: "sparse latent code",
     instruction:
-      "Write one sentence that begins 'The feeling is' followed by comma-separated perceptual states. Prefer motion level, attention, emotional temperature, ambiguity, intimacy or distance, air, light, texture, and posture over object nouns. Use at most one target-specific subject anchor.",
+      "Create a compact latent-code candidate rather than an explanatory description. Prefer a small set of high-signal perceptual states over object inventory, plot summary, proper names, or facts.",
   },
   {
-    name: "surface light texture",
+    name: "concrete-anchor genotype",
     instruction:
-      "Bias toward low-level visual cues: light, shadow, contrast, softness, haze, color temperature, material surface, age, texture, and edge quality.",
+      "Create a first-generation candidate with a few concrete anchors from the input, then bind them to generic perceptual variables such as motion, space, contrast, rhythm, texture, and affect.",
   },
   {
-    name: "global perceptual gestalt",
+    name: "novelty-seeking genotype",
     instruction:
-      "Write two or three direct sentences about the target's overall feel, balance, stillness or motion, and viewer-facing presence. Do not enumerate every object.",
+      "Create a deliberately different first-generation candidate that explores an underrepresented region of the behavior space while preserving the input's likely perceptual feel.",
   },
   {
-    name: "warm cool contrast",
+    name: "contrastive genotype",
     instruction:
-      "Focus on warm/cool color relations, foreground weight, background distance, brightness, darkness, and atmospheric depth while keeping the subject readable.",
+      "Create a first-generation candidate organized around contrast pairs visible or inferable from the input: warm/cool, near/far, still/active, dense/open, clear/ambiguous, bright/dark.",
   },
   {
-    name: "anti-literal probe",
+    name: "anti-literal genotype",
     instruction:
-      "Avoid factual labels, proper nouns, museum-caption wording, and exhaustive object inventory. Describe the viewer's perceptual experience and emotional pressure.",
+      "Avoid labels, proper names, metadata, genre facts, and exhaustive inventory. Search the target's predicted neural vibe through perceptual experience, not literal identification.",
   },
 ];
 
 const refinementStrategies: MutationStrategy[] = [
   {
-    name: "minimal score-preserving caption",
+    name: "elitist point mutation",
     instruction:
-      "Keep the previous best as a 10-18 word comma-separated caption. Make one restrained phrase swap while preserving its strongest affect, light, texture, distance, and ambiguity cues.",
+      "Preserve the previous elite's strongest behavior. Mutate exactly one semantic unit or rendering variable, keeping all other high-scoring traits stable.",
   },
   {
-    name: "minimal face-gaze axis swap",
+    name: "generic focus-axis mutation",
     instruction:
-      "Write a 10-18 word comma-separated caption. Preserve the previous best except replace exactly one face, gaze, expression, or attention phrase with a stronger target-specific alternative.",
+      "Preserve the previous elite except replace one concrete anchor, focus, attention, or central-presence unit with a domain-appropriate alternative supported by the input.",
   },
   {
-    name: "minimal air-distance axis swap",
+    name: "generic unit-library mutation",
     instruction:
-      "Write a 10-18 word comma-separated caption. Preserve the previous best except replace exactly one air, distance, depth, haze, or atmosphere phrase with a stronger target-specific alternative.",
+      "Treat the previous elite as semantic units. Preserve unit order and replace exactly one whole unit with another unit from the same generic axis: motion, attention, distance, contrast, rhythm, texture, affect, structure, or concrete anchor.",
   },
   {
-    name: "minimal warmth-shadow axis swap",
+    name: "space-density mutation",
     instruction:
-      "Write a 10-18 word comma-separated caption. Preserve the previous best except replace exactly one warmth, color, light, or shadow phrase with a stronger target-specific alternative.",
+      "Preserve the previous elite except replace one atmosphere, distance, density, scale, rhythm, or context variable with a nearby alternative.",
   },
   {
-    name: "minimal caption crossover",
+    name: "sensory-axis mutation",
     instruction:
-      "Write a 10-18 word comma-separated caption that combines the previous best's strongest phrases with one useful cue from the runner-up or archive context.",
+      "Preserve the previous elite except replace one sensory variable: color/tone, brightness, contrast, edge quality, timbre, rhythm, texture, or surface.",
   },
   {
-    name: "minimal caption ablation",
+    name: "elite crossover",
     instruction:
-      "Write a 10-18 word comma-separated caption that removes one concrete anchor from the previous best and replaces it with a low-level affect, light, surface, or air cue.",
+      "Create a crossover child: combine the previous elite's strongest units with one or two high-scoring units from archive parents. Do not average everything; inherit only useful traits.",
   },
   {
-    name: "surface and texture child",
+    name: "ablation mutation",
     instruction:
-      "Keep the previous best's affect but replace some subject description with low-level surface, light, color, haze, and texture cues.",
+      "Remove one likely distracting unit from the previous elite and replace it with a lower-level perceptual variable from the same medium-neutral behavior space.",
   },
   {
-    name: "affect phrase child",
+    name: "novelty injection",
     instruction:
-      "Keep the previous best's visual anchors but rewrite it as one sentence beginning 'The feeling is' with comma-separated perceptual states.",
+      "Explore a behavior descriptor that is absent or weak in the archive while preserving at least two proven elite traits. Prefer novelty that can still score, not random drift.",
   },
   {
-    name: "one-variable ablation",
+    name: "diagnostic-axis correction",
     instruction:
-      "Change exactly one major variable from the previous best: length, sentence style, affect density, concrete anchors, or texture density. Leave the rest stable.",
+      "Use the judge reasoning, archive rankings, and any auxiliary diagnostics as mutation-axis hints. Correct one suspected underrepresented perceptual variable while keeping the elite scaffold.",
+  },
+  {
+    name: "one-variable representation mutation",
+    instruction:
+      "Change exactly one representation variable: length, syntax, abstraction level, concrete-anchor density, sensory density, or medium-specific layout/rendering. Leave content traits stable.",
   },
   {
     name: "negative-control escape",
     instruction:
-      "Deliberately avoid the dominant previous wording pattern and try a different length or syntax while preserving the target's perceptual feel.",
+      "Deliberately avoid the dominant previous representation pattern and try a different syntax or rendering form while preserving the target's perceptual feel.",
   },
 ];
 
-function mutationStrategy(iteration: number, index: number): string {
+function mutationStrategy(args: {
+  iteration: number;
+  index: number;
+  outputType: OutputObj["outputType"];
+}): string {
   const strategies =
-    iteration === 1 ? coldStartStrategies : refinementStrategies;
-  const strategy = strategies[index % strategies.length];
+    args.iteration === 1 ? coldStartStrategies : refinementStrategies;
+  const strategy = strategies[args.index % strategies.length];
   return [
-    `iteration=${iteration}`,
+    `iteration=${args.iteration}`,
     `strategy=${strategy.name}`,
+    `outputType=${args.outputType}`,
     strategy.instruction,
+    outputTypeInstruction(args.outputType),
   ].join(" | ");
+}
+
+function outputTypeInstruction(outputType: OutputObj["outputType"]): string {
+  if (outputType === "text") {
+    return "For text output, encode the candidate as compact descriptive prose or comma-separated semantic units. Keep it short unless the operator explicitly asks for a syntax reset.";
+  }
+  if (outputType === "image") {
+    return "For image output, express the operator through image-generation intent: composition, subject anchors, light/color, texture, camera/framing, and atmosphere.";
+  }
+  return "For code output, express the operator through renderable UI/scene structure: layout, motion/static balance, density, typography, color/contrast, texture, and interaction-free visual state.";
 }
 
 function getStopReason(args: {
