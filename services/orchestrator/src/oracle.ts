@@ -73,6 +73,25 @@ class HttpTribeOracle implements NeuralOracle {
   }
 
   async encode(stimulus: EncoderStimulus): Promise<ActivationTrace> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return await this.encodeOnce(stimulus);
+      } catch (error) {
+        lastError = error;
+        if (!isRetryableTribeError(error) || attempt === 3) {
+          throw error;
+        }
+        await delay(TRIBE_POLL_INTERVAL_MS * attempt);
+      }
+    }
+
+    throw lastError;
+  }
+
+  private async encodeOnce(
+    stimulus: EncoderStimulus,
+  ): Promise<ActivationTrace> {
     const job = await this.submit(stimulus);
     await this.waitForJob(job.job_id);
     const values = await this.fetchPooledValues(job.job_id);
@@ -211,6 +230,17 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function isRetryableTribeError(error: unknown): boolean {
+  const message = String(error);
+  return (
+    message.includes("Server restarted while job was in flight") ||
+    message.includes("resubmitted as new job") ||
+    message.includes(" 502 ") ||
+    message.includes(" 503 ") ||
+    message.includes(" 504 ")
+  );
 }
 
 // Decode a little-endian IEEE 754 half-precision (float16) byte array.

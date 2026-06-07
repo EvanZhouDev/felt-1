@@ -16,3 +16,15 @@ Immediate hypotheses:
 - Need richer candidate feedback than "previous selected output + judge reasoning"; agents should see best score, score trend, negative examples, and explicit mutation strategies.
 - Need better candidate diversity than `entropy-iteration-index`.
 - Need to test whether 0.9 cross-modal image-to-text similarity is even calibrated as reachable; if not, we need to identify the ceiling and avoid optimizing against an impossible target.
+
+## 2026-06-06 17:26 PDT - Robustness Pass 1
+
+Changes in progress:
+
+- Ported HTTP TRIBE retry behavior for transient hosted failures: server restart while job was in flight, resubmitted job messages, and 502/503/504 responses.
+- Ported failed-run resume support: the API can resume `failed` runs, and resume can prefer completed per-iteration disk artifacts when `run.json` is stale.
+
+Expected effect:
+
+- Long multi-iteration runs should no longer lose all progress when the hosted TRIBE service restarts mid-score.
+- Recovery should continue from the last complete iteration instead of repeating already scored iterations.

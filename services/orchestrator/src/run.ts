@@ -1,3 +1,4 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -598,9 +599,17 @@ function loadResumeState(args: ResumeRunArgs): ResumeState {
     );
   }
 
-  const existingIterations = result.iterations as IterationResult[];
+  const artifactIterations = result.iterations as IterationResult[];
+  const diskIterations = loadCompletedIterationsFromDisk(record.runPath);
+  const shouldUseDiskIterations =
+    diskIterations.length > artifactIterations.length;
+  const existingIterations = shouldUseDiskIterations
+    ? diskIterations
+    : artifactIterations;
   const lastIteration = existingIterations.at(-1);
-  const previous = result.nextIterationSeed ?? lastIteration?.nextIterationSeed;
+  const previous = shouldUseDiskIterations
+    ? lastIteration?.nextIterationSeed
+    : (result.nextIterationSeed ?? lastIteration?.nextIterationSeed);
   if (!lastIteration || !previous) {
     throw new Error(`Run ${args.id} has no next iteration seed.`);
   }
@@ -616,6 +625,66 @@ function loadResumeState(args: ResumeRunArgs): ResumeState {
       Math.max(...existingIterations.map((iteration) => iteration.iteration)) +
       1,
   };
+}
+
+function loadCompletedIterationsFromDisk(runPath: string): IterationResult[] {
+  const iterationsPath = join(runPath, "iterations");
+  if (!existsSync(iterationsPath)) {
+    return [];
+  }
+
+  const iterationNumbers = readdirSync(iterationsPath, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^\d+$/.test(entry.name))
+    .map((entry) => Number(entry.name))
+    .sort((left, right) => left - right);
+
+  const iterations: IterationResult[] = [];
+  let previous: NextIterationSeed = { type: "fresh" };
+  for (const iteration of iterationNumbers) {
+    const iterationPath = join(iterationsPath, iterationId(iteration));
+    const summary = readOptionalJson<{ stopReason?: StopReason }>(
+      join(iterationPath, "iteration.json"),
+    );
+    const candidateOutputs = readOptionalJson<
+      Awaited<ReturnType<typeof runCandidateAgent>>[]
+    >(join(iterationPath, "candidates.json"));
+    const rankedOutputs = readOptionalJson<EvaluatedOutput[]>(
+      join(iterationPath, "scores.json"),
+    );
+    const judge = readOptionalJson<Awaited<ReturnType<typeof runJudgeAgent>>>(
+      join(iterationPath, "judge.json"),
+    );
+    const nextIterationSeed = readOptionalJson<NextIterationSeed>(
+      join(iterationPath, "next-seed.json"),
+    );
+
+    if (!summary || !candidateOutputs || !rankedOutputs || !judge) {
+      continue;
+    }
+    if (!nextIterationSeed) {
+      continue;
+    }
+
+    iterations.push({
+      iteration,
+      previous,
+      candidateOutputs,
+      rankedOutputs,
+      judge,
+      nextIterationSeed,
+      stopReason: summary.stopReason,
+    });
+    previous = nextIterationSeed;
+  }
+
+  return iterations;
+}
+
+function readOptionalJson<T>(path: string): T | undefined {
+  if (!existsSync(path)) {
+    return undefined;
+  }
+  return JSON.parse(readFileSync(path, "utf8")) as T;
 }
 
 function bestOverallOutput(
