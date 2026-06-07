@@ -1395,3 +1395,16 @@ PRINCIPLED NEXT STEP (data collection, not more n=5 analysis): fetch network-
 breakdown activations for ~20-30 UNRELATED images, estimate common-mode
 out-of-sample, THEN the visual-vs-emotional localization becomes answerable. Stop
 generating thinly-supported similarity numbers until that baseline exists.
+
+## 2026-06-07 - 600px resolution does NOT help collinearity
+
+Tested per user request. Mean off-diagonal RAW cosine over 4 paintings:
+  250px: 0.891  (starry~scream 0.973)
+  600px: 0.866  (starry~scream 0.977)  <- basically unchanged, starry~scream went UP
+Same painting at 250 vs 600px is 0.93-0.99 self-similar -> TRIBE image encoding is
+largely RESOLUTION-INSENSITIVE at these sizes. Higher res does NOT de-collinearize.
+Confirms: collinearity is the COMMON-MODE in TRIBE's representation, not a
+resolution/timestep artifact. The leverage is entirely in the SIMILARITY FUNCTION
+(common-mode removal), which the methodology research workflow (wp778bk4e) is now
+addressing. (water_lilies_600 fetch was corrupt; re-fetch later - TRIBE queue busy
+with research agents.)
