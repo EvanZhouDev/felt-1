@@ -144,11 +144,11 @@ export type ActivationTrace = {
   // Full per-timestep activation: values[t] is the R^vertices frame at step t.
   values?: number[][];
   diagnostics?: {
+    // One scalar per Yeo network: its mean activation magnitude over the run.
+    // (The hosted API returns full per-network vectors; the oracle reduces them
+    // to these scalars so judge prompts stay small.)
     yeo7Means?: Record<string, number>;
     yeo7DeltaFromTarget?: Record<string, number>;
-    // Per-Yeo-network activation, mean-pooled over time. One entry per network
-    // ("Visual", "Default Mode", ...) holding that network's R^vertices vector.
-    networkMeans?: Record<string, number[]>;
   };
   summary: {
     mean: number;

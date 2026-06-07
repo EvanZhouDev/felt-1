@@ -266,44 +266,43 @@ class HttpTribeOracle implements NeuralOracle {
   }
 }
 
-// Build the optional diagnostics block from a hosted-TRIBE result. The
-// network breakdown is mean-pooled over time into one vector per Yeo network
-// so callers can inspect per-network similarity without re-deriving it.
+// Build the optional diagnostics block from a hosted-TRIBE result. The new API
+// returns the full per-network activation (`predictions_by_network`) instead of
+// the old scalar `yeo7_means`. We summarize each network to ONE scalar — its
+// mean activation magnitude over the run — so the judge keeps its compact,
+// promptable per-network mutation hints. We deliberately do NOT store the full
+// per-network vectors on the trace: they are ~143k floats and would flood the
+// Codex prompts that serialize `activation.diagnostics`.
 function buildDiagnostics(
   result: TribeResult,
 ): ActivationTrace["diagnostics"] | undefined {
-  const diagnostics: NonNullable<ActivationTrace["diagnostics"]> = {};
   if (result.yeo7_means) {
-    diagnostics.yeo7Means = result.yeo7_means;
+    return { yeo7Means: result.yeo7_means };
   }
   if (result.predictions_by_network) {
-    const networkMeans: Record<string, number[]> = {};
+    const yeo7Means: Record<string, number> = {};
     for (const [network, frames] of Object.entries(
       result.predictions_by_network,
     )) {
-      networkMeans[network] = meanPoolOverTime(frames);
+      yeo7Means[network] = meanMagnitude(frames);
     }
-    diagnostics.networkMeans = networkMeans;
+    return { yeo7Means };
   }
-  return Object.keys(diagnostics).length > 0 ? diagnostics : undefined;
+  return undefined;
 }
 
-// Average a [timesteps][n] matrix over time into one R^n vector.
-function meanPoolOverTime(frames: number[][]): number[] {
-  const timesteps = frames.length;
-  const width = frames[0]?.length ?? 0;
-  const pooled = new Array<number>(width).fill(0);
+// Mean absolute activation across every value of a [timesteps][n] matrix — a
+// single scalar standing for how strongly a Yeo network engaged over the run.
+function meanMagnitude(frames: number[][]): number {
+  let sum = 0;
+  let count = 0;
   for (const frame of frames) {
-    for (let i = 0; i < width; i += 1) {
-      pooled[i] += frame[i] ?? 0;
+    for (const value of frame) {
+      sum += Math.abs(value);
+      count += 1;
     }
   }
-  if (timesteps > 0) {
-    for (let i = 0; i < width; i += 1) {
-      pooled[i] /= timesteps;
-    }
-  }
-  return pooled;
+  return count > 0 ? sum / count : 0;
 }
 
 const IMAGE_ARTIFACT_EXT = /\.(png|jpe?g|webp)$/i;
