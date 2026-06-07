@@ -42,14 +42,22 @@ bun run check            # lint (biome) + typecheck — run before committing
 bun run typecheck        # tsc across all workspaces
 bun run lint             # biome check .
 bun run format           # biome format --write .
-bun run smoke            # end-to-end run with the fast MOCK oracle
+bun run smoke            # end-to-end run with the fast MOCK oracle (text input)
+bun run smoke:audio      # end-to-end run with an AUDIO input node (mock oracle)
 bun run dev              # watch the orchestrator service
 bun run dev:web          # Next.js dev (Turbopack)
 
 # TRIBE (heavy — Python venv + model download on first run):
 bun run setup:tribe      # create vendor/tribev2/.venv, install TRIBE
 bun run smoke:tribe      # end-to-end run with the REAL TRIBE oracle
+bun run smoke:audio:tribe # audio input via the hosted (http) TRIBE oracle + describer
 ```
+
+`smoke:audio` proves the loop is medium-agnostic: it drives the same
+`executeRun` with an `AudioNode` target (fixture `services/orchestrator/fixtures/
+tone.wav`). Output medium is a free parameter — `VOLTA_SMOKE_OUTPUT=image` (or
+`code`/`text`) and `VOLTA_SMOKE_AUDIO=<path|url>` override it. Audio needs the
+`http` oracle (or the patched local `tribe` worker) for real activations.
 
 Use `bun run smoke` (mock) for fast iteration; reach for `smoke:tribe` only when
 you need real activations.
@@ -94,6 +102,11 @@ Set in `services/orchestrator/src/config.ts`:
   20484-dim values).
 - `VOLTA_TRIBE_URL` — hosted TRIBE base URL (default `https://tribe.bryanhu.com`).
 - `VOLTA_FLUX_URL` — hosted Flux image API (default `https://images.bryanhu.com`).
+- `VOLTA_AUDIO_URL` — hosted audio-description service for the audio describer
+  (default `https://audio.ai.bryanhu.com`). Multipart `POST /describe`; failure
+  is non-fatal (run proceeds on neural similarity alone).
+- `VOLTA_DESCRIBE_AUDIO` — describe audio targets so agents get perceptual
+  context they can't hear (default `true`; set `false` to skip, e.g. mock smokes).
 - `VOLTA_CANDIDATE_COUNT` — N candidates per iteration (default `2`).
 - `VOLTA_MAX_ITERATIONS` — M search iterations; loop feeds the judge's
   `NextIterationSeed` forward and keeps the best-scoring iteration (default `1`).
