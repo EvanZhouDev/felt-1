@@ -1896,3 +1896,49 @@ Verification:
 - `bun run check` passed.
 - `bun run smoke` passed.
 - `bun run smoke:generic` passed.
+
+## 2026-06-07 01:43 PDT - Calibrated Text Probe for Fast Real-TRIBE Caption Search
+
+Added calibrated scoring support to `services/orchestrator/src/probe-texts.ts`.
+The probe can now load the same target-kind-filtered contrast bank as the full
+pipeline and report raw, adjusted, contrast, residual, and total scores. This is
+now the cheapest real-TRIBE path for testing caption variants before spending a
+full agentic run.
+
+Mona probe against target
+`.volta/benchmarks/runs/mona-image-to-text-e6cee5cd/target.json`:
+
+- `winner-b`:
+  `A dark-haired woman in a dark dress is shown from the waist up with folded hands, looking forward with a faint smile against a hazy blue-green landscape and warm cracked paint texture.`
+  - raw `-0.035726`
+  - contrast `-0.051222`
+  - residual `0.295381`
+  - adjusted `0.295381`
+  - total `0.295381`
+- `runner-c`:
+  `A dark-haired woman in a dark dress sits with folded hands before a hazy blue-green landscape, facing the viewer with a faint smile.`
+  - raw `-0.010559`
+  - contrast `-0.041332`
+  - residual `0.271528`
+  - adjusted `0.271528`
+  - total `0.271528`
+- Shorter variants lost adjusted score:
+  - `b-concise` total `0.199663`
+  - `c-texture` total `0.240875`
+  - `portrait-texture` total `0.229240`
+
+Interpretation:
+
+- The calibrated probe reproduced the full pipeline score for the known Mona
+  best candidates, so it is safe to use for local caption search.
+- The old "shorter is better" assumption does not hold under the corrected
+  scorer. The best Mona text is currently longer because it carries visible
+  anchors like folded hands, faint expression, landscape, and paint texture.
+- Next experiment path: use calibrated probes to mutate target-specific visual
+  anchors first, then spend full agent runs only on strategies that survive
+  against calibrated scoring.
+
+Verification:
+
+- `bun run format` passed.
+- `bun run check` passed.

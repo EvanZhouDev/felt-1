@@ -2,11 +2,16 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ActivationTrace } from "@volta/core";
 import { scoreActivations } from "@volta/core";
+import { loadCalibrationActivations } from "./calibration.ts";
 import { loadConfig } from "./config.ts";
 import { createOracle } from "./oracle.ts";
 import { renderPayload } from "./render.ts";
 
 type TargetFile = {
+  rendered?: {
+    sha256?: string;
+    kind?: string;
+  };
   activation: ActivationTrace;
 };
 
@@ -19,6 +24,9 @@ type ProbeResult = {
   id: string;
   text: string;
   neuralSimilarity: number;
+  adjustedSimilarity: number;
+  contrastSimilarity?: number;
+  residualSimilarity?: number;
   total: number;
   activation: {
     model: string;
@@ -30,7 +38,7 @@ type ProbeResult = {
 const args = parseArgs(process.argv.slice(2));
 if (!args.target || !args.texts) {
   throw new Error(
-    "Usage: bun services/orchestrator/src/probe-texts.ts --target target.json --texts texts.json [--out results.json]",
+    "Usage: bun services/orchestrator/src/probe-texts.ts --target target.json --texts texts.json [--out results.json] [--calibrated]",
   );
 }
 
@@ -43,6 +51,16 @@ const config = {
   ...baseConfig,
   oracleMode: args.oracle ?? baseConfig.oracleMode,
 };
+const contrastTargets = args.calibrated
+  ? loadCalibrationActivations({
+      repoRoot: config.repoRoot,
+      runsRoot: config.runsRoot,
+      targetActivation: target.activation,
+      targetSha: target.rendered?.sha256,
+      targetKind: target.rendered?.kind,
+      includeScoreActivations: target.rendered?.kind === "text",
+    })
+  : [];
 const oracle = createOracle(config);
 const createdAt = new Date().toISOString();
 
@@ -59,12 +77,16 @@ try {
       const score = scoreActivations({
         target: target.activation,
         candidate: activation,
+        contrastTargets,
         diversity: 0.5,
       });
       results.push({
         id,
         text: probe.text,
         neuralSimilarity: score.neuralSimilarity,
+        adjustedSimilarity: score.adjustedSimilarity,
+        contrastSimilarity: score.contrastSimilarity,
+        residualSimilarity: score.residualSimilarity,
         total: score.total,
         activation: {
           model: activation.model,
@@ -73,10 +95,13 @@ try {
         },
       });
       console.log(
-        `${id}\t${score.neuralSimilarity.toFixed(6)}\t${probe.text.slice(
-          0,
-          100,
-        )}`,
+        [
+          id,
+          score.neuralSimilarity.toFixed(6),
+          score.adjustedSimilarity.toFixed(6),
+          score.total.toFixed(6),
+          probe.text.slice(0, 100),
+        ].join("\t"),
       );
       await writeProbeReport(results, { status: "partial" });
     } catch (error) {
@@ -109,9 +134,9 @@ async function writeProbeReport(
     updatedAt: new Date().toISOString(),
     status: options.status,
     error: options.error,
-    results: [...results].sort(
-      (left, right) => right.neuralSimilarity - left.neuralSimilarity,
-    ),
+    calibrated: args.calibrated === true,
+    contrastTargetCount: contrastTargets.length,
+    results: [...results].sort((left, right) => right.total - left.total),
   };
 
   if (args.out) {
@@ -147,10 +172,15 @@ function parseArgs(argv: string[]): {
   texts?: string;
   out?: string;
   oracle?: "mock" | "tribe" | "http";
+  calibrated?: boolean;
 } {
   const parsed: ReturnType<typeof parseArgs> = {};
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
+    if (flag === "--calibrated") {
+      parsed.calibrated = true;
+      continue;
+    }
     const value = argv[index + 1];
     if (!value) {
       throw new Error(`Missing value for ${flag}.`);
