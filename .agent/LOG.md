@@ -284,3 +284,38 @@ Interpretation:
 - Next likely improvement: make cold-start generation score-calibrated with
   positive/negative style exemplars or evolve the mutation prompts themselves,
   as in PromptBreeder/APE, instead of relying only on abstract strategy names.
+
+## 2026-06-06 18:20 PDT - Minimal Caption Cold-Start Breakthrough
+
+Follow-up change:
+
+- Tightened the first cold strategy to explicitly ask for the phrase-cloud
+  format that the manual probe suggested.
+- Ran a new isolated cold-start test with only target activation cache and no
+  candidate archive.
+- Run id: `27639b41-00d8-4dce-b444-44f97e8339e5`.
+
+Generated candidates:
+
+- `candidate-a`, affect phrase cloud:
+  `The feeling is stillness, fixed attention, low warm restraint, suspended ambiguity, intimate distance, hushed air, soft green-gold light, aged varnish texture, composed upright posture, a woman held in quiet reserve.`
+- `candidate-b`, minimal neural caption:
+  `A quiet half-smile in warm dim light, still hands, distant mist, soft gaze, aged texture, hushed ambiguity.`
+
+Results:
+
+- `candidate-b`: `0.14318439748392836`.
+- `candidate-a`: `0.003292393616047465`.
+- `candidate-d`: `-0.005547407216969007`.
+- `candidate-c`: `-0.07748413342606966`.
+
+Interpretation:
+
+- The active ingredient is not the phrase-cloud prefix itself. The high-scoring
+  pattern is a very short caption-like phrase set that combines one or two
+  target anchors with light, stillness, distance/air, texture, and ambiguity.
+- This is the first true cold first-turn run to beat both the old 5-iteration
+  baseline (`0.0446379915415347`) and the manual probe (`0.0731565229976215`).
+- Promoted `minimal neural caption` to the first cold-start strategy and
+  tightened its instruction to 10-18 comma-separated words. This should help
+  small candidate counts as well as 4-agent runs.

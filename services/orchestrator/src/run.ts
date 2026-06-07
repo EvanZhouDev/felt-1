@@ -644,14 +644,14 @@ type MutationStrategy = {
 
 const coldStartStrategies: MutationStrategy[] = [
   {
-    name: "affect-state vector",
-    instruction:
-      "Write a compact perceptual-state description: motion level, attention, emotional temperature, ambiguity, intimacy, atmosphere, and visual weight. Use only one or two concrete subject anchors.",
-  },
-  {
     name: "minimal neural caption",
     instruction:
-      "Write a short caption-like phrase set, roughly 12-25 words, blending subject, mood, light, and atmosphere. Avoid proper names, dates, and full scene explanation.",
+      "Write a 10-18 word comma-separated phrase set, not a full sentence. Blend one salient subject/expression/posture anchor with light, stillness or motion, distance or air, texture, and ambiguity. Avoid proper names, dates, and full scene explanation.",
+  },
+  {
+    name: "affect phrase cloud",
+    instruction:
+      "Write one sentence that begins 'The feeling is' followed by comma-separated perceptual states. Prefer motion level, attention, emotional temperature, ambiguity, intimacy or distance, air, light, texture, and posture over object nouns. Use at most one target-specific subject anchor.",
   },
   {
     name: "surface light texture",
