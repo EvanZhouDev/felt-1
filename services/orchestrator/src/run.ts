@@ -693,36 +693,27 @@ async function seedTextProbeArchive(
 
   const probePath = join(args.runPath, "text-probes");
   await mkdir(probePath, { recursive: true });
-  const evaluatedProbes = await mapWithConcurrency(
+  const baseProbes = await scoreTextProbeCandidates({
+    ...args,
+    probePath,
     probes,
-    args.loop.scoringConcurrency,
-    async (text, index) => {
-      const candidate: CandidateOutput = {
-        agentId: `probe-${String(index + 1).padStart(2, "0")}`,
-        entropy:
-          "iteration=0 | strategy=text-probe-calibration | outputType=text | " +
-          "Score a universal text probe against the target to build a fresh per-run activation basis.",
-        outputNode: {
-          type: "text",
-          payload: {
-            type: "text",
-            text,
-          },
-        },
-      };
-      const evaluated = await evaluateCandidate({
-        ...args,
-        iteration: 0,
-        candidate,
-        targetActivation: args.target.activation,
-      });
-      await writeJson(
-        join(probePath, `${candidate.agentId}.json`),
-        evaluatedOutputSummary(evaluated),
-      );
-      return evaluated;
-    },
+    idPrefix: "probe",
+    strategy: "text-probe-calibration",
+  });
+  baseProbes.sort(
+    (left, right) => right.score.neuralSimilarity - left.score.neuralSimilarity,
   );
+  const recombinationProbes = await scoreTextProbeCandidates({
+    ...args,
+    probePath,
+    probes: textProbeRecombinations(
+      baseProbes,
+      args.loop.textProbeRecombinations,
+    ),
+    idPrefix: "probe-r",
+    strategy: "text-probe-recombination",
+  });
+  const evaluatedProbes = [...baseProbes, ...recombinationProbes];
   evaluatedProbes.sort(
     (left, right) => right.score.neuralSimilarity - left.score.neuralSimilarity,
   );
@@ -739,11 +730,125 @@ async function seedTextProbeArchive(
   return evaluatedProbes.slice(0, probeEliteCount(args.loop));
 }
 
+async function scoreTextProbeCandidates(
+  args: RunLoopArgs & {
+    target: RunLoopResult["target"];
+    probePath: string;
+    probes: string[];
+    idPrefix: string;
+    strategy: string;
+  },
+): Promise<EvaluatedOutput[]> {
+  return mapWithConcurrency(
+    args.probes,
+    args.loop.scoringConcurrency,
+    async (text, index) => {
+      const candidate: CandidateOutput = {
+        agentId: `${args.idPrefix}-${String(index + 1).padStart(2, "0")}`,
+        entropy:
+          `iteration=0 | strategy=${args.strategy} | outputType=text | ` +
+          "Score a text probe against the target to build a fresh per-run activation basis.",
+        outputNode: {
+          type: "text",
+          payload: {
+            type: "text",
+            text,
+          },
+        },
+      };
+      const evaluated = await evaluateCandidate({
+        ...args,
+        iteration: 0,
+        candidate,
+        targetActivation: args.target.activation,
+      });
+      await writeJson(
+        join(args.probePath, `${candidate.agentId}.json`),
+        evaluatedOutputSummary(evaluated),
+      );
+      return evaluated;
+    },
+  );
+}
+
 function probeEliteCount(loop: LoopConfig): number {
   if (loop.textProbeCount <= 0) {
     return 0;
   }
   return Math.min(2, Math.max(1, Math.floor(loop.candidateCount / 2)));
+}
+
+function textProbeRecombinations(
+  evaluatedProbes: EvaluatedOutput[],
+  maxCount: number,
+): string[] {
+  if (maxCount <= 0 || evaluatedProbes.length < 2) {
+    return [];
+  }
+
+  const rankedProbeSlots = evaluatedProbes
+    .slice(0, 3)
+    .flatMap((probe) =>
+      probe.outputNode.type === "text"
+        ? textSlots(probe.outputNode.payload.text)
+        : [],
+    );
+  const orderedSlots = uniqueSlots(rankedProbeSlots).sort(
+    (left, right) => slotPriority(left) - slotPriority(right),
+  );
+  const variants: TextMicroVariant[] = [
+    {
+      name: "probe-priority-blend",
+      text: orderedSlots.slice(0, 4).join(", "),
+    },
+    {
+      name: "probe-attention-affect-blend",
+      text: selectProbeSlots(orderedSlots, [0, 1, 6, 7, 5]).join(", "),
+    },
+    {
+      name: "probe-surface-space-blend",
+      text: selectProbeSlots(orderedSlots, [0, 2, 5, 6, 7]).join(", "),
+    },
+    {
+      name: "probe-wide-blend",
+      text: orderedSlots.slice(0, 6).join(", "),
+    },
+  ].filter((variant) => variant.text.length > 0);
+
+  const originals = evaluatedProbes
+    .flatMap((probe) =>
+      probe.outputNode.type === "text" ? [probe.outputNode.payload.text] : [],
+    )
+    .join("\n");
+  return uniqueTextVariants(variants, originals)
+    .map((variant) => variant.text)
+    .slice(0, maxCount);
+}
+
+function uniqueSlots(slots: string[]): string[] {
+  const seen = new Set<string>();
+  return slots.filter((slot) => {
+    const key = normalizeTextVariant(slot);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function selectProbeSlots(slots: string[], priorities: number[]): string[] {
+  const selected: string[] = [];
+  for (const priority of priorities) {
+    const slot = slots.find(
+      (candidate) =>
+        slotPriority(candidate) === priority && !selected.includes(candidate),
+    );
+    if (slot) {
+      selected.push(slot);
+    }
+  }
+  return selected;
 }
 
 const TEXT_PROBE_LIBRARY = [

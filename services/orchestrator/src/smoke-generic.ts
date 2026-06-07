@@ -35,6 +35,7 @@ const oracle = createOracle({
     reuseTargetArchive: false,
     textMicroMutations: 0,
     textProbeCount: 0,
+    textProbeRecombinations: 0,
   },
   weave: {
     enabled: false,

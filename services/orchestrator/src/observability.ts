@@ -65,6 +65,7 @@ export function runSummary(args: {
     reuseTargetArchive: boolean;
     textMicroMutations: number;
     textProbeCount: number;
+    textProbeRecombinations: number;
   };
 }) {
   return {

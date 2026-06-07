@@ -1096,3 +1096,41 @@ Interpretation:
   - run refinement from `probe-01` only when hosted TRIBE is responsive,
   - implement a real Flux-backed image output path before claiming image-to-image
     results.
+
+## 2026-06-06 21:28 PDT - Probe Recombination Trial
+
+Change:
+
+- Added opt-in probe recombination:
+  - config: `VOLTA_TEXT_PROBE_RECOMBINATIONS`
+  - benchmark flag: `--text-probe-recombinations`
+- After base probes are scored, the run loop can build recombination probes from
+  the best probe slots, score them, write incremental `probe-r-XX.json` files,
+  and include them in the sorted probe summary and candidate ranking.
+
+Verification:
+
+- `bun run format && bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Real TRIBE evidence:
+
+- Run: `.agent/benchmarks/mona-http-codex-probe-recomb-v1.json`
+- Setup: hosted TRIBE, Codex backend, Mona image-to-text, 3 base probes, 2
+  recombination probes, 1 Codex candidate, 1 generation, fresh run with target
+  activation cache reused, no target archive reuse.
+- Result:
+  - best overall stayed `probe-01` at `0.446713`
+  - best recombination was `probe-r-01` at `0.327387`:
+    `attention suspended, gaze quieted, warm shadow, muted warmth`
+  - second recombination was `0.189237`
+
+Interpretation:
+
+- Naive slot recombination does not beat the strongest base probe. The probe
+  basis is valuable, but recombination needs score-aware synthesis rather than
+  simple slot priority merging.
+- Next direction: learn/update the probe library itself from successful probes
+  and add a dedicated "probe-refinement" candidate operator that starts from the
+  top probe text and mutates one slot with the judge/probe score evidence.
