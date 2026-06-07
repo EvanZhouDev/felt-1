@@ -1174,3 +1174,72 @@ Interpretation:
 - Next direction: refine by ablation/minimal edits around the top probe, not by
   adding slots. Try shorter variants and single-token substitutions around
   `stillness held, attention suspended, near quiet, soft ambiguity`.
+
+## 2026-06-06 22:13 PDT - Cosine Similarity Failure and Metric Redesign
+
+Problem:
+
+- Backrooms and dog tests exposed reward hacking: very short phrases such as
+  `stillness held, near quiet` and `near quiet, soft ambiguity` scored extremely
+  high by raw TRIBE cosine across unrelated image targets.
+- This was not target-cache interference. Mona, backrooms, and dog used distinct
+  rendered hashes:
+  - Mona: `2ec115cc02085ae979b7130fc6400c1df8474480a633497fcf0dd6f73a49cfa4`
+  - Backrooms: `bdd55a16ff6a02c37b66e6aedde68d8b2b0a31033dc6f0f379293a1e48f63ab0`
+  - Dog: `be687eb90bd5330edc09898856139bf6869b5866a566c3c626c5a738fee9745e`
+
+Audit findings:
+
+- Hosted image/video target activations are already z-scored over the 20,484
+  vertices: mean near `0`, std near `1`, norm near `sqrt(20484)`.
+- Centered cosine is therefore effectively identical to raw cosine.
+- Raw target-to-target image cosine was huge:
+  - Mona vs backrooms: `0.943118`
+  - Mona vs dog: `0.950194`
+  - Backrooms vs dog: `0.871809`
+- The three image targets are close to a shared image/video cortical prototype;
+  cosine to that prototype was Mona `0.990637`, backrooms `0.963799`, dog
+  `0.966222`.
+- The issue is the metric: full-surface spatial cosine mostly measures shared
+  modality/topographic response, not target-specific vibe.
+
+Change:
+
+- Reworked scoring from raw spatial cosine to a contrastive residual metric when
+  contrast targets are available:
+  - keep raw `neuralSimilarity` as diagnostic only,
+  - build an orthonormal contrast subspace from cached contrast targets,
+  - project both candidate and target out of that subspace,
+  - score residual cosine as `residualSimilarity`,
+  - apply a retrieval-style penalty when the candidate is closer to a contrast
+    target than the actual target,
+  - use `adjustedSimilarity`/`total` for ranking and stopping.
+- Removed the fixed positive score floor from auxiliary terms. Coherence,
+  diversity, and seed adherence now provide only tiny centered nudges.
+- Updated judge prompts and added an objective guard so the judge cannot pick a
+  higher raw-cosine candidate over the top adjusted-score candidate.
+- Added `bun run audit:similarity` for artifact-only metric audits without
+  spending TRIBE compute.
+
+Validation:
+
+- `bun run format && bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+- `bun run audit:similarity -- .volta/real-probe-v3/runs/mona-image-to-text-be37c3af/target.json services/orchestrator/.volta/backrooms-v1/runs/backrooms-image-to-text-3adcf9d1/target.json services/orchestrator/.volta/dog-v1/runs/dog-image-to-text-921edd86/target.json --scores=services/orchestrator/.volta/dog-v1/runs/dog-image-to-text-921edd86/iterations/001/scores.json --scores=services/orchestrator/.volta/backrooms-v1/runs/backrooms-image-to-text-3adcf9d1/iterations/001/scores.json --scores=.volta/real-probe-v3/runs/mona-image-to-text-be37c3af/iterations/001/scores.json`
+  showed the raw-cosine attractors being demoted:
+  - Dog `near quiet, attention suspended`: raw `0.623233`, adjusted `-0.214416`.
+  - Dog `stillness held, attention suspended, near quiet, soft ambiguity`: raw
+    `0.367399`, adjusted `-0.278177`.
+  - Mona `stillness held, near quiet, soft ambiguity`: raw `0.691443`, adjusted
+    `0.114794`.
+  - Mona `stillness held, attention hovering, soft ambiguity`: raw `0.558947`,
+    adjusted `0.147999`, so the more target-specific child beats the generic
+    probe under the new objective.
+
+Interpretation:
+
+- The previous 0.84-0.88 raw similarities were not real convergence. They were
+  broad image/video attractors.
+- The pipeline should now optimize the target-specific residual signal. Scores
+  will look much lower, but they are harder to hack and more meaningful.

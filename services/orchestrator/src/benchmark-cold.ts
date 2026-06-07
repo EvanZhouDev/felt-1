@@ -37,6 +37,7 @@ type BenchmarkResult = {
   runPath?: string;
   bestScore?: number;
   bestNeuralSimilarity?: number;
+  bestAdjustedSimilarity?: number;
   iterationCount?: number;
   selectedAgentId?: string;
   error?: string;
@@ -63,6 +64,10 @@ const loop = normalizeLoopConfig({
   textProbeCount: args.textProbeCount ?? baseConfig.loop.textProbeCount,
   textProbeRecombinations:
     args.textProbeRecombinations ?? baseConfig.loop.textProbeRecombinations,
+  textProbeLocalMutations:
+    args.textProbeLocalMutations ?? baseConfig.loop.textProbeLocalMutations,
+  contrastTargetRoots:
+    args.contrastTargetRoots ?? baseConfig.loop.contrastTargetRoots,
 });
 const backendConfig = args.backend
   ? backendConfigFromMode(args.backend, baseConfig.agentBackend)
@@ -142,6 +147,7 @@ try {
         runPath,
         bestScore: result?.bestScore,
         bestNeuralSimilarity: result?.bestNeuralSimilarity,
+        bestAdjustedSimilarity: result?.bestAdjustedSimilarity,
         iterationCount: result?.iterations.length,
         selectedAgentId: result?.judge.selectedAgentId,
       });
@@ -229,6 +235,81 @@ function buildScenarios(): BenchmarkScenario[] {
       payload: monaPayload,
     },
   };
+  const backroomsImage =
+    process.env.VOLTA_BACKROOMS_IMAGE ??
+    "/Users/evan/Desktop/project-volta/backrooms.jpeg";
+  const backroomsVideo =
+    process.env.VOLTA_BACKROOMS_VIDEO ??
+    "/Users/evan/Desktop/project-volta/.volta/demo-assets/backrooms-0.5s.mp4";
+  const hasBackroomsImage = existsSync(backroomsImage);
+  const hasBackroomsVideo = existsSync(backroomsVideo);
+  const backroomsSkipReason = ({ oracleMode }: { oracleMode: OracleMode }) => {
+    if (!hasBackroomsImage) {
+      return `Missing backrooms image: ${backroomsImage}`;
+    }
+    if (oracleMode !== "mock" && !hasBackroomsVideo) {
+      return `Missing backrooms cached video for non-mock oracle: ${backroomsVideo}`;
+    }
+    return undefined;
+  };
+  const backroomsPayload: ImagePayload = {
+    type: "image",
+    source: {
+      uri: backroomsImage,
+      mime: "image/jpeg",
+    },
+    ...(hasBackroomsVideo
+      ? {
+          cachedVideo: {
+            uri: backroomsVideo,
+            mime: "video/mp4",
+          },
+        }
+      : {}),
+    timing: {
+      durationSec: 0.5,
+      fps: 2,
+    },
+    fit: "contain",
+    background: "#000000",
+  };
+  const dogImage =
+    process.env.VOLTA_DOG_IMAGE ?? "/Users/evan/Desktop/project-volta/dog.jpg";
+  const dogVideo =
+    process.env.VOLTA_DOG_VIDEO ??
+    "/Users/evan/Desktop/project-volta/.volta/demo-assets/dog-0.5s.mp4";
+  const hasDogImage = existsSync(dogImage);
+  const hasDogVideo = existsSync(dogVideo);
+  const dogSkipReason = ({ oracleMode }: { oracleMode: OracleMode }) => {
+    if (!hasDogImage) {
+      return `Missing dog image: ${dogImage}`;
+    }
+    if (oracleMode !== "mock" && !hasDogVideo) {
+      return `Missing dog cached video for non-mock oracle: ${dogVideo}`;
+    }
+    return undefined;
+  };
+  const dogPayload: ImagePayload = {
+    type: "image",
+    source: {
+      uri: dogImage,
+      mime: "image/jpeg",
+    },
+    ...(hasDogVideo
+      ? {
+          cachedVideo: {
+            uri: dogVideo,
+            mime: "video/mp4",
+          },
+        }
+      : {}),
+    timing: {
+      durationSec: 0.5,
+      fps: 2,
+    },
+    fit: "contain",
+    background: "#000000",
+  };
 
   return [
     {
@@ -265,6 +346,38 @@ function buildScenarios(): BenchmarkScenario[] {
       skipReason: monaSkipReason,
     },
     {
+      id: "backrooms-image-to-text",
+      description:
+        "Use the backrooms image target as a second image-to-text cold benchmark.",
+      input: {
+        inputNode: {
+          type: "image",
+          payload: backroomsPayload,
+        },
+      },
+      output: {
+        outputType: "text",
+      },
+      tags: ["image", "text", "backrooms", "cold-start"],
+      skipReason: backroomsSkipReason,
+    },
+    {
+      id: "dog-image-to-text",
+      description:
+        "Use the dog image target as an image-to-text cold benchmark.",
+      input: {
+        inputNode: {
+          type: "image",
+          payload: dogPayload,
+        },
+      },
+      output: {
+        outputType: "text",
+      },
+      tags: ["image", "text", "dog", "cold-start"],
+      skipReason: dogSkipReason,
+    },
+    {
       id: "mona-image-to-image",
       description:
         "Use the Mona Lisa image target as an image-to-image schema benchmark.",
@@ -288,6 +401,8 @@ function defaultScenarioIds(): string[] {
   return [
     "seeded-text-to-text-dog",
     "mona-image-to-text",
+    "backrooms-image-to-text",
+    "dog-image-to-text",
     "mona-image-to-image",
   ];
 }
@@ -326,6 +441,7 @@ function backendConfigFromMode(
 type BenchmarkRunResult = {
   bestScore?: number;
   bestNeuralSimilarity?: number;
+  bestAdjustedSimilarity?: number;
   iterations: unknown[];
   judge: {
     selectedAgentId: string;
@@ -343,6 +459,8 @@ function parseArgs(argv: string[]): {
   textMicroMutations?: number;
   textProbeCount?: number;
   textProbeRecombinations?: number;
+  textProbeLocalMutations?: number;
+  contrastTargetRoots?: string[];
   reuseTargetArchive?: boolean;
   runsRoot?: string;
   databasePath?: string;
@@ -396,6 +514,15 @@ function parseArgs(argv: string[]): {
       index += 1;
     } else if (flag === "--text-probe-recombinations") {
       parsed.textProbeRecombinations = nonNegativeInteger(value, flag);
+      index += 1;
+    } else if (flag === "--text-probe-local-mutations") {
+      parsed.textProbeLocalMutations = nonNegativeInteger(value, flag);
+      index += 1;
+    } else if (flag === "--contrast-target-root") {
+      parsed.contrastTargetRoots = [
+        ...(parsed.contrastTargetRoots ?? []),
+        resolve(value),
+      ];
       index += 1;
     } else if (flag === "--runs-root") {
       parsed.runsRoot = value;

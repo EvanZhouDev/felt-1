@@ -152,6 +152,11 @@ export type ActivationTrace = {
 
 export type ScoreBundle = {
   neuralSimilarity: number;
+  adjustedSimilarity: number;
+  contrastSimilarity?: number;
+  residualSimilarity?: number;
+  targetSpecificity?: number;
+  penalty?: number;
   seedAdherence: number;
   coherence: number;
   diversity: number;

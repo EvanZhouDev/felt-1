@@ -36,6 +36,8 @@ const oracle = createOracle({
     textMicroMutations: 0,
     textProbeCount: 0,
     textProbeRecombinations: 0,
+    textProbeLocalMutations: 0,
+    contrastTargetRoots: [],
   },
   weave: {
     enabled: false,

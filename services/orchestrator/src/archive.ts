@@ -124,6 +124,7 @@ export function archivePromptContext(
     operatorStats: operatorStats(archive.entries).slice(0, 8),
     notes: [
       "This archive is the evolving population for the current target, not a source of text to copy exactly.",
+      "Archive ordering follows total adjusted score when available; raw neural similarity is diagnostic and can include generic modality attractors.",
       "Use top examples for elitist inheritance, diverse examples for MAP-Elites-style coverage, and recent examples for local search momentum.",
       "Prefer offspring that preserve neural score gains while changing one behavior descriptor or one representation variable at a time.",
       "If an entropy/operator lineage repeatedly scores poorly, treat it as a negative-control region unless assigned to explore novelty.",
@@ -311,7 +312,7 @@ function bestPerBehavior(
   const best = new Map<string, CandidateArchiveEntry>();
   for (const entry of entries) {
     const current = best.get(entry.behaviorKey);
-    if (!current || entry.neuralSimilarity > current.neuralSimilarity) {
+    if (!current || entry.total > current.total) {
       best.set(entry.behaviorKey, entry);
     }
   }
@@ -376,9 +377,7 @@ function promptItem(entry: CandidateArchiveEntry): CandidateArchivePromptItem {
 }
 
 function byScore<T extends CandidateArchivePromptItem>(entries: T[]): T[] {
-  return [...entries].sort(
-    (left, right) => right.neuralSimilarity - left.neuralSimilarity,
-  );
+  return [...entries].sort((left, right) => right.total - left.total);
 }
 
 function textForNode(node: OutputNode): string | undefined {

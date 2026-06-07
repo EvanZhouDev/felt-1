@@ -104,6 +104,7 @@ export async function executeRun(args: ExecuteRunArgs): Promise<void> {
         iterationCount: result.iterations.length,
         bestScore: result.bestScore,
         bestNeuralSimilarity: result.bestNeuralSimilarity,
+        bestAdjustedSimilarity: result.bestAdjustedSimilarity,
         selectedAgentId: result.judge.selectedAgentId,
         weave: result.weave,
       }),
@@ -164,6 +165,7 @@ export async function resumeRun(args: ResumeRunArgs): Promise<void> {
         iterationCount: result.iterations.length,
         bestScore: result.bestScore,
         bestNeuralSimilarity: result.bestNeuralSimilarity,
+        bestAdjustedSimilarity: result.bestAdjustedSimilarity,
         selectedAgentId: result.judge.selectedAgentId,
         weave: result.weave,
       }),
@@ -208,6 +210,7 @@ type RunLoopResult = {
   nextIterationSeed: NextIterationSeed;
   bestScore: number | undefined;
   bestNeuralSimilarity: number | undefined;
+  bestAdjustedSimilarity: number | undefined;
   workspaces: {
     runsRoot: string;
   };
@@ -270,7 +273,9 @@ async function executeRunLoop(
       );
     }
     const stopReason = getStopReason({
-      bestNeuralSimilarity: bestAfter?.score.neuralSimilarity,
+      bestNeuralSimilarity: bestAfter
+        ? outputSelectionSimilarity(bestAfter)
+        : undefined,
       iterationsCompleted: completed + 1,
       loop: args.loop,
     });
@@ -311,6 +316,7 @@ async function executeRunLoop(
     nextIterationSeed: finalIteration.nextIterationSeed,
     bestScore: bestOverall?.score.total,
     bestNeuralSimilarity: bestOverall?.score.neuralSimilarity,
+    bestAdjustedSimilarity: bestOverall?.score.adjustedSimilarity,
     workspaces: {
       runsRoot: args.runsRoot,
     },
@@ -328,6 +334,7 @@ async function executeRunLoop(
     stopReason: result.stopReason,
     bestScore: result.bestScore,
     bestNeuralSimilarity: result.bestNeuralSimilarity,
+    bestAdjustedSimilarity: result.bestAdjustedSimilarity,
     iterations: iterations.map((iteration) =>
       iterationSummary({
         iteration: iteration.iteration,
@@ -514,7 +521,7 @@ async function executeIteration(
       const evaluated = await evaluateCandidate({
         ...args,
         candidate,
-        targetActivation: args.target.activation,
+        target: args.target,
       });
       await writeJson(
         join(iterationPath, "scores", `${candidate.agentId}.json`),
@@ -547,7 +554,7 @@ async function executeIteration(
     iteration: args.iteration,
     agentId: judgeSpec.id,
   });
-  const judge = await args.journal.trace({
+  const proposedJudge = await args.journal.trace({
     name: "judge.select",
     input: {
       runId: args.id,
@@ -572,6 +579,10 @@ async function executeIteration(
       }),
     output: (decision) => decision,
   });
+  const judge = enforceRankedJudgeDecision({
+    judge: proposedJudge,
+    rankedOutputs: evaluatedOutputs,
+  });
   const nextIterationSeed = {
     type: "selected-output-with-reasoning",
     node: judge.selectedNode,
@@ -594,7 +605,7 @@ async function evaluateCandidate(
   args: RunLoopArgs & {
     iteration: number;
     candidate: CandidateOutput;
-    targetActivation: RunLoopResult["target"]["activation"];
+    target: RunLoopResult["target"];
   },
 ): Promise<EvaluatedOutput> {
   const rendered = await args.journal.trace({
@@ -630,15 +641,16 @@ async function evaluateCandidate(
   });
   const activationWithDiagnostics = attachActivationDiagnostics({
     candidate: activation,
-    target: args.targetActivation,
+    target: args.target.activation,
   });
+  const scoringPriors = candidateScoringPriors(args.candidate);
   const score = await args.journal.trace({
     name: "candidate.score",
     input: {
       runId: args.id,
       iteration: args.iteration,
       agentId: args.candidate.agentId,
-      targetActivation: activationSummary(args.targetActivation),
+      targetActivation: activationSummary(args.target.activation),
       candidateActivation: activationSummary(activationWithDiagnostics),
     },
     attributes: {
@@ -648,9 +660,13 @@ async function evaluateCandidate(
     },
     run: async () =>
       scoreActivations({
-        target: args.targetActivation,
+        target: args.target.activation,
         candidate: activationWithDiagnostics,
-        diversity: args.candidate.entropy ? 0.75 : 0.5,
+        contrastTargets: loadContrastTargets(args),
+        coherence: scoringPriors.coherence,
+        diversity:
+          scoringPriors.diversity ?? (args.candidate.entropy ? 0.75 : 0.5),
+        penalty: scoringPriors.penalty,
       }),
     output: scoreSummary,
   });
@@ -701,21 +717,38 @@ async function seedTextProbeArchive(
     strategy: "text-probe-calibration",
   });
   baseProbes.sort(
-    (left, right) => right.score.neuralSimilarity - left.score.neuralSimilarity,
+    (left, right) => outputSelectionScore(right) - outputSelectionScore(left),
   );
+  const localMutationProbes = await scoreTextProbeCandidates({
+    ...args,
+    probePath,
+    probes: textProbeLocalMutations(
+      baseProbes,
+      args.loop.textProbeLocalMutations,
+    ),
+    idPrefix: "probe-l",
+    strategy: "text-probe-local-mutation",
+  });
   const recombinationProbes = await scoreTextProbeCandidates({
     ...args,
     probePath,
     probes: textProbeRecombinations(
-      baseProbes,
+      [...baseProbes, ...localMutationProbes].sort(
+        (left, right) =>
+          outputSelectionScore(right) - outputSelectionScore(left),
+      ),
       args.loop.textProbeRecombinations,
     ),
     idPrefix: "probe-r",
     strategy: "text-probe-recombination",
   });
-  const evaluatedProbes = [...baseProbes, ...recombinationProbes];
+  const evaluatedProbes = [
+    ...baseProbes,
+    ...localMutationProbes,
+    ...recombinationProbes,
+  ];
   evaluatedProbes.sort(
-    (left, right) => right.score.neuralSimilarity - left.score.neuralSimilarity,
+    (left, right) => outputSelectionScore(right) - outputSelectionScore(left),
   );
   await writeJson(
     join(args.runPath, "text-probes.json"),
@@ -760,7 +793,7 @@ async function scoreTextProbeCandidates(
         ...args,
         iteration: 0,
         candidate,
-        targetActivation: args.target.activation,
+        target: args.target,
       });
       await writeJson(
         join(args.probePath, `${candidate.agentId}.json`),
@@ -768,6 +801,139 @@ async function scoreTextProbeCandidates(
       );
       return evaluated;
     },
+  );
+}
+
+function enforceRankedJudgeDecision(args: {
+  judge: Awaited<ReturnType<typeof runJudgeAgent>>;
+  rankedOutputs: EvaluatedOutput[];
+}): Awaited<ReturnType<typeof runJudgeAgent>> {
+  const top = args.rankedOutputs[0];
+  if (!top || args.judge.selectedAgentId === top.agentId) {
+    return args.judge;
+  }
+
+  return {
+    selectedAgentId: top.agentId,
+    selectedNode: top.outputNode,
+    reasoning: [
+      args.judge.reasoning,
+      `Objective guard: selected ${top.agentId} because it is ranked first by score.total=${top.score.total} and adjustedSimilarity=${top.score.adjustedSimilarity}.`,
+    ].join("\n\n"),
+  };
+}
+
+function loadContrastTargets(
+  args: RunLoopArgs & {
+    target: RunLoopResult["target"];
+  },
+): RunLoopResult["target"]["activation"][] {
+  const roots = uniqueStrings([
+    join(args.runsRoot, "..", "target-cache"),
+    ...args.loop.contrastTargetRoots,
+  ]);
+  const contrastTargets: RunLoopResult["target"]["activation"][] = [];
+
+  for (const root of roots) {
+    if (!existsSync(root)) {
+      continue;
+    }
+    for (const entry of readdirSync(root)) {
+      if (!entry.endsWith(".json")) {
+        continue;
+      }
+      const cachedTarget = readOptionalJson<RunLoopResult["target"]>(
+        join(root, entry),
+      );
+      if (
+        !cachedTarget?.activation?.values ||
+        cachedTarget.rendered.sha256 === args.target.rendered.sha256 ||
+        !sameActivationShape(cachedTarget.activation, args.target.activation)
+      ) {
+        continue;
+      }
+      contrastTargets.push(cachedTarget.activation);
+      if (contrastTargets.length >= 16) {
+        return contrastTargets;
+      }
+    }
+  }
+
+  return contrastTargets;
+}
+
+function sameActivationShape(
+  left: RunLoopResult["target"]["activation"],
+  right: RunLoopResult["target"]["activation"],
+): boolean {
+  return left.shape[0] === right.shape[0] && left.shape[1] === right.shape[1];
+}
+
+function candidateScoringPriors(candidate: CandidateOutput): {
+  coherence?: number;
+  diversity?: number;
+  penalty?: number;
+} {
+  if (candidate.outputNode.type !== "text") {
+    return {};
+  }
+
+  const text = candidate.outputNode.payload.text;
+  const wordCount = textWords(text).length;
+  const slotCount = textSlots(text).length;
+  const wordPenalty = wordCount < 6 ? (6 - wordCount) * 0.05 : 0;
+  const slotPenalty = slotCount < 3 ? (3 - slotCount) * 0.1 : 0;
+  const penalty = Math.min(0.3, wordPenalty + slotPenalty);
+
+  return {
+    coherence: textStructureScore({ wordCount, slotCount }),
+    penalty,
+  };
+}
+
+function textStructureScore(args: {
+  wordCount: number;
+  slotCount: number;
+}): number {
+  return (
+    rangeScore(args.wordCount, {
+      floor: 4,
+      targetMin: 8,
+      targetMax: 18,
+      ceiling: 28,
+    }) *
+      0.55 +
+    rangeScore(args.slotCount, {
+      floor: 2,
+      targetMin: 4,
+      targetMax: 8,
+      ceiling: 10,
+    }) *
+      0.45
+  );
+}
+
+function rangeScore(
+  value: number,
+  bounds: {
+    floor: number;
+    targetMin: number;
+    targetMax: number;
+    ceiling: number;
+  },
+): number {
+  if (value >= bounds.targetMin && value <= bounds.targetMax) {
+    return 1;
+  }
+  if (value < bounds.targetMin) {
+    return Math.max(
+      0,
+      (value - bounds.floor) / (bounds.targetMin - bounds.floor),
+    );
+  }
+  return Math.max(
+    0,
+    (bounds.ceiling - value) / (bounds.ceiling - bounds.targetMax),
   );
 }
 
@@ -823,6 +989,92 @@ function textProbeRecombinations(
   return uniqueTextVariants(variants, originals)
     .map((variant) => variant.text)
     .slice(0, maxCount);
+}
+
+function textProbeLocalMutations(
+  evaluatedProbes: EvaluatedOutput[],
+  maxCount: number,
+): string[] {
+  if (maxCount <= 0 || evaluatedProbes.length === 0) {
+    return [];
+  }
+  const topProbe = evaluatedProbes[0];
+  if (topProbe?.outputNode.type !== "text") {
+    return [];
+  }
+  const slots = textSlots(topProbe.outputNode.payload.text);
+  if (slots.length === 0) {
+    return [];
+  }
+
+  const variants: TextMicroVariant[] = [
+    ...slotAblationVariants(slots),
+    ...slotPairDropVariants(slots),
+    adjacentSlotCompressionVariant(slots),
+    wordOrderFlipVariant(slots),
+  ].filter((variant): variant is TextMicroVariant => Boolean(variant));
+  return uniqueTextVariants(variants, topProbe.outputNode.payload.text)
+    .map((variant) => variant.text)
+    .slice(0, maxCount);
+}
+
+function slotAblationVariants(slots: string[]): TextMicroVariant[] {
+  if (slots.length <= 2) {
+    return [];
+  }
+  return slots.map((_, index) => ({
+    name: `probe-slot-ablation-${index + 1}`,
+    text: slots.filter((__, slotIndex) => slotIndex !== index).join(", "),
+  }));
+}
+
+function slotPairDropVariants(slots: string[]): TextMicroVariant[] {
+  if (slots.length <= 3) {
+    return [];
+  }
+
+  const variants: TextMicroVariant[] = [];
+  for (let left = 0; left < slots.length - 1; left += 1) {
+    for (let right = left + 1; right < slots.length; right += 1) {
+      variants.push({
+        name: `probe-slot-pair-drop-${left + 1}-${right + 1}`,
+        text: slots
+          .filter((_, slotIndex) => slotIndex !== left && slotIndex !== right)
+          .join(", "),
+      });
+    }
+  }
+  return variants;
+}
+
+function adjacentSlotCompressionVariant(
+  slots: string[],
+): TextMicroVariant | undefined {
+  if (slots.length < 2) {
+    return undefined;
+  }
+  const [first, second, ...rest] = slots;
+  return {
+    name: "probe-adjacent-compression",
+    text: [`${first} ${second}`, ...rest].join(", "),
+  };
+}
+
+function wordOrderFlipVariant(slots: string[]): TextMicroVariant | undefined {
+  const flipped = slots.map((slot) => {
+    const words = slot.split(/\s+/).filter(Boolean);
+    if (words.length !== 2) {
+      return slot;
+    }
+    return `${words[1]} ${words[0]}`;
+  });
+  if (flipped.every((slot, index) => slot === slots[index])) {
+    return undefined;
+  }
+  return {
+    name: "probe-word-order-flip",
+    text: flipped.join(", "),
+  };
 }
 
 function uniqueSlots(slots: string[]): string[] {
@@ -947,6 +1199,21 @@ function textSlots(text: string): string[] {
     .split(",")
     .map((slot) => slot.trim())
     .filter(Boolean);
+}
+
+function textWords(text: string): string[] {
+  return text.trim().split(/\s+/).filter(Boolean);
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (seen.has(value)) {
+      return false;
+    }
+    seen.add(value);
+    return true;
+  });
 }
 
 function syntaxInversionVariant(slots: string[]): TextMicroVariant | undefined {
@@ -1684,8 +1951,7 @@ function bestOverallOutput(
   return iterations
     .flatMap((iteration) => iteration.rankedOutputs)
     .sort(
-      (left, right) =>
-        right.score.neuralSimilarity - left.score.neuralSimilarity,
+      (left, right) => outputSelectionScore(right) - outputSelectionScore(left),
     )[0];
 }
 
@@ -1699,7 +1965,7 @@ function bestOutput(
   if (!right) {
     return left;
   }
-  return left.score.neuralSimilarity >= right.score.neuralSimilarity
+  return outputSelectionScore(left) >= outputSelectionScore(right)
     ? left
     : right;
 }
@@ -1714,7 +1980,7 @@ function shouldPreserveElite(
   if (!currentBest) {
     return true;
   }
-  return elite.score.neuralSimilarity > currentBest.score.neuralSimilarity;
+  return outputSelectionScore(elite) > outputSelectionScore(currentBest);
 }
 
 function seedFromElite(args: {
@@ -1722,13 +1988,21 @@ function seedFromElite(args: {
   currentBest?: EvaluatedOutput;
 }): NextIterationSeed {
   const current = args.currentBest
-    ? ` Current iteration best was ${args.currentBest.agentId} at ${args.currentBest.score.neuralSimilarity}.`
+    ? ` Current iteration best was ${args.currentBest.agentId} at ${outputSelectionSimilarity(args.currentBest)} adjusted similarity.`
     : "";
   return {
     type: "selected-output-with-reasoning",
     node: args.elite.outputNode,
-    reasoning: `Preserve global neural elite ${args.elite.agentId} at ${args.elite.score.neuralSimilarity}.${current} Use this as the next seed unless a later candidate improves the neural similarity.`,
+    reasoning: `Preserve global elite ${args.elite.agentId} at ${outputSelectionSimilarity(args.elite)} adjusted similarity.${current} Use this as the next seed unless a later candidate improves the adjusted selection score.`,
   };
+}
+
+function outputSelectionScore(output: EvaluatedOutput): number {
+  return output.score.total;
+}
+
+function outputSelectionSimilarity(output: EvaluatedOutput): number {
+  return output.score.adjustedSimilarity;
 }
 
 function iterationId(iteration: number): string {

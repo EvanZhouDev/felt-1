@@ -45,8 +45,9 @@ export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
   return [
     `You are Volta judge agent ${invocation.spec.id}.`,
     "Choose which candidate should become the seed for the next iteration.",
-    "Use the TRIBE neural similarity scores as the primary signal, but write useful reasoning about why the chosen output worked.",
-    "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as mutation-axis hints only; never let them override the full-vector neural similarity ranking.",
+    "Use score.total as the authoritative ranking signal. If score.adjustedSimilarity is present, treat it as the optimized similarity; raw score.neuralSimilarity is diagnostic only.",
+    "If score.contrastSimilarity or score.targetSpecificity is present, penalize generic attractors that score well against unrelated contrast targets.",
+    "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as mutation-axis hints only; never let them override the score.total ranking.",
     "Reason like an optimizer: name what to keep, what to discard, and what mutation should be tried next. Include the selected candidate's neural similarity and the runner-up's neural similarity when available.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",

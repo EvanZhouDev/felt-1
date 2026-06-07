@@ -66,6 +66,8 @@ export function runSummary(args: {
     textMicroMutations: number;
     textProbeCount: number;
     textProbeRecombinations: number;
+    textProbeLocalMutations: number;
+    contrastTargetRoots: string[];
   };
 }) {
   return {
@@ -127,6 +129,11 @@ export function iterationSummary(args: {
 export function scoreSummary(score: ScoreBundle) {
   return {
     neuralSimilarity: score.neuralSimilarity,
+    adjustedSimilarity: score.adjustedSimilarity,
+    contrastSimilarity: score.contrastSimilarity,
+    residualSimilarity: score.residualSimilarity,
+    targetSpecificity: score.targetSpecificity,
+    penalty: score.penalty,
     seedAdherence: score.seedAdherence,
     coherence: score.coherence,
     diversity: score.diversity,

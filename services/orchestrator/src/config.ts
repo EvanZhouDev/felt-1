@@ -40,6 +40,8 @@ export type LoopConfig = {
   textMicroMutations: number;
   textProbeCount: number;
   textProbeRecombinations: number;
+  textProbeLocalMutations: number;
+  contrastTargetRoots: string[];
 };
 
 export type WeaveConfig = {
@@ -78,6 +80,13 @@ export function loadConfig(): OrchestratorConfig {
         "VOLTA_TEXT_PROBE_RECOMBINATIONS",
         0,
       ),
+      textProbeLocalMutations: integerFromEnv(
+        "VOLTA_TEXT_PROBE_LOCAL_MUTATIONS",
+        0,
+      ),
+      contrastTargetRoots: pathListFromEnv("VOLTA_CONTRAST_TARGET_ROOTS").map(
+        (path) => resolve(repoRoot, path),
+      ),
     }),
     weave: {
       enabled: process.env.VOLTA_WEAVE_ENABLED === "true",
@@ -102,6 +111,13 @@ export function normalizeLoopConfig(
       config?.textProbeRecombinations,
       0,
     ),
+    textProbeLocalMutations: nonNegativeInteger(
+      config?.textProbeLocalMutations,
+      0,
+    ),
+    contrastTargetRoots: Array.isArray(config?.contrastTargetRoots)
+      ? config.contrastTargetRoots
+      : [],
   };
 }
 
@@ -145,6 +161,13 @@ function integerFromEnv(name: string, fallback: number): number {
     return fallback;
   }
   return nonNegativeInteger(Number(value), fallback);
+}
+
+function pathListFromEnv(name: string): string[] {
+  return (process.env[name] ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
 
 function positiveInteger(value: unknown, fallback: number): number {
