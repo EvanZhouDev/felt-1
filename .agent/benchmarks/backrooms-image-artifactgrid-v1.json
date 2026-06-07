@@ -1,0 +1,244 @@
+{
+  "target": ".volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/target.json",
+  "images": "/tmp/volta-backrooms-artifactgrid-v1/images.json",
+  "oracleMode": "tribe",
+  "createdAt": "2026-06-07T14:07:39.109Z",
+  "updatedAt": "2026-06-07T14:12:04.264Z",
+  "status": "completed",
+  "calibrated": true,
+  "contrastTargetCount": 26,
+  "results": [
+    {
+      "id": "hard-neutral-sharp-control",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hard-neutral-sharp-control.png",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hard-neutral-sharp-control-0.5s.mp4",
+      "neuralSimilarity": 0.9970082640090318,
+      "adjustedSimilarity": 0.8895042345392699,
+      "calibratedSimilarity": 0.3379532329259904,
+      "contrastSimilarity": 0.9767968727068389,
+      "discriminativeSimilarity": 0.9993675421960977,
+      "residualSimilarity": 0.8895042345392699,
+      "residualAdjustedSimilarity": 0.8895042345392699,
+      "retrievalMargin": 0.01302569796716535,
+      "nearMissSimilarity": 0.5199280506553698,
+      "cslsSimilarity": 0.039877225370561376,
+      "hubnessPenalty": 0.9813554463346851,
+      "searchProgressSignal": 0.020797122026214795,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.02021139130219285,
+      "total": 0.9103013565654846,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.004406283609569073,
+          "std": 0.039578914642333984,
+          "norm": 5.699622345844846
+        }
+      }
+    },
+    {
+      "id": "hns-soft-aftersharp",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hns-soft-aftersharp.png",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hns-soft-aftersharp-0.5s.mp4",
+      "neuralSimilarity": 0.9970082640090318,
+      "adjustedSimilarity": 0.8895042345392699,
+      "calibratedSimilarity": 0.3379532329259904,
+      "contrastSimilarity": 0.9767968727068389,
+      "discriminativeSimilarity": 0.9993675421960977,
+      "residualSimilarity": 0.8895042345392699,
+      "residualAdjustedSimilarity": 0.8895042345392699,
+      "retrievalMargin": 0.01302569796716535,
+      "nearMissSimilarity": 0.5199280506553698,
+      "cslsSimilarity": 0.039877225370561376,
+      "hubnessPenalty": 0.9813554463346851,
+      "searchProgressSignal": 0.020797122026214795,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.02021139130219285,
+      "total": 0.9103013565654846,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.004406283609569073,
+          "std": 0.039578914642333984,
+          "norm": 5.699622345844846
+        }
+      }
+    },
+    {
+      "id": "hns-jpeg-q5",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hns-jpeg-q5.jpg",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hns-jpeg-q5-0.5s.mp4",
+      "neuralSimilarity": 0.9921958924797452,
+      "adjustedSimilarity": 0.7931472478009215,
+      "calibratedSimilarity": 0.3320339880143436,
+      "contrastSimilarity": 0.9815757800016314,
+      "discriminativeSimilarity": 0.9947795207859501,
+      "residualSimilarity": 0.7931472478009215,
+      "residualAdjustedSimilarity": 0.7931472478009215,
+      "retrievalMargin": -0.000013534223638922427,
+      "nearMissSimilarity": 0.510821520022067,
+      "cslsSimilarity": 0.021738653022348897,
+      "hubnessPenalty": 0.9903179758626023,
+      "searchProgressSignal": 0.020432860800882684,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.010620112478113786,
+      "total": 0.8135801086018042,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.0024782391265034676,
+          "std": 0.04074794799089432,
+          "norm": 5.842717206946744
+        }
+      }
+    },
+    {
+      "id": "hns-lowres125-nearest",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres125-nearest.png",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres125-nearest-0.5s.mp4",
+      "neuralSimilarity": 0.9879110023983663,
+      "adjustedSimilarity": 0.7548354927112215,
+      "calibratedSimilarity": 0.33625232873668126,
+      "contrastSimilarity": 0.9744443366508898,
+      "discriminativeSimilarity": 0.998113507201145,
+      "residualSimilarity": 0.7548354927112215,
+      "residualAdjustedSimilarity": 0.7548354927112215,
+      "retrievalMargin": 0.010285816650975943,
+      "nearMissSimilarity": 0.5173112749795096,
+      "cslsSimilarity": 0.0346363941764366,
+      "hubnessPenalty": 0.9840882075389042,
+      "searchProgressSignal": 0.020692450999180382,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.013466665747476458,
+      "total": 0.7755279437104019,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.0015551468823105097,
+          "std": 0.04092329740524292,
+          "norm": 5.861264994661688
+        }
+      }
+    },
+    {
+      "id": "hns-lowres167-lanczos",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres167-lanczos.png",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres167-lanczos-0.5s.mp4",
+      "neuralSimilarity": 0.9957649829704897,
+      "adjustedSimilarity": 0.7170978868518332,
+      "calibratedSimilarity": 0.33832330761083684,
+      "contrastSimilarity": 0.9797845371154668,
+      "discriminativeSimilarity": 0.9982240338886431,
+      "residualSimilarity": 0.7170978868518332,
+      "residualAdjustedSimilarity": 0.7170978868518332,
+      "retrievalMargin": 0.01620366935133799,
+      "nearMissSimilarity": 0.5204973963243643,
+      "cslsSimilarity": 0.04101778074731255,
+      "hubnessPenalty": 0.9779278743430245,
+      "searchProgressSignal": 0.020819895852974574,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.015980445855022896,
+      "total": 0.7379177827048078,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.005156339146196842,
+          "std": 0.039450451731681824,
+          "norm": 5.694264842770257
+        }
+      }
+    },
+    {
+      "id": "hns-lowres167-bilinear",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres167-bilinear.png",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres167-bilinear-0.5s.mp4",
+      "neuralSimilarity": 0.9917580045692325,
+      "adjustedSimilarity": 0.6637866221836732,
+      "calibratedSimilarity": 0.330978704960273,
+      "contrastSimilarity": 0.9794580034644698,
+      "discriminativeSimilarity": 0.9942772346027241,
+      "residualSimilarity": 0.6637866221836732,
+      "residualAdjustedSimilarity": 0.6637866221836732,
+      "retrievalMargin": -0.00013931076130124787,
+      "nearMissSimilarity": 0.5091980076311892,
+      "cslsSimilarity": 0.019345130837457813,
+      "hubnessPenalty": 0.9917069256810414,
+      "searchProgressSignal": 0.020367920305247568,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.012300001104762703,
+      "total": 0.6841545424889208,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.0025600974913686514,
+          "std": 0.04102233424782753,
+          "norm": 5.882633849897756
+        }
+      }
+    },
+    {
+      "id": "hns-jpeg-q9",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hns-jpeg-q9.jpg",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hns-jpeg-q9-0.5s.mp4",
+      "neuralSimilarity": 0.977112553199769,
+      "adjustedSimilarity": 0.6503639341005429,
+      "calibratedSimilarity": 0.29564855602684065,
+      "contrastSimilarity": 0.9725757904472565,
+      "discriminativeSimilarity": 0.9829645685008801,
+      "residualSimilarity": 0.6503639341005429,
+      "residualAdjustedSimilarity": 0.6503639341005429,
+      "retrievalMargin": -0.013142368099977708,
+      "nearMissSimilarity": 0.4548439323489856,
+      "cslsSimilarity": -0.0029552854829297814,
+      "hubnessPenalty": 0.9913820097977409,
+      "searchProgressSignal": 0.018193757293959424,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.004536762752512469,
+      "total": 0.6685576913945024,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": -0.00005239016536506824,
+          "std": 0.04268912225961685,
+          "norm": 6.109770857140046
+        }
+      }
+    },
+    {
+      "id": "hns-lowres125-bilinear",
+      "image": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres125-bilinear.png",
+      "video": "/tmp/volta-backrooms-artifactgrid-v1/hns-lowres125-bilinear-0.5s.mp4",
+      "neuralSimilarity": 0.9838527765271297,
+      "adjustedSimilarity": 0.5194675726458207,
+      "calibratedSimilarity": 0.30860966592786243,
+      "contrastSimilarity": 0.9693298095898097,
+      "discriminativeSimilarity": 0.9881432250449657,
+      "residualSimilarity": 0.5194675726458207,
+      "residualAdjustedSimilarity": 0.5194675726458207,
+      "retrievalMargin": -0.008194425644725056,
+      "nearMissSimilarity": 0.4747841014274806,
+      "cslsSimilarity": 0.004440306482970113,
+      "hubnessPenalty": 0.9943437309200122,
+      "searchProgressSignal": 0.018991364057099225,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.014522966937319914,
+      "total": 0.5384589367029199,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.0009625115199014544,
+          "std": 0.04111358895897865,
+          "norm": 5.88588501633672
+        }
+      }
+    }
+  ]
+}

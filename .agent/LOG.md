@@ -3326,3 +3326,45 @@ Verification:
 
 - Report:
   `.agent/benchmarks/backrooms-image-sharpgrid-v1.json`
+
+## 2026-06-07 07:12 PDT - Artifact Fidelity Probe
+
+Goal:
+
+- Test whether matching the target's low-resolution/JPEG-like artifact profile
+  can push `hard-neutral-sharp` past `0.9` adjusted similarity.
+
+Probe:
+
+- Generated 8 calibrated image probes:
+  - current `hard-neutral-sharp` control
+  - low-resolution downsample/upsample variants
+  - bilinear, nearest, and lanczos resampling
+  - light post-sharp softness
+  - JPEG q5 and q9 variants
+
+Result:
+
+- Best remained the control:
+  - `hard-neutral-sharp-control`
+  - adjusted `0.8895042345392699`
+  - total `0.9103013565654846`
+- Soft-aftersharp tied the control exactly.
+- Downsampling and JPEG variants were large regressions:
+  - best JPEG adjusted `0.7931472478009215`
+  - best downsample adjusted `0.7548354927112215`
+  - worst downsample adjusted `0.5194675726458207`
+
+Interpretation:
+
+- The local image operator family is now saturated for this hard case.
+- Matching low-level compression artifacts is not the route to the remaining
+  adjusted-similarity gap.
+- Next work should move to stronger generated layout diversity when Flux is
+  available, or to a generic operator scheduler that can learn which local
+  operators are worth scoring per target.
+
+Verification:
+
+- Report:
+  `.agent/benchmarks/backrooms-image-artifactgrid-v1.json`
