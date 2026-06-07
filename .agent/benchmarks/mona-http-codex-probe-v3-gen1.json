@@ -20,12 +20,7 @@
       "runId": "mona-image-to-text-a5d5a538",
       "status": "completed",
       "description": "Use the Mona Lisa image target as an image-to-text cold benchmark.",
-      "tags": [
-        "image",
-        "text",
-        "mona-lisa",
-        "cold-start"
-      ],
+      "tags": ["image", "text", "mona-lisa", "cold-start"],
       "outputType": "text",
       "runPath": "/Users/evan/Desktop/project-volta-2/.volta/real-probe-v3/runs/mona-image-to-text-a5d5a538",
       "bestScore": 0.47519911109800184,

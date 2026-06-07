@@ -1,0 +1,44 @@
+{
+  "target": ".volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/target.json",
+  "images": ".volta/baselines/gpt-imagegen-one-shot-backrooms-20260607/images-target-aspect.json",
+  "oracleMode": "tribe",
+  "createdAt": "2026-06-07T17:33:53.577Z",
+  "updatedAt": "2026-06-07T17:34:43.750Z",
+  "status": "completed",
+  "calibrated": true,
+  "contrastTargetCount": 35,
+  "results": [
+    {
+      "id": "gpt-imagegen-one-shot-backrooms-target-aspect",
+      "image": "/Users/evan/Desktop/project-volta-2/.volta/baselines/gpt-imagegen-one-shot-backrooms-20260607/gpt-imagegen-backrooms-target-aspect.png",
+      "video": "/Users/evan/Desktop/project-volta-2/.volta/baselines/gpt-imagegen-one-shot-backrooms-20260607/gpt-imagegen-backrooms-target-aspect-0.5s.mp4",
+      "neuralSimilarity": 0.9920013053240605,
+      "adjustedSimilarity": 0.8057686464298102,
+      "calibratedSimilarity": 0.33203973658189817,
+      "contrastSimilarity": 0.9799545052502556,
+      "discriminativeSimilarity": 0.9775671050484362,
+      "residualSimilarity": 0.8057686464298102,
+      "residualAdjustedSimilarity": 0.8057686464298102,
+      "retrievalMargin": 0.003936265058247734,
+      "nearMissSimilarity": 0.510830363972151,
+      "cslsSimilarity": 0.02166411654324807,
+      "hubnessPenalty": 0.9653007649487565,
+      "searchProgressSignal": 0.02043321455888604,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.012046800073804875,
+      "total": 0.8262018609886962,
+      "activation": {
+        "model": "tribev2",
+        "shape": [
+          1,
+          20484
+        ],
+        "summary": {
+          "mean": 0.0027399761602282524,
+          "std": 0.0416874960064888,
+          "norm": 5.979285085039334
+        }
+      }
+    }
+  ]
+}

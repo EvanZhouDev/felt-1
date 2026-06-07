@@ -1,0 +1,34 @@
+{
+  "createdAt": "2026-06-07T04:51:32.586Z",
+  "updatedAt": "2026-06-07T04:56:27.100Z",
+  "oracleMode": "http",
+  "backend": "codex",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 1,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "textProbeCount": 3,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 10
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/services/orchestrator/.volta/backrooms-v1/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/services/orchestrator/.volta/backrooms-v1/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "backrooms-image-to-text",
+      "runId": "backrooms-image-to-text-3adcf9d1",
+      "status": "completed",
+      "description": "Use the backrooms image target as a second image-to-text cold benchmark.",
+      "tags": ["image", "text", "backrooms", "cold-start"],
+      "outputType": "text",
+      "runPath": "/Users/evan/Desktop/project-volta-2/services/orchestrator/.volta/backrooms-v1/runs/backrooms-image-to-text-3adcf9d1",
+      "bestScore": 0.7591654693997528,
+      "bestNeuralSimilarity": 0.852379241999647,
+      "iterationCount": 1,
+      "selectedAgentId": "probe-l-09"
+    }
+  ]
+}

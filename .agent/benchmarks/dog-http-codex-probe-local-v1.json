@@ -1,0 +1,38 @@
+{
+  "createdAt": "2026-06-07T05:04:55.885Z",
+  "updatedAt": "2026-06-07T05:06:19.499Z",
+  "oracleMode": "http",
+  "backend": "codex",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 1,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "textProbeCount": 3,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 10,
+    "contrastTargetRoots": [
+      "/Users/evan/Desktop/project-volta-2/.volta/real-probe-v3/target-cache",
+      "/Users/evan/Desktop/project-volta-2/services/orchestrator/.volta/backrooms-v1/target-cache"
+    ]
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/services/orchestrator/.volta/dog-v1/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/services/orchestrator/.volta/dog-v1/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "dog-image-to-text",
+      "runId": "dog-image-to-text-d272619d",
+      "status": "completed",
+      "description": "Use the dog image target as an image-to-text cold benchmark.",
+      "tags": ["image", "text", "dog", "cold-start"],
+      "outputType": "text",
+      "runPath": "/Users/evan/Desktop/project-volta-2/services/orchestrator/.volta/dog-v1/runs/dog-image-to-text-d272619d",
+      "bestScore": 0.1350329458947347,
+      "bestNeuralSimilarity": 0.3673990867550212,
+      "iterationCount": 1,
+      "selectedAgentId": "candidate-a"
+    }
+  ]
+}

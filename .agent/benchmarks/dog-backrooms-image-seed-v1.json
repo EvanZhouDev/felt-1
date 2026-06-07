@@ -1,0 +1,75 @@
+{
+  "scenarioId": "dog-backrooms-image-seed",
+  "runId": "dog-backrooms-seed-0a5923af",
+  "description": "Dog image target as vibe target, backrooms image represented as seed visual reference/prompt for seeded image output.",
+  "tags": [
+    "image",
+    "dog",
+    "backrooms",
+    "seeded",
+    "visual-seed-proxy",
+    "local-flux",
+    "local-tribe"
+  ],
+  "createdAt": "2026-06-07T16:14:04.151Z",
+  "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af",
+  "targetImage": "/Users/evan/Desktop/project-volta-2/.volta/demo-assets/dog-256.jpg",
+  "seedImage": "/Users/evan/Desktop/project-volta/backrooms.jpeg",
+  "seedTarget": {
+    "modality": "image",
+    "text": "n empty yellow backrooms interior",
+    "preview": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/generated-assets/seed-visual-target/ad341c73236c27cd.png"
+  },
+  "selectedAgentId": "candidate-a",
+  "ranked": [
+    {
+      "agentId": "candidate-a",
+      "label": "seed-correct-backrooms",
+      "total": 0.7216526786707536,
+      "adjustedSimilarity": 0.6831368552368903,
+      "neuralSimilarity": 0.9213585477566094,
+      "seedModality": "image",
+      "seedAdherence": 1,
+      "seedSimilarity": 0.9762798571049746,
+      "seedTargetSimilarity": 0.8454488140419715,
+      "seedSpecificity": 0.13083104306300308,
+      "seedPromptAdherence": 1,
+      "seedPromptPenalty": 0,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/generated-assets/candidate-a/d2e81abbb70d6526-target-fidelity.png",
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=seed-correct-backrooms-subject | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=soft-muted"
+    },
+    {
+      "agentId": "candidate-a-image-1",
+      "label": "seed-correct-backrooms",
+      "total": 0.631967990614932,
+      "adjustedSimilarity": 0.596053886645597,
+      "neuralSimilarity": 0.919626269122442,
+      "seedModality": "image",
+      "seedAdherence": 1,
+      "seedSimilarity": 0.9742700120873916,
+      "seedTargetSimilarity": 0.8454488140419715,
+      "seedSpecificity": 0.12882119804542014,
+      "seedPromptAdherence": 1,
+      "seedPromptPenalty": 0,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/generated-assets/candidate-a-image-1/d2e81abbb70d6526-target-hard-neutral-sharp.png",
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=seed-correct-backrooms-subject | imageMutation=local-style-hard-neutral-sharp | imageMutationSource=flux | parentAgentId=candidate-a | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=hard-neutral-sharp"
+    },
+    {
+      "agentId": "candidate-b",
+      "label": "additive-dog-in-backrooms",
+      "total": 0.44024480272864497,
+      "adjustedSimilarity": 0.9009151992199811,
+      "neuralSimilarity": 0.980870296423915,
+      "seedModality": "image",
+      "seedAdherence": 0.7004473269791657,
+      "seedSimilarity": 0.8855382794378046,
+      "seedTargetSimilarity": 0.8454488140419715,
+      "seedSpecificity": 0.040089465395833135,
+      "seedPromptAdherence": 0.10000000000000003,
+      "seedPromptPenalty": 0.495,
+      "penalty": 0.495,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/dog-backrooms-seed-0a5923af/generated-assets/candidate-b/70a5d85f1d4e73a4-target-fidelity.png",
+      "entropy": "iteration=1 | strategy=seed composition transplant | inputType=image | outputType=image | Use the seed prompt as the subject authority and the target image as the layout/lighting authority. Build a prompt for a seed-subject image with target-like framing, empty-space rhythm, perspective depth, surface texture, color cast, and camera artifacts. Avoid naming or preserving target-specific objects unless they are purely structural analogies. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=additive-dog-in-backrooms | materialized=flux-image | targetStyle=256x180 | fluxSize=768x544 | targetFidelity=soft-muted"
+    }
+  ]
+}

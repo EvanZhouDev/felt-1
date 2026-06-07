@@ -1,0 +1,40 @@
+{
+  "createdAt": "2026-06-07T16:29:14.128Z",
+  "updatedAt": "2026-06-07T16:29:18.645Z",
+  "oracleMode": "tribe",
+  "backend": "codex",
+  "loop": {
+    "maxIterations": 3,
+    "similarityThreshold": 0.9,
+    "candidateCount": 3,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "imageSeedMutations": 0,
+    "imageLocalMutations": 1,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "backrooms-image-to-image",
+      "runId": "backrooms-image-to-image-cfc61e07",
+      "status": "failed",
+      "description": "Use the backrooms image target as an image-to-image cold benchmark.",
+      "tags": [
+        "image",
+        "backrooms",
+        "same-medium",
+        "cold-start",
+        "custom-seed"
+      ],
+      "outputType": "image",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-cfc61e07",
+      "error": "Error: Unable to connect. Is the computer able to access the url?"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "scenarioId": "backrooms-flowers-visual-seed-ab",
+  "runId": "backrooms-flowers-visual-seed-ab-9589e6ce",
+  "description": "A/B score existing additive backrooms+flowers image versus replacement flower image under visual seed proxy scoring.",
+  "tags": [
+    "image",
+    "backrooms",
+    "flowers",
+    "seeded",
+    "visual-seed-proxy",
+    "ablation",
+    "local-tribe"
+  ],
+  "createdAt": "2026-06-07T15:51:06.507Z",
+  "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-visual-seed-ab-9589e6ce",
+  "seedTarget": {
+    "modality": "image",
+    "text": "flowers",
+    "preview": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-visual-seed-ab-9589e6ce/generated-assets/seed-visual-target/dfacc8d3d81c063d.png"
+  },
+  "selectedAgentId": "candidate-a",
+  "ranked": [
+    {
+      "agentId": "candidate-a",
+      "label": "additive",
+      "total": 0.7858193603103918,
+      "adjustedSimilarity": 0.765925242171618,
+      "neuralSimilarity": 0.9822184478297239,
+      "seedModality": "image",
+      "seedAdherence": 0.3543642120739422,
+      "seedSimilarity": 0.906534675130099,
+      "seedTargetSimilarity": 0.9356618327153106,
+      "seedSpecificity": -0.02912715758521156,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-local-image-to-image-ecfec948/generated-assets/candidate-a/c34c6a94a276c274-target-fidelity.png",
+      "entropy": "iteration=1 | strategy=seed subject reconstruction | inputType=image | outputType=image | Create a Flux prompt where the seed subject is the entire visible subject of the image. Transfer only the target's perceptual feel: composition skeleton, camera distance, aspect ratio, low-resolution capture quality, light/color palette, texture, sparsity, and atmosphere. Do not place the seed object inside the target scene; replace the target scene's semantic subject with the seed subject. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=additive-backrooms-with-flowers"
+    },
+    {
+      "agentId": "candidate-b",
+      "label": "replacement",
+      "total": 0.34951526603156646,
+      "adjustedSimilarity": 0.3238267929541744,
+      "neuralSimilarity": 0.9183852360094479,
+      "seedModality": "image",
+      "seedAdherence": 0.5190167608514558,
+      "seedSimilarity": 0.9394651848856017,
+      "seedTargetSimilarity": 0.9356618327153106,
+      "seedSpecificity": 0.003803352170291152,
+      "output": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-replacement-direct-646c14f8/generated-assets/candidate-a/1d2f6f9a20857c56-target-fidelity.png",
+      "entropy": "iteration=1 | strategy=seed composition transplant | inputType=image | outputType=image | Use the seed prompt as the subject authority and the target image as the layout/lighting authority. Build a prompt for a seed-subject image with target-like framing, empty-space rhythm, perspective depth, surface texture, color cast, and camera artifacts. Avoid naming or preserving target-specific objects unless they are purely structural analogies. | For seeded image output, encode a Flux request whose prompt makes the seed subject dominate the whole image while borrowing only the target's composition skeleton, camera/framing, light/color, texture, and atmosphere. Do not make an additive collage of the target scene plus the seed subject. | ab=replacement-flower-image"
+    }
+  ],
+  "contactSheet": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-flowers-visual-seed-ab-9589e6ce/visual-seed-ab-score-sheet.png"
+}

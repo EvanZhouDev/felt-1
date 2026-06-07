@@ -8,104 +8,25 @@ import {
   MarkerType,
   MiniMap,
   type Node,
+  type NodeMouseHandler,
   type NodeProps,
   Position,
   ReactFlow,
 } from "@xyflow/react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-type TraceGraph = {
-  generatedAt: string;
-  stats: TraceStats;
-  runs: TraceRun[];
-  nodes: TraceNode[];
-  edges: TraceEdge[];
-};
-
-type TraceStats = {
-  runCount: number;
-  completedRunCount: number;
-  nodeCount: number;
-  edgeCount: number;
-  imageNodeCount: number;
-  textNodeCount: number;
-};
-
-type TraceRun = {
-  id: string;
-  status: string;
-  createdAt?: string;
-  inputType: string;
-  outputType: string;
-  seedPrompt?: string;
-  runPath: string;
-  runJsonSha256: string;
-  iterationCount: number;
-  candidateCount: number;
-  bestScore?: number;
-  bestNeuralSimilarity?: number;
-  bestAdjustedSimilarity?: number;
-  stopReason?: string;
-  selectedAgentId?: string;
-  targetNodeId: string;
-  seedNodeId?: string;
-  bestNodeId?: string;
-  tags: string[];
-};
-
-type TraceNode = {
-  id: string;
-  runId: string;
-  role: "target" | "seed" | "candidate" | "judge";
-  modality: string;
-  label: string;
-  subtitle?: string;
-  iteration?: number;
-  rank?: number;
-  agentId?: string;
-  selected?: boolean;
-  media?: TraceMedia;
-  score?: TraceScore;
-  entropy?: string;
-};
-
-type TraceMedia =
-  | {
-      kind: "image";
-      path: string;
-      alt: string;
-    }
-  | {
-      kind: "text";
-      text: string;
-    };
-
-type TraceScore = {
-  total?: number;
-  neuralSimilarity?: number;
-  adjustedSimilarity?: number;
-  calibratedSimilarity?: number;
-  contrastSimilarity?: number;
-  targetSpecificity?: number;
-  seedAdherence?: number;
-  seedSimilarity?: number;
-  seedTargetSimilarity?: number;
-  seedSpecificity?: number;
-};
-
-type TraceEdge = {
-  id: string;
-  source: string;
-  target: string;
-  kind: "target" | "seed" | "candidate" | "selection" | "iteration" | "summary";
-  label?: string;
-};
+import type {
+  TraceEdge,
+  TraceGraph,
+  TraceMedia,
+  TraceNode,
+  TraceRun,
+} from "./trace-data";
 
 type FlowTraceData = {
   trace: TraceNode;
   isActive: boolean;
-  onOpen: (nodeId: string) => void;
+  onSelect: (nodeId: string) => void;
 } & Record<string, unknown>;
 
 type TraceFlowNode = Node<FlowTraceData, "traceCard">;
@@ -114,16 +35,38 @@ const nodeTypes = {
   traceCard: TraceNodeCard,
 };
 
-export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
+type TraceExplorerProps = {
+  initialGraph?: TraceGraph;
+  initialNodeId?: string;
+  initialQuery?: string;
+  initialRunId?: string;
+};
+
+export function TraceExplorer({
+  initialGraph,
+  initialNodeId,
+  initialQuery = "",
+  initialRunId,
+}: TraceExplorerProps) {
+  const initialRun =
+    initialGraph?.runs.find((run) => run.id === initialRunId) ??
+    initialGraph?.runs[0];
   const [graph, setGraph] = useState<TraceGraph | undefined>(initialGraph);
   const [error, setError] = useState<string | undefined>();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [activeRunId, setActiveRunId] = useState<string | undefined>(
-    initialGraph?.runs[0]?.id,
+    initialRun?.id,
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(
-    initialGraph?.runs[0]?.bestNodeId ?? initialGraph?.runs[0]?.targetNodeId,
+    initialNodeId ?? initialRun?.bestNodeId ?? initialRun?.targetNodeId,
   );
+
+  useEffect(() => {
+    document.documentElement.dataset.voltaTraceExplorer = "hydrated";
+    return () => {
+      delete document.documentElement.dataset.voltaTraceExplorer;
+    };
+  }, []);
 
   useEffect(() => {
     if (initialGraph) {
@@ -178,6 +121,18 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
     [activeRunId, filteredRuns, graph],
   );
 
+  useEffect(() => {
+    if (!graph || filteredRuns.length === 0) {
+      return;
+    }
+    if (activeRunId && filteredRuns.some((run) => run.id === activeRunId)) {
+      return;
+    }
+    const nextRun = filteredRuns[0];
+    setActiveRunId(nextRun.id);
+    setSelectedNodeId(nextRun.bestNodeId ?? nextRun.targetNodeId);
+  }, [activeRunId, filteredRuns, graph]);
+
   const traceNodes = useMemo(
     () =>
       activeRun && graph
@@ -208,13 +163,32 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
     [activeRun, selectedNodeId, traceNodes],
   );
 
-  const openNode = useCallback((nodeId: string) => {
+  const selectRun = useCallback(
+    (runId: string) => {
+      const nextRun = graph?.runs.find((run) => run.id === runId);
+      if (!nextRun) {
+        return;
+      }
+      setActiveRunId(nextRun.id);
+      setSelectedNodeId(nextRun.bestNodeId ?? nextRun.targetNodeId);
+    },
+    [graph],
+  );
+
+  const selectTraceNode = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
   }, []);
 
+  const selectFlowNode = useCallback<NodeMouseHandler>(
+    (_, node) => {
+      selectTraceNode(node.id);
+    },
+    [selectTraceNode],
+  );
+
   const flowNodes = useMemo(
-    () => layoutNodes(traceNodes, selectedTraceNode?.id, openNode),
-    [openNode, selectedTraceNode, traceNodes],
+    () => layoutNodes(traceNodes, selectedTraceNode?.id, selectTraceNode),
+    [selectTraceNode, selectedTraceNode, traceNodes],
   );
   const flowEdges = useMemo(
     () => layoutEdges(traceEdges, selectedTraceNode?.id),
@@ -248,8 +222,8 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
           <div className="stat-grid">
             <Metric label="Runs" value={graph.stats.runCount} />
             <Metric label="Images" value={graph.stats.imageNodeCount} />
-            <Metric label="Nodes" value={graph.stats.nodeCount} />
-            <Metric label="Edges" value={graph.stats.edgeCount} />
+            <Metric label="Text" value={graph.stats.textNodeCount ?? "n/a"} />
+            <Metric label="Backend" value={graph.source} />
           </div>
         </header>
 
@@ -265,13 +239,7 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
           <select
             id="run-select"
             value={activeRun.id}
-            onChange={(event) => {
-              const nextRun = graph.runs.find(
-                (run) => run.id === event.currentTarget.value,
-              );
-              setActiveRunId(event.currentTarget.value);
-              setSelectedNodeId(nextRun?.bestNodeId ?? nextRun?.targetNodeId);
-            }}
+            onChange={(event) => selectRun(event.currentTarget.value)}
           >
             {filteredRuns.map((run) => (
               <option key={run.id} value={run.id}>
@@ -286,13 +254,18 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
             <button
               className={run.id === activeRun.id ? "run-row active" : "run-row"}
               key={run.id}
-              onClick={() => {
-                setActiveRunId(run.id);
-                setSelectedNodeId(run.bestNodeId ?? run.targetNodeId);
-              }}
+              onClick={() => selectRun(run.id)}
               type="button"
             >
-              <span>{compactRunName(run.id)}</span>
+              <span className="run-row-copy">
+                <span>{compactRunName(run.id)}</span>
+                <em>
+                  {run.inputType} to {run.outputType}
+                  {run.candidateCount
+                    ? ` - ${run.candidateCount} candidates`
+                    : ""}
+                </em>
+              </span>
               <strong>{scoreText(run.bestAdjustedSimilarity)}</strong>
             </button>
           ))}
@@ -318,6 +291,10 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
             />
             <Metric label="Total" value={scoreText(activeRun.bestScore)} />
             <Metric label="Turns" value={activeRun.iterationCount} />
+            <Metric
+              label="Candidates"
+              value={activeRun.candidateCount ?? traceNodes.length}
+            />
           </div>
         </div>
 
@@ -327,11 +304,20 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
             edges={flowEdges}
             fitView
             fitViewOptions={{ padding: 0.18 }}
+            key={activeRun.id}
             minZoom={0.25}
             nodeTypes={nodeTypes}
             nodes={flowNodes}
-            nodesDraggable
-            onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+            nodesConnectable={false}
+            nodesDraggable={false}
+            onNodeClick={selectFlowNode}
+            panOnDrag
+            panOnScroll
+            proOptions={{ hideAttribution: true }}
+            selectionOnDrag={false}
+            zoomOnDoubleClick
+            zoomOnPinch
+            zoomOnScroll
           >
             <Background color="#d8d5c8" gap={24} size={1} />
             <Controls position="bottom-left" />
@@ -360,22 +346,37 @@ export function TraceExplorer({ initialGraph }: { initialGraph?: TraceGraph }) {
 
 function TraceNodeCard({ data, selected }: NodeProps<TraceFlowNode>) {
   const node = data.trace;
+  const selectNode = () => data.onSelect(node.id);
   return (
     <button
       className={[
+        "nodrag",
+        "nopan",
         "trace-node",
         `role-${node.role}`,
         selected || data.isActive ? "selected" : "",
+        node.selected ? "winner" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      onClick={() => data.onOpen(node.id)}
+      aria-pressed={data.isActive}
+      data-trace-node-id={node.id}
+      onClick={(event) => {
+        event.stopPropagation();
+        selectNode();
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        selectNode();
+      }}
       type="button"
     >
       <Handle className="trace-handle" position={Position.Left} type="target" />
       <div className="node-topline">
         <span>{node.role}</span>
-        {node.rank ? <strong>#{node.rank}</strong> : null}
+        <strong>
+          {node.selected ? "selected" : node.rank ? `#${node.rank}` : ""}
+        </strong>
       </div>
       <MediaBlock media={node.media} compact />
       <div className="node-copy">
@@ -446,7 +447,7 @@ function NodeInspector({ node, run }: { node: TraceNode; run: TraceRun }) {
       ) : null}
       <section className="detail-block">
         <h3>Trace</h3>
-        <p>{run.runPath}</p>
+        <p>{run.runPath || "Weave trace backend"}</p>
         <p className="checksum">{run.runJsonSha256.slice(0, 16)}</p>
       </section>
     </div>
@@ -496,37 +497,61 @@ function Metric({ label, value }: { label: string; value: number | string }) {
 function layoutNodes(
   nodes: TraceNode[],
   activeNodeId: string | undefined,
-  onOpen: (nodeId: string) => void,
+  onSelect: (nodeId: string) => void,
 ): TraceFlowNode[] {
+  const candidateCountsByIteration = new Map<number, number>();
+  for (const node of nodes) {
+    if (node.role !== "candidate") {
+      continue;
+    }
+    const iteration = node.iteration ?? 1;
+    candidateCountsByIteration.set(
+      iteration,
+      (candidateCountsByIteration.get(iteration) ?? 0) + 1,
+    );
+  }
+
   return nodes.map((node) => ({
     id: node.id,
     type: "traceCard",
-    position: nodePosition(node),
+    position: nodePosition(node, candidateCountsByIteration),
     style: { visibility: "visible" },
     data: {
       trace: node,
       isActive: node.id === activeNodeId,
-      onOpen,
+      onSelect,
     },
   }));
 }
 
-function nodePosition(node: TraceNode): { x: number; y: number } {
+const candidateColumnX = 500;
+const candidateColumnGap = 620;
+const candidateRowY = 48;
+const candidateRowGap = 350;
+const judgeOffsetX = 440;
+
+function nodePosition(
+  node: TraceNode,
+  candidateCountsByIteration: Map<number, number>,
+): { x: number; y: number } {
   if (node.role === "target") {
-    return { x: 40, y: 150 };
+    return { x: 40, y: 190 };
   }
   if (node.role === "seed") {
-    return { x: 40, y: 430 };
-  }
-  if (node.role === "judge") {
-    const iteration = node.iteration ?? 1;
-    return { x: 460 + iteration * 430, y: 140 + (iteration - 1) * 90 };
+    return { x: 40, y: 560 };
   }
   const iteration = node.iteration ?? 1;
+  const iterationX = candidateColumnX + (iteration - 1) * candidateColumnGap;
+  if (node.role === "judge") {
+    const candidateCount = candidateCountsByIteration.get(iteration) ?? 1;
+    const centerY =
+      candidateRowY + Math.max(0, candidateCount - 1) * candidateRowGap * 0.5;
+    return { x: iterationX + judgeOffsetX, y: centerY };
+  }
   const rank = node.rank ?? 1;
   return {
-    x: 430 + (iteration - 1) * 430,
-    y: 34 + (rank - 1) * 238,
+    x: iterationX,
+    y: candidateRowY + (rank - 1) * candidateRowGap,
   };
 }
 
@@ -542,6 +567,7 @@ function layoutEdges(
       target: edge.target,
       label: active ? edge.label : undefined,
       animated: edge.kind === "selection",
+      type: "smoothstep",
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: edgeColor(edge.kind, active),
