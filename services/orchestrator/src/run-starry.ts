@@ -47,7 +47,7 @@ const input: InputObj = {
   inputNode: await loadImageNode(imageSource),
   seed: {
     prompt:
-      "Generate text that carries the perceptual vibe of this painting: its motion, emotional temperature, light, and atmosphere.",
+      "Generate text that carries the perceptual vibe of this image: its motion, emotional temperature, light, and atmosphere.",
   },
 };
 const output: OutputObj = { outputType };
