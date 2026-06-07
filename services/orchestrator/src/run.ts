@@ -486,8 +486,10 @@ async function executeIteration(
 
   args.store.updateStatus(args.id, "scoring");
   await mkdir(join(iterationPath, "scores"), { recursive: true });
-  const evaluatedOutputs = await Promise.all(
-    candidateOutputs.map(async (candidate) => {
+  const evaluatedOutputs = await mapWithConcurrency(
+    candidateOutputs,
+    args.loop.scoringConcurrency,
+    async (candidate) => {
       const evaluated = await evaluateCandidate({
         ...args,
         candidate,
@@ -498,7 +500,7 @@ async function executeIteration(
         evaluated,
       );
       return evaluated;
-    }),
+    },
   );
   evaluatedOutputs.sort((left, right) => right.score.total - left.score.total);
   await writeJson(join(iterationPath, "scores.json"), evaluatedOutputs);
@@ -977,4 +979,25 @@ function iterationId(iteration: number): string {
 
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+async function mapWithConcurrency<T, U>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<U>,
+): Promise<U[]> {
+  const results = new Array<U>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
 }

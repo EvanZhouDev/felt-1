@@ -95,6 +95,8 @@ Set in `services/orchestrator/src/config.ts`:
 - `VOLTA_TRIBE_URL` — hosted TRIBE base URL (default `https://tribe.bryanhu.com`).
 - `VOLTA_FLUX_URL` — hosted Flux image API (default `https://images.bryanhu.com`).
 - `VOLTA_CANDIDATE_COUNT` — N candidates per iteration (default `2`).
+- `VOLTA_SCORING_CONCURRENCY` — max simultaneous candidate scoring calls
+  (default `1`; keep low for hosted TRIBE).
 - `VOLTA_MAX_ITERATIONS` — M search iterations; loop feeds the judge's
   `NextIterationSeed` forward and keeps the best-scoring iteration (default `1`).
 - `VOLTA_CANDIDATE_MODEL` / `VOLTA_JUDGE_MODEL` — model ids passed to the agent

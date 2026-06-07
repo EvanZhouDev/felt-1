@@ -590,3 +590,34 @@ TRIBE status:
   with `[Errno 24] Too many open files`.
 - Do not spend more hosted scoring compute until the latest job history shows a
   successful fresh job or the service is restarted.
+
+## 2026-06-06 19:17 PDT - Scorer Concurrency Control
+
+Problem:
+
+- The pipeline can run multiple candidate agents per iteration, but scoring used
+  `Promise.all`, which submits all candidate evaluations to the oracle at once.
+- For a genetic/evolutionary search this couples population size to oracle load.
+  That is bad for hosted TRIBE and likely contributed to the file-descriptor
+  failure mode.
+
+Change:
+
+- Added `loop.scoringConcurrency` and `VOLTA_SCORING_CONCURRENCY`.
+- Default is `1`, so hosted TRIBE scoring is serialized unless explicitly
+  raised.
+- Candidate population size remains controlled separately by
+  `VOLTA_CANDIDATE_COUNT`.
+- Updated architecture/config docs to describe evolutionary operators rather
+  than target-specific random entropy.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Interpretation:
+
+- This makes the generic evolutionary algorithm safer to scale: we can explore
+  a larger population without automatically creating concurrent oracle pressure.

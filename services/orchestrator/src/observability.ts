@@ -61,6 +61,7 @@ export function runSummary(args: {
     maxIterations: number;
     similarityThreshold: number;
     candidateCount: number;
+    scoringConcurrency: number;
   };
 }) {
   return {
