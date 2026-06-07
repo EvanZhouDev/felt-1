@@ -2255,3 +2255,86 @@ Verification:
   `/tmp/volta-mona-agentic-calibrated-bank-v1.json`.
 - Dog calibrated-bank control probe completed:
   `/tmp/volta-dog-calibrated-bank-probe-v1.json`.
+
+## 2026-06-07 03:29 PDT - Text Controls, Near-Miss Gradient, and Target-Duplicate Filter
+
+Goal:
+
+- Move faster toward legitimate higher matching rates after the scorer fix,
+  without returning to the raw-cosine reward hack where dog/room/Mona looked
+  mutually close.
+
+Changes:
+
+- Added a real local text-control calibration bank with 16 TRIBE-encoded text
+  anchors under `.volta/calibration-text/target-cache`.
+- For cross-modal output-to-text scoring, calibration now includes matching
+  target-medium controls plus independent text controls.
+- Added a leave-one-out correction for exact calibration self-neighbors:
+  generated text identical to a calibration anchor no longer treats itself as
+  the nearest negative contrast.
+- Added a bounded near-miss calibrated score. Full retrieval wins still receive
+  full credit, but candidates with `retrievalMargin > -0.15` now receive a
+  smaller CSLS/margin-based gradient instead of collapsing to zero.
+- Added activation-level duplicate-target filtering at calibration load time:
+  any contrast activation with cosine >= `0.995` to the current target is
+  skipped even if its rendered SHA differs.
+- Probe reports now expose calibrated internals (`retrievalMargin`,
+  `nearMissSimilarity`, `cslsSimilarity`, hubness, selected vertex count).
+
+Key probes:
+
+- Dog target with text controls before near-miss gradient:
+  `A dog.` adjusted `0.088607`; empty-room/hallway/portrait controls `0`.
+- Dog target after near-miss gradient:
+  `A dog.` raw `0.655368`, adjusted `0.170160`, total `0.180632`.
+  `An empty yellow room.` remained adjusted `0`.
+- Mona target after near-miss gradient:
+  portrait micro-caption adjusted `0.200274`, total `0.212599`.
+  `A dog.` and `An empty yellow room.` controls remained adjusted `0`.
+- Partial dog agentic run `dog-image-to-text-75e0a42d` generated truthful puppy
+  captions, but all detailed captions had adjusted `0`; best totals were only
+  quality-prior noise (`0.025`).
+- Wider dog caption ladder found a sharp text cliff:
+  `A dog.` is the only positive short dog phrase found so far; variants such as
+  `A dog appears.`, `A dog is in grass.`, `A puppy sits in green grass.`, and
+  detailed Codex captions all scored adjusted `0`.
+
+Bug found and fixed:
+
+- After the partial dog run, dog probe contrast count rose from `27` to `28` and
+  `A dog.` fell from adjusted `0.170160` to `0`.
+- Cause: a near-duplicate dog target entered a target cache under a different
+  rendered SHA and was treated as a negative contrast.
+- Activation-level duplicate filtering restored contrast count to `27` and
+  restored `A dog.` to adjusted `0.170160`.
+
+Interpretation:
+
+- The metric is now much safer: dog/room/Mona attractors are no longer winning
+  simply through raw cosine.
+- Image-to-text still has a cross-modal ceiling or geometry problem: quality
+  natural captions can be semantically correct yet land in a text-control
+  neighborhood that calibrated retrieval treats as unrelated.
+- The next large architecture move should not be another caption prompt tweak.
+  It should either:
+  1. create a controlled semantic-anchor representation for image-to-text with
+     explicit quality guardrails, or
+  2. invest in same-medium image output / generated visual candidates where
+     TRIBE can plausibly reach high calibrated similarity.
+
+Verification:
+
+- `bun run calibration:texts -- --oracle mock --limit 3 --out-root /tmp/volta-calibration-text-mock-test`
+  passed.
+- `VOLTA_TRIBE_DEVICE=mps VOLTA_ORACLE_TIMEOUT_MS=900000 bun run calibration:texts -- --oracle tribe --out-root .volta/calibration-text`
+  encoded 16 local TRIBE text controls.
+- `bun run check` passed after scoring/calibration changes.
+- Dog near-miss probe completed:
+  `/tmp/volta-dog-nearmiss-probe-v1.json`.
+- Mona near-miss probe completed:
+  `/tmp/volta-mona-nearmiss-probe-v1.json`.
+- Dog duplicate-filter probe completed:
+  `/tmp/volta-dog-duplicate-filter-probe-v1.json`.
+- Dog short-sentence ladder completed:
+  `/tmp/volta-dog-short-sentence-probe-v1.json`.

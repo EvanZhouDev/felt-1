@@ -901,6 +901,11 @@ function loadContrastTargets(
     targetActivation: args.target.activation,
     targetSha: args.target.rendered.sha256,
     targetKind: args.target.rendered.kind,
+    additionalRenderedKinds:
+      args.output.outputType === "text" &&
+      args.input.inputNode.type !== args.output.outputType
+        ? ["text"]
+        : [],
     explicitTargetRoots: args.loop.contrastTargetRoots,
     maxActivations: 96,
     includeScoreActivations:

@@ -1,6 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import type { ActivationTrace, EvaluatedOutput } from "@volta/core";
+import {
+  type ActivationTrace,
+  cosineSimilarity,
+  type EvaluatedOutput,
+  flattenTrace,
+} from "@volta/core";
+
+const NEAR_DUPLICATE_TARGET_SIMILARITY = 0.995;
 
 type TargetArtifact = {
   rendered?: {
@@ -19,6 +26,7 @@ export function loadCalibrationActivations(args: {
   maxActivations?: number;
   includeScoreActivations?: boolean;
   targetKind?: string;
+  additionalRenderedKinds?: string[];
 }): ActivationTrace[] {
   const maxActivations = args.maxActivations ?? 96;
   const items: CalibrationItem[] = [];
@@ -159,14 +167,34 @@ function usableCalibrationItem(
     targetActivation: ActivationTrace;
     targetSha?: string;
     targetKind?: string;
+    additionalRenderedKinds?: string[];
   },
 ): boolean {
+  const allowedKinds = new Set(
+    [args.targetKind, ...(args.additionalRenderedKinds ?? [])].filter(
+      (kind): kind is string => Boolean(kind),
+    ),
+  );
   return Boolean(
     item.activation.values &&
       item.activation.model === args.targetActivation.model &&
       sameActivationShape(item.activation, args.targetActivation) &&
-      (!args.targetKind || item.renderedKind === args.targetKind) &&
+      (allowedKinds.size === 0 || allowedKinds.has(item.renderedKind ?? "")) &&
+      !nearDuplicateTarget(item.activation, args.targetActivation) &&
       (!args.targetSha || item.sourceTargetSha !== args.targetSha),
+  );
+}
+
+function nearDuplicateTarget(
+  activation: ActivationTrace,
+  target: ActivationTrace,
+): boolean {
+  if (!sameActivationShape(activation, target)) {
+    return false;
+  }
+  return (
+    cosineSimilarity(flattenTrace(activation), flattenTrace(target)) >=
+    NEAR_DUPLICATE_TARGET_SIMILARITY
   );
 }
 

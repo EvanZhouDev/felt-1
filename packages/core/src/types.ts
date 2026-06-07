@@ -158,6 +158,7 @@ export type ScoreBundle = {
   discriminativeSimilarity?: number;
   residualSimilarity?: number;
   retrievalMargin?: number;
+  nearMissSimilarity?: number;
   cslsSimilarity?: number;
   hubnessPenalty?: number;
   searchProgressSignal?: number;

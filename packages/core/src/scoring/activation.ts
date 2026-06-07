@@ -2,6 +2,8 @@ import type { ActivationTrace, ScoreBundle } from "../types.ts";
 
 const MIN_CALIBRATED_CONTRAST_TARGETS = 6;
 const MIN_RESIDUAL_CONTRAST_TARGETS = 6;
+const SELF_MATCH_SIMILARITY = 0.9995;
+const NEAR_MISS_CALIBRATED_WEIGHT = 0.65;
 
 export function scoreActivations(args: {
   target: ActivationTrace;
@@ -63,6 +65,7 @@ export function scoreActivations(args: {
     discriminativeSimilarity: calibrated?.discriminativeSimilarity,
     residualSimilarity,
     retrievalMargin: calibrated?.retrievalMargin,
+    nearMissSimilarity: calibrated?.nearMissSimilarity,
     cslsSimilarity: calibrated?.cslsSimilarity,
     hubnessPenalty: calibrated?.hubnessPenalty,
     searchProgressSignal:
@@ -128,10 +131,15 @@ function maxContrastSimilarity(args: {
     return undefined;
   }
 
+  const similarities = args.targets.map((target) =>
+    cosineSimilarity(args.candidate, flattenTrace(target)),
+  );
+  const nonSelfSimilarities = similarities.filter(
+    (similarity) => similarity < SELF_MATCH_SIMILARITY,
+  );
+
   return Math.max(
-    ...args.targets.map((target) =>
-      cosineSimilarity(args.candidate, flattenTrace(target)),
-    ),
+    ...(nonSelfSimilarities.length > 0 ? nonSelfSimilarities : similarities),
   );
 }
 
@@ -144,6 +152,7 @@ function calibratedRetrievalSimilarity(args: {
       calibratedSimilarity: number;
       discriminativeSimilarity: number;
       retrievalMargin: number;
+      nearMissSimilarity: number;
       cslsSimilarity: number;
       hubnessPenalty: number;
       searchProgressSignal: number;
@@ -181,9 +190,9 @@ function calibratedRetrievalSimilarity(args: {
   }
 
   const discriminativeSimilarity = cosineSimilarity(target, candidate);
-  const candidateContrastSimilarities = contrasts
-    .map((contrast) => cosineSimilarity(candidate, contrast))
-    .sort((left, right) => right - left);
+  const candidateContrastSimilarities = withoutSelfMatches(
+    contrasts.map((contrast) => cosineSimilarity(candidate, contrast)),
+  ).sort((left, right) => right - left);
   const targetContrastSimilarities = contrasts
     .map((contrast) => cosineSimilarity(target, contrast))
     .sort((left, right) => right - left);
@@ -199,19 +208,32 @@ function calibratedRetrievalSimilarity(args: {
     2 * discriminativeSimilarity - candidateNeighborhood - targetNeighborhood;
   const retrievalMargin = discriminativeSimilarity - nearestContrastSimilarity;
   const calibratedBase = 0.5 + 0.5 * Math.tanh(cslsSimilarity);
+  const nearMissSimilarity =
+    calibratedBase * retrievalMarginNearMissConfidence(retrievalMargin);
+  const retrievalWinSimilarity =
+    calibratedBase * retrievalMarginConfidence(retrievalMargin);
 
   return {
-    calibratedSimilarity:
-      calibratedBase * retrievalMarginConfidence(retrievalMargin),
+    calibratedSimilarity: Math.max(
+      retrievalWinSimilarity,
+      nearMissSimilarity * NEAR_MISS_CALIBRATED_WEIGHT,
+    ),
     discriminativeSimilarity,
     retrievalMargin,
+    nearMissSimilarity,
     cslsSimilarity,
     hubnessPenalty: Math.max(0, candidateNeighborhood),
-    searchProgressSignal:
-      calibratedBase * retrievalMarginNearMissConfidence(retrievalMargin),
+    searchProgressSignal: nearMissSimilarity,
     calibrationTargetCount: contrastVectors.length + 1,
     calibrationVertexCount: selectedVertices.length,
   };
+}
+
+function withoutSelfMatches(similarities: number[]): number[] {
+  const nonSelfSimilarities = similarities.filter(
+    (similarity) => similarity < SELF_MATCH_SIMILARITY,
+  );
+  return nonSelfSimilarities.length > 0 ? nonSelfSimilarities : similarities;
 }
 
 function residualizedSimilarity(args: {

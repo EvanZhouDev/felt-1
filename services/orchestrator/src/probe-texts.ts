@@ -25,8 +25,17 @@ type ProbeResult = {
   text: string;
   neuralSimilarity: number;
   adjustedSimilarity: number;
+  calibratedSimilarity?: number;
   contrastSimilarity?: number;
+  discriminativeSimilarity?: number;
   residualSimilarity?: number;
+  retrievalMargin?: number;
+  nearMissSimilarity?: number;
+  cslsSimilarity?: number;
+  hubnessPenalty?: number;
+  searchProgressSignal?: number;
+  calibrationVertexCount?: number;
+  targetSpecificity?: number;
   total: number;
   activation: {
     model: string;
@@ -58,6 +67,7 @@ const contrastTargets = args.calibrated
       targetActivation: target.activation,
       targetSha: target.rendered?.sha256,
       targetKind: target.rendered?.kind,
+      additionalRenderedKinds: target.rendered?.kind === "text" ? [] : ["text"],
       includeScoreActivations: target.rendered?.kind === "text",
     })
   : [];
@@ -85,8 +95,17 @@ try {
         text: probe.text,
         neuralSimilarity: score.neuralSimilarity,
         adjustedSimilarity: score.adjustedSimilarity,
+        calibratedSimilarity: score.calibratedSimilarity,
         contrastSimilarity: score.contrastSimilarity,
+        discriminativeSimilarity: score.discriminativeSimilarity,
         residualSimilarity: score.residualSimilarity,
+        retrievalMargin: score.retrievalMargin,
+        nearMissSimilarity: score.nearMissSimilarity,
+        cslsSimilarity: score.cslsSimilarity,
+        hubnessPenalty: score.hubnessPenalty,
+        searchProgressSignal: score.searchProgressSignal,
+        calibrationVertexCount: score.calibrationVertexCount,
+        targetSpecificity: score.targetSpecificity,
         total: score.total,
         activation: {
           model: activation.model,
