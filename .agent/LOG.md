@@ -76,3 +76,23 @@ Validation:
 - Initial `bun run check` caught JSON formatter drift in probe reports; fixed with Biome format.
 - `bun run check` passed after formatting.
 - `bun run smoke` passed with the new mutation cues; selected `candidate-b` in the mock run, which is acceptable because the smoke asserts judge selection follows ranking rather than a fixed candidate id.
+
+## 2026-06-06 17:39 PDT - Search Algorithm Research Pass
+
+User nudge: research existing genetic/evolutionary algorithms, including AlphaEvolve, and optionally create a human-readable log.
+
+Sources checked:
+
+- Google DeepMind AlphaEvolve blog and white paper.
+- MAP-Elites paper by Mouret and Clune.
+- Novelty Search paper by Lehman and Stanley.
+- CMA-ES reference site.
+
+Takeaways:
+
+- AlphaEvolve's important pattern for Volta is a scored archive/database plus prompt sampling from parent and inspiration candidates, not one-winner-only refinement.
+- MAP-Elites suggests keeping elite outputs per behavior/style cell so exploration survives while still improving quality.
+- Novelty search is relevant because the 0.9 objective may be deceptive or poorly calibrated; we should preserve diverse candidates even when they are not immediate score winners.
+- CMA-ES is less directly applicable to raw text, but useful for tunable strategy distributions and mutation strengths.
+
+Added `.agent/HUMAN_LOG.md` with a readable summary and source links.
