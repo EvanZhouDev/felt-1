@@ -609,6 +609,10 @@ async function evaluateCandidate(
     run: () => args.oracle.encode(rendered.encoderInput),
     output: activationSummary,
   });
+  const activationWithDiagnostics = attachActivationDiagnostics({
+    candidate: activation,
+    target: args.targetActivation,
+  });
   const score = await args.journal.trace({
     name: "candidate.score",
     input: {
@@ -616,7 +620,7 @@ async function evaluateCandidate(
       iteration: args.iteration,
       agentId: args.candidate.agentId,
       targetActivation: activationSummary(args.targetActivation),
-      candidateActivation: activationSummary(activation),
+      candidateActivation: activationSummary(activationWithDiagnostics),
     },
     attributes: {
       runId: args.id,
@@ -626,7 +630,7 @@ async function evaluateCandidate(
     run: async () =>
       scoreActivations({
         target: args.targetActivation,
-        candidate: activation,
+        candidate: activationWithDiagnostics,
         diversity: args.candidate.entropy ? 0.75 : 0.5,
       }),
     output: scoreSummary,
@@ -635,9 +639,40 @@ async function evaluateCandidate(
   return {
     ...args.candidate,
     rendered,
-    activation,
+    activation: activationWithDiagnostics,
     score,
   };
+}
+
+function attachActivationDiagnostics(args: {
+  candidate: Awaited<ReturnType<NeuralOracle["encode"]>>;
+  target: Awaited<ReturnType<NeuralOracle["encode"]>>;
+}): Awaited<ReturnType<NeuralOracle["encode"]>> {
+  const candidateYeo = args.candidate.diagnostics?.yeo7Means;
+  const targetYeo = args.target.diagnostics?.yeo7Means;
+  if (!candidateYeo || !targetYeo) {
+    return args.candidate;
+  }
+  return {
+    ...args.candidate,
+    diagnostics: {
+      ...args.candidate.diagnostics,
+      yeo7DeltaFromTarget: subtractYeo(candidateYeo, targetYeo),
+    },
+  };
+}
+
+function subtractYeo(
+  candidate: Record<string, number>,
+  target: Record<string, number>,
+): Record<string, number> {
+  const networks = new Set([...Object.keys(candidate), ...Object.keys(target)]);
+  return Object.fromEntries(
+    [...networks].map((network) => [
+      network,
+      (candidate[network] ?? 0) - (target[network] ?? 0),
+    ]),
+  );
 }
 
 function buildCandidateSpecs(

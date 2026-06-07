@@ -51,6 +51,10 @@ const scenarios: Scenario[] = [
           text: "A terse paragraph with cold urgency and clipped rhythm.",
         },
       },
+      seed: {
+        prompt:
+          "Write about a dog while preserving the target's emotional pressure, pace, and perceptual feel. Do not copy the target topic or phrasing.",
+      },
     },
     output: {
       outputType: "text",
@@ -151,11 +155,25 @@ for (const scenario of scenarios) {
   if (result.candidates.length !== 3) {
     throw new Error(`${scenario.id} did not produce three candidates.`);
   }
-  const candidate = result.candidates[0];
-  if (
-    !candidate?.entropy?.includes(`outputType=${scenario.output.outputType}`)
-  ) {
-    throw new Error(`${scenario.id} candidate entropy is not medium-aware.`);
+  for (const candidate of result.candidates) {
+    if (
+      !candidate.entropy?.includes(`outputType=${scenario.output.outputType}`)
+    ) {
+      throw new Error(`${scenario.id} candidate entropy is not medium-aware.`);
+    }
+  }
+  if (scenario.id === "text-to-text") {
+    const candidateText = result.candidates
+      .map((candidate) =>
+        candidate.outputNode?.type === "text"
+          ? candidate.outputNode.payload.text
+          : "",
+      )
+      .join("\n")
+      .toLowerCase();
+    if (!candidateText.includes("dog")) {
+      throw new Error("text-to-text scenario did not preserve dog seed topic.");
+    }
   }
 
   await assertExists(join(runsRoot, scenario.id, "candidate-archive.json"));
@@ -179,6 +197,12 @@ type GenericSmokeResult = {
   iterations: unknown[];
   candidates: Array<{
     entropy?: string;
+    outputNode?: {
+      type: string;
+      payload: {
+        text?: string;
+      };
+    };
   }>;
 };
 

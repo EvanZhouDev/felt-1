@@ -313,6 +313,7 @@ function summarizeActivation(activation: ActivationTrace) {
     model: activation.model,
     shape: activation.shape,
     artifactPath: activation.artifactPath,
+    diagnostics: activation.diagnostics,
     summary: activation.summary,
   };
 }

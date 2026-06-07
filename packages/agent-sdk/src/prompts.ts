@@ -64,7 +64,8 @@ function candidateSharedInstructions(
   return [
     "The inputNode is the target whose emotion, energy, and perceptual feel should be matched.",
     "If the Codex run includes attached images, inspect them directly; they are visual evidence for the target or rendered candidate nodes.",
-    "The optional seed is content direction, not the target itself.",
+    "The optional seed is content direction, not the target itself. When a seed is present, keep the generated output about the seed's requested topic or medium while matching the input target's perceptual feel.",
+    "For same-medium transfers such as text-to-text, do not solve the task by copying or paraphrasing the target. Translate the target's activation feel into the seed topic.",
     "Do not train a model. Produce one renderable output node.",
     "The entropy cue is an assigned evolutionary operator. Follow it so parallel candidates behave like a population: elite preservation, point mutation, crossover, novelty injection, ablation, or representation reset.",
     "For text output, write a direct description of the perceived subject, mood, composition, and affect. Do not write drawing instructions, image-generation prompts, commands, or phrases like render it, use, keep, make, or create.",

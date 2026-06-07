@@ -751,3 +751,65 @@ Interpretation:
 
 - This makes the operator stats actionable. The search now mixes fixed
   operator cycling with an adaptive exploitation slot.
+
+## 2026-06-06 19:36 PDT - Yeo-7 Sidecar Diagnostics in HTTP Oracle
+
+Change:
+
+- `HttpTribeOracle` now fetches each completed job's `result.json` after the
+  full-vector prediction download.
+- If `yeo7_means` are present, they are attached to `ActivationTrace.diagnostics`.
+- Candidate evaluation attaches `yeo7DeltaFromTarget` when both target and
+  candidate activations have Yeo means.
+- Observability summaries include diagnostics, so the judge can see them through
+  ranked candidate summaries.
+
+Important boundary:
+
+- Yeo-7 diagnostics do not replace scoring.
+- `scoreActivations` still uses the full activation vector for cosine.
+- If `result.json` is unavailable, scoring continues without diagnostics.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Interpretation:
+
+- This is the safest version of the user's Yeo hypothesis: expose Yeo deltas as
+  mutation-axis hints without spending extra TRIBE jobs or letting 7 scalar means
+  override full-vector fitness.
+
+## 2026-06-06 19:44 PDT - Seed-Constrained Text-to-Text Benchmark
+
+Problem:
+
+- A text-to-text target can become an identity/paraphrase test if the output is
+  allowed to stay on the same topic.
+- For vibe transfer, the seed should force a new topic while TRIBE scoring
+  preserves the target's emotional/perceptual activation feel.
+
+Change:
+
+- Updated `smoke:generic` text-to-text scenario:
+  - target: `A terse paragraph with cold urgency and clipped rhythm.`
+  - seed: write about a dog while preserving emotional pressure, pace, and
+    perceptual feel.
+- The smoke now asserts that generated text candidates preserve the `dog` seed
+  topic.
+- Candidate prompts now explicitly tell same-medium transfers not to copy or
+  paraphrase the target, but to translate the target activation feel into the
+  seed topic.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Interpretation:
+
+- This makes the cheap text-to-text benchmark closer to real Volta behavior:
+  preserve the vibe, change the subject.

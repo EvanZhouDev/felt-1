@@ -96,6 +96,7 @@ class HttpTribeOracle implements NeuralOracle {
     const job = await this.submit(stimulus);
     await this.waitForJob(job.job_id);
     const values = await this.fetchPooledValues(job.job_id);
+    const diagnostics = await this.fetchDiagnostics(job.job_id);
 
     const flat = values[0];
     const mean = flat.reduce((sum, value) => sum + value, 0) / flat.length;
@@ -107,6 +108,7 @@ class HttpTribeOracle implements NeuralOracle {
       model: "tribev2-http",
       shape: [1, flat.length],
       values,
+      diagnostics,
       summary: { mean, std: Math.sqrt(variance), norm },
     };
   }
@@ -238,6 +240,28 @@ class HttpTribeOracle implements NeuralOracle {
       pooled[v] /= timesteps;
     }
     return [pooled];
+  }
+
+  private async fetchDiagnostics(
+    jobId: string,
+  ): Promise<ActivationTrace["diagnostics"] | undefined> {
+    const response = await fetchWithTimeout(
+      `${this.baseUrl}/jobs/${jobId}/result.json`,
+      undefined,
+      `GET /jobs/${jobId}/result.json`,
+    ).catch(() => undefined);
+    if (!response?.ok) {
+      return undefined;
+    }
+    const result = (await response.json().catch(() => undefined)) as
+      | { yeo7_means?: Record<string, number> }
+      | undefined;
+    if (!result?.yeo7_means) {
+      return undefined;
+    }
+    return {
+      yeo7Means: result.yeo7_means,
+    };
   }
 }
 
