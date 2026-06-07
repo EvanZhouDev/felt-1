@@ -262,15 +262,18 @@ async function executeRunLoop(
       previous,
       target,
       stalled,
+      // Elitism: carry the reigning global best into the population as an
+      // already-scored candidate so best(N+1) >= best(N) by construction. It is
+      // an existing EvaluatedOutput, so re-injecting it costs zero TRIBE calls.
+      elite: bestOverallOutput(iterations),
     });
-    const bestBefore = bestOverallOutput(iterations);
-    const best = iterationResult.rankedOutputs[0];
-    const bestAfter = bestOutput(bestBefore, best);
-    if (shouldPreserveElite(bestBefore, best)) {
-      iterationResult.nextIterationSeed = seedFromElite({
-        elite: bestBefore,
-        currentBest: best,
-      });
+    // The post-injection rank-0 IS the global elite (elitism guarantees it is
+    // never displaced by something worse). Always forward it as the seed so the
+    // next iteration's challengers are mutations OF the champion — the (1+lambda)
+    // climber — rather than re-derivations from the judge's pick.
+    const bestAfter = iterationResult.rankedOutputs[0];
+    if (bestAfter) {
+      iterationResult.nextIterationSeed = seedFromElite({ elite: bestAfter });
       await writeJson(
         join(iterationPath, "next-seed.json"),
         iterationResult.nextIterationSeed,
@@ -482,6 +485,7 @@ async function executeIteration(
     previous: NextIterationSeed;
     target: RunLoopResult["target"];
     stalled?: boolean;
+    elite?: EvaluatedOutput;
   },
 ): Promise<IterationResult> {
   const iterationPath = join(
@@ -581,19 +585,29 @@ async function executeIteration(
       return evaluated;
     },
   );
-  evaluatedOutputs.sort((left, right) => right.score.total - left.score.total);
-  await writeJson(join(iterationPath, "scores.json"), evaluatedOutputs);
+  // Elitism: re-insert the reigning global elite as an already-scored member of
+  // this iteration's population (zero TRIBE calls — its activation is cached).
+  // This guarantees best(N+1) >= best(N): the champion can only be displaced by
+  // a candidate that genuinely outscores it. The challengers are meanwhile
+  // generated as mutations *of* this elite (it is the forwarded seed), so the
+  // population is the (1+lambda) shape: [elite, mutate(elite), ...].
+  const rankedOutputs = (
+    args.elite
+      ? [{ ...args.elite, agentId: "elite" }, ...evaluatedOutputs]
+      : evaluatedOutputs
+  ).sort((left, right) => right.score.total - left.score.total);
+  await writeJson(join(iterationPath, "scores.json"), rankedOutputs);
   await appendCandidateArchive({
     runPath: args.runPath,
     iteration: args.iteration,
-    rankedOutputs: evaluatedOutputs,
+    rankedOutputs,
     runId: args.id,
   });
   await appendTargetCandidateArchive({
     runsRoot: args.runsRoot,
     targetSha: args.target.rendered.sha256,
     iteration: args.iteration,
-    rankedOutputs: evaluatedOutputs,
+    rankedOutputs,
     runId: args.id,
   });
 
@@ -609,7 +623,7 @@ async function executeIteration(
     input: {
       runId: args.id,
       iteration: args.iteration,
-      rankings: evaluatedOutputs.map(evaluatedOutputSummary),
+      rankings: rankedOutputs.map(evaluatedOutputSummary),
     },
     attributes: {
       runId: args.id,
@@ -624,7 +638,7 @@ async function executeIteration(
         spec: { ...judgeSpec, model: args.judgeModel },
         input: args.input,
         output: args.output,
-        rankedOutputs: evaluatedOutputs,
+        rankedOutputs,
         workspace: judgeWorkspace,
         inputDescription: args.target.description,
       }),
@@ -642,7 +656,7 @@ async function executeIteration(
     iteration: args.iteration,
     previous: args.previous,
     candidateOutputs,
-    rankedOutputs: evaluatedOutputs,
+    rankedOutputs,
     judge,
     nextIterationSeed,
   };
@@ -1186,45 +1200,11 @@ function bestOverallOutput(
     )[0];
 }
 
-function bestOutput(
-  left: EvaluatedOutput | undefined,
-  right: EvaluatedOutput | undefined,
-): EvaluatedOutput | undefined {
-  if (!left) {
-    return right;
-  }
-  if (!right) {
-    return left;
-  }
-  return left.score.neuralSimilarity >= right.score.neuralSimilarity
-    ? left
-    : right;
-}
-
-function shouldPreserveElite(
-  elite: EvaluatedOutput | undefined,
-  currentBest: EvaluatedOutput | undefined,
-): elite is EvaluatedOutput {
-  if (!elite) {
-    return false;
-  }
-  if (!currentBest) {
-    return true;
-  }
-  return elite.score.neuralSimilarity > currentBest.score.neuralSimilarity;
-}
-
-function seedFromElite(args: {
-  elite: EvaluatedOutput;
-  currentBest?: EvaluatedOutput;
-}): NextIterationSeed {
-  const current = args.currentBest
-    ? ` Current iteration best was ${args.currentBest.agentId} at ${args.currentBest.score.neuralSimilarity}.`
-    : "";
+function seedFromElite(args: { elite: EvaluatedOutput }): NextIterationSeed {
   return {
     type: "selected-output-with-reasoning",
     node: args.elite.outputNode,
-    reasoning: `Preserve global neural elite ${args.elite.agentId} at ${args.elite.score.neuralSimilarity}.${current} Use this as the next seed unless a later candidate improves the neural similarity.`,
+    reasoning: `This is the reigning global neural elite (${args.elite.agentId} at ${args.elite.score.neuralSimilarity}). Treat it as the parent: preserve its high-scoring structure and mutate toward higher neural similarity.`,
   };
 }
 
