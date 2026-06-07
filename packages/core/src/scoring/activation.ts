@@ -1,23 +1,31 @@
 import type { ActivationTrace, ScoreBundle } from "../types.ts";
 
 // The neural similarity blends three views of the activation trajectory:
-//   - pooled: cosine of the mean-centered time-AVERAGE. Length-invariant, so it
-//     grounds cross-modal pairs whose timestep counts differ wildly (an image is
-//     ~2 frames; the text rendered from it is ~23). This is the backbone.
-//   - temporal: mean per-frame mean-centered cosine, after resampling BOTH
-//     traces to their common (max) length so every frame contributes — anchors
-//     "what is firing" over time.
-//   - dynamics: mean cosine of the frame-to-frame deltas (also on the resampled
-//     traces) — "how it moves", the turbulence/stillness signature a time-
-//     average throws away. Dynamics alone is hack-prone, so it gets the least.
-// Validated on real TRIBE activations (exp-2 probe set + the Starry-Night
-// image->text pair): at this split the true vibe-match ranks #1 against hard
-// counterfactuals (incl. a calm night sky), the repetition reward-hack scores
-// ~0.08 below the match, and cross-modal scoring uses all frames instead of
-// silently truncating the longer trace to min(T).
+//   - pooled (0.4): cosine of the mean-centered time-AVERAGE. Length-invariant,
+//     it grounds cross-modal pairs whose timestep counts differ wildly (an image
+//     is ~2 frames; the text rendered from it is ~23) and keeps the metric
+//     non-gameable — it is what makes the true text<->text vibe-match rank #1
+//     over a same-topic-opposite-vibe counterfactual.
+//   - resampled trajectory (0.3): the temporal + dynamics cosines (per-frame
+//     pattern and frame-to-frame motion) after resampling BOTH traces to their
+//     common (max) length so every frame contributes. Captures the
+//     turbulence/stillness signature a time-average throws away.
+//   - best-match (0.3): for each target frame, its cosine to the *best-matching*
+//     candidate frame (averaged both directions). This is the term that widens
+//     the cross-modal gradient — it lets a 2-frame image align to whichever text
+//     frames resemble it, instead of diluting the signal across a rigid resample.
+// Validated on real TRIBE activations (exp-2 probe set + Starry-Night
+// image->text + an 8-persona style sweep): the true vibe-match ranks #1, the
+// repetition reward-hack scores ~0.08 below it, flat semantic description ranks
+// dead last (TRIBE rewards emotional response, not description), and the
+// cross-modal style gradient is ~2x wider than resample-only.
 const POOLED_WEIGHT = 0.4;
-const TEMPORAL_WEIGHT = 0.35;
-const DYNAMICS_WEIGHT = 0.25;
+const TRAJECTORY_WEIGHT = 0.3;
+const BEST_MATCH_WEIGHT = 0.3;
+// Within the resampled-trajectory term, split evenly between the per-frame
+// pattern (temporal) and its motion (dynamics).
+const TEMPORAL_SHARE = 0.5;
+const DYNAMICS_SHARE = 0.5;
 
 export function scoreActivations(args: {
   target: ActivationTrace;
@@ -77,12 +85,14 @@ export function neuralTrajectorySimilarity(
     const length = Math.max(a.length, b.length);
     const ar = resampleFrames(a, length);
     const br = resampleFrames(b, length);
-    const temporal = temporalCenteredCosine(ar, br);
-    const dynamics = deltaCosine(ar, br);
+    const trajectory =
+      TEMPORAL_SHARE * temporalCenteredCosine(ar, br) +
+      DYNAMICS_SHARE * deltaCosine(ar, br);
+    const bestMatch = symmetricBestMatchCosine(a, b);
     const raw =
       POOLED_WEIGHT * pooled +
-      TEMPORAL_WEIGHT * temporal +
-      DYNAMICS_WEIGHT * dynamics;
+      TRAJECTORY_WEIGHT * trajectory +
+      BEST_MATCH_WEIGHT * bestMatch;
     return (raw + 1) / 2;
   }
 
@@ -121,6 +131,40 @@ function deltaCosine(a: number[][], b: number[][]): number {
     sum += cosineSimilarity(da[t], db[t]);
   }
   return steps > 0 ? sum / steps : 0;
+}
+
+// Soft frame alignment: for each frame on one side, take its cosine to the
+// best-matching frame on the other side (mean-centered), and average both
+// directions. Unlike the rigid resample, this lets a short trace align to
+// whichever frames of a long trace resemble it — widening the cross-modal
+// gradient without assuming the two traces share a time base. Operates on the
+// ORIGINAL (un-resampled) frames so no information is duplicated or dropped.
+function symmetricBestMatchCosine(a: number[][], b: number[][]): number {
+  const bc = b.map((frame) => centerInPlace([...frame]));
+  const ac = a.map((frame) => centerInPlace([...frame]));
+  const forward = meanBestMatch(ac, bc);
+  const backward = meanBestMatch(bc, ac);
+  return (forward + backward) / 2;
+}
+
+// Mean over `from` frames of each frame's max cosine to any `to` frame. Inputs
+// are assumed already mean-centered.
+function meanBestMatch(from: number[][], to: number[][]): number {
+  if (from.length === 0 || to.length === 0) {
+    return 0;
+  }
+  let sum = 0;
+  for (const frame of from) {
+    let best = Number.NEGATIVE_INFINITY;
+    for (const other of to) {
+      const c = cosineSimilarity(frame, other);
+      if (c > best) {
+        best = c;
+      }
+    }
+    sum += best;
+  }
+  return sum / from.length;
 }
 
 // Time-average of a [timesteps, vertices] matrix into one R^vertices frame.
