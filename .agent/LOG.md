@@ -213,3 +213,74 @@ Validation:
 - Initial `bun run check` found formatter drift in `archive.ts`; fixed with Biome format.
 - `bun run check` passed after formatting.
 - Smoke artifact created a target-specific archive with 4 entries and `runId: smoke-run`.
+
+## 2026-06-06 18:12 PDT - Cold-Start Strategy Probe
+
+User clarified that warm target-specific archives are only diagnostic; the system
+must converge from scratch in roughly 10 turns.
+
+Cold-start boundary:
+
+- Used an isolated absolute runs root with only the cached target activation.
+- No target candidate archive was present.
+- Run `26b8e0d3-5b07-4aa1-81f5-f565645974f1`, 4 candidates, 1 scored iteration
+  before cutting off the weak second iteration.
+
+Cold run v1 results:
+
+- `candidate-c`: `-0.002558308172464763`.
+- `candidate-a`: `-0.035465723040737605`.
+- `candidate-d`: `-0.060632256759209385`.
+- `candidate-b`: `-0.08662212833950082`.
+
+Interpretation:
+
+- Generic visual description, scene graph, and object inventory are bad
+  first-turn strategies for this cross-modal target.
+- The judge would have refined a weak spatial-composition seed, so the initial
+  strategy schedule was steering the loop into a low-value basin.
+
+Small-scale probe:
+
+- Added `.agent/probes/mona-lisa-cold-strategy-v2.json`.
+- Scored 8 hand-authored strategy probes with `bun run probe:texts` and hosted
+  TRIBE.
+- Best probe: `affect-low-motion` scored `0.0731565229976215`, beating the
+  previous known warm-run best `0.0446379915415347` without using old candidate
+  state.
+- Runner-up: `minimal-neural-caption` scored `0.03222768091373522`.
+- Worst: `scene-graph-plain` scored `-0.15589541680958133`.
+
+Changes:
+
+- Split mutation schedules into cold-start strategies and refinement strategies.
+- Cold-start now prioritizes affect-state vectors, minimal neural captions,
+  surface/light/texture, perceptual gestalt, warm/cool contrast, and anti-literal
+  probes.
+- Candidate prompt now tells first-pass text agents to favor perceptual-state
+  language over exhaustive object inventory.
+
+Validation so far:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- Real 4x1 cold-start run
+  `5769ab19-49b7-464b-b74a-2905ec4696bb` completed under
+  `.volta/cold-strategy-v2`.
+
+Real run after strategy patch:
+
+- `candidate-a` affect-state vector: `0.03525156767633251`.
+- `candidate-d` global perceptual gestalt: `-0.029479720295879096`.
+- `candidate-b` minimal neural caption: `-0.07253182191582468`.
+- `candidate-c` surface/light/texture: `-0.0818080272110829`.
+
+Interpretation:
+
+- The implemented schedule improved the live cold-start batch from
+  `-0.002558308172464763` best to `0.03525156767633251` best.
+- It still did not reproduce the manual `affect-low-motion` probe at
+  `0.0731565229976215`.
+- Next likely improvement: make cold-start generation score-calibrated with
+  positive/negative style exemplars or evolve the mutation prompts themselves,
+  as in PromptBreeder/APE, instead of relying only on abstract strategy names.

@@ -67,6 +67,7 @@ function candidateSharedInstructions(
     "Do not train a model. Produce one renderable output node.",
     "The entropy cue is an assigned mutation strategy. Follow it so parallel candidates explore genuinely different regions of the output space.",
     "For text output, write a direct description of the perceived subject, mood, composition, and affect. Do not write drawing instructions, image-generation prompts, commands, or phrases like render it, use, keep, make, or create.",
+    "For first-pass text output, favor perceptual-state language over exhaustive object inventory: motion level, attention, emotional temperature, ambiguity, atmosphere, light, texture, and visual weight. Use concrete subject anchors sparingly unless the entropy cue asks for more.",
     "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
     "For image output, produce an image node referencing the intended generated image asset URI.",
     "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",

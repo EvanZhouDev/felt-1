@@ -637,39 +637,80 @@ function candidateSuffix(index: number): string {
   return String(index + 1);
 }
 
+type MutationStrategy = {
+  name: string;
+  instruction: string;
+};
+
+const coldStartStrategies: MutationStrategy[] = [
+  {
+    name: "affect-state vector",
+    instruction:
+      "Write a compact perceptual-state description: motion level, attention, emotional temperature, ambiguity, intimacy, atmosphere, and visual weight. Use only one or two concrete subject anchors.",
+  },
+  {
+    name: "minimal neural caption",
+    instruction:
+      "Write a short caption-like phrase set, roughly 12-25 words, blending subject, mood, light, and atmosphere. Avoid proper names, dates, and full scene explanation.",
+  },
+  {
+    name: "surface light texture",
+    instruction:
+      "Bias toward low-level visual cues: light, shadow, contrast, softness, haze, color temperature, material surface, age, texture, and edge quality.",
+  },
+  {
+    name: "global perceptual gestalt",
+    instruction:
+      "Write two or three direct sentences about the target's overall feel, balance, stillness or motion, and viewer-facing presence. Do not enumerate every object.",
+  },
+  {
+    name: "warm cool contrast",
+    instruction:
+      "Focus on warm/cool color relations, foreground weight, background distance, brightness, darkness, and atmospheric depth while keeping the subject readable.",
+  },
+  {
+    name: "anti-literal probe",
+    instruction:
+      "Avoid factual labels, proper nouns, museum-caption wording, and exhaustive object inventory. Describe the viewer's perceptual experience and emotional pressure.",
+  },
+];
+
+const refinementStrategies: MutationStrategy[] = [
+  {
+    name: "score-preserving edit",
+    instruction:
+      "Keep the strongest previous phrasing, then make one restrained mutation. Prefer small edits over full rewrites.",
+  },
+  {
+    name: "compact caption child",
+    instruction:
+      "Compress the previous best into a shorter caption-like phrase set that keeps the highest-signal affect, light, and subject anchors.",
+  },
+  {
+    name: "surface and texture child",
+    instruction:
+      "Keep the previous best's affect but replace some subject description with low-level surface, light, color, haze, and texture cues.",
+  },
+  {
+    name: "affect intensity child",
+    instruction:
+      "Keep the previous best's visual anchors but shift the emotional temperature, motion level, attention, ambiguity, and intimacy wording.",
+  },
+  {
+    name: "one-variable ablation",
+    instruction:
+      "Change exactly one major variable from the previous best: length, sentence style, affect density, concrete anchors, or texture density. Leave the rest stable.",
+  },
+  {
+    name: "negative-control escape",
+    instruction:
+      "Deliberately avoid the dominant previous wording pattern and try a different length or syntax while preserving the target's perceptual feel.",
+  },
+];
+
 function mutationStrategy(iteration: number, index: number): string {
-  const strategies = [
-    {
-      name: "prior-best-preserving edit",
-      instruction:
-        "Keep the strongest previous phrasing, then make one restrained mutation. Prefer small edits over full rewrites.",
-    },
-    {
-      name: "compact visual inventory",
-      instruction:
-        "Use short concrete visual phrases and object/material nouns. Avoid museum-label facts and proper names unless the seed already proved useful.",
-    },
-    {
-      name: "spatial composition pass",
-      instruction:
-        "Describe foreground, figure, face, hands, clothing, and background in image order with minimal interpretation.",
-    },
-    {
-      name: "affect and energy pass",
-      instruction:
-        "Focus on stillness, gaze, emotional temperature, ambiguity, motion level, and atmosphere using direct descriptive sentences.",
-    },
-    {
-      name: "texture and color pass",
-      instruction:
-        "Bias toward color, light, surface, softness, contrast, haze, shadow, and material texture while keeping the subject readable.",
-    },
-    {
-      name: "negative-control escape",
-      instruction:
-        "Deliberately avoid the dominant previous wording pattern and try a different length or syntax while preserving the target's perceptual feel.",
-    },
-  ];
+  const strategies =
+    iteration === 1 ? coldStartStrategies : refinementStrategies;
   const strategy = strategies[index % strategies.length];
   return [
     `iteration=${iteration}`,

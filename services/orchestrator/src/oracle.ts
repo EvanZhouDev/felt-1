@@ -266,23 +266,29 @@ async function fetchWithTimeout(
   label: string,
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, TRIBE_REQUEST_TIMEOUT_MS);
+  const timeoutError = `${label} timed out after ${TRIBE_REQUEST_TIMEOUT_MS}ms.`;
+  let timeout: Timer | undefined;
   try {
-    return await fetch(url, {
+    const request = fetch(url, {
       ...init,
       signal: controller.signal,
     });
+    const deadline = new Promise<Response>((_, reject) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(new Error(timeoutError));
+      }, TRIBE_REQUEST_TIMEOUT_MS);
+    });
+    return await Promise.race([request, deadline]);
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        `${label} timed out after ${TRIBE_REQUEST_TIMEOUT_MS}ms.`,
-      );
+      throw new Error(timeoutError);
     }
     throw error;
   } finally {
-    clearTimeout(timeout);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
   }
 }
 
