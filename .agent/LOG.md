@@ -1408,3 +1408,29 @@ resolution/timestep artifact. The leverage is entirely in the SIMILARITY FUNCTIO
 (common-mode removal), which the methodology research workflow (wp778bk4e) is now
 addressing. (water_lilies_600 fetch was corrupt; re-fetch later - TRIBE queue busy
 with research agents.)
+
+## 2026-06-07 - Methodology synthesis + per-vertex de-baseline PROTOTYPE (mixed)
+
+7-agent methodology workflow converged on a root cause: our centerInPlace does
+PEARSON centering (subtract each vector's scalar mean over vertices), but the
+0.85-0.97 collinearity floor is a shared SPATIAL common-mode across vertices.
+Fix = per-vertex de-baseline: subtract mu[20484] from an INDEPENDENT reference
+corpus (~200 diverse stimuli, per-modality, cached, never from the test pair).
+Full synthesis: .agent/research/tribe-similarity-methodology.md
+
+PROTOTYPE TEST (offline, with a TINY n=10 text-only reference mu - knowingly
+under-powered per the synthesis's own >=200 guidance):
+- Pooled-only: per-vertex de-baseline did NOT fix calm-sky (MATCH still 2/6), but
+  hugely widened dynamic range (MATCH 0.65 vs tech -0.66 vs Pearson's compressed
+  0.68-0.97) - it IS removing common-mode.
+- FULL temporal blend: current (Pearson) ranks MATCH 1/6 CORRECTLY; de-baselined
+  ranks MATCH 2/6 (calm-sky wins again). BUT hackgap DOUBLED 0.077 -> 0.161.
+
+HONEST READ: de-baselining is NOT a free win at n=10. It strengthens anti-hack
+robustness but (with a tiny text-only mu) breaks the calm/turbulent ranking the
+temporal blend already gets right. This VALIDATES the synthesis's caveat: need
+~200 diverse per-modality stimuli, not n=10. Do NOT wire de-baseline into the
+metric yet. Proper path: collect the reference corpus first, re-validate.
+Also note: the synthesis assumed Pearson "still ranks calm #1" - true for POOLED,
+but our FULL temporal blend already ranks MATCH #1, so the urgency is lower than
+the synthesis implies. The temporal structure was already doing the heavy lifting.
