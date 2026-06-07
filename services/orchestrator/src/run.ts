@@ -644,9 +644,24 @@ type MutationStrategy = {
 
 const coldStartStrategies: MutationStrategy[] = [
   {
-    name: "minimal neural caption",
+    name: "minimal expression-light caption",
     instruction:
       "Write a 10-18 word comma-separated phrase set, not a full sentence. Blend one salient subject/expression/posture anchor with light, stillness or motion, distance or air, texture, and ambiguity. Avoid proper names, dates, and full scene explanation.",
+  },
+  {
+    name: "minimal affect-air caption",
+    instruction:
+      "Write a 10-18 word comma-separated phrase set, not a full sentence. Emphasize emotional temperature, motion level, attention, air, distance, and ambiguity. Use at most one concrete subject noun.",
+  },
+  {
+    name: "minimal texture-color caption",
+    instruction:
+      "Write a 10-18 word comma-separated phrase set, not a full sentence. Emphasize color temperature, light, shadow, surface age, texture, softness, and one target anchor.",
+  },
+  {
+    name: "minimal posture-depth caption",
+    instruction:
+      "Write a 10-18 word comma-separated phrase set, not a full sentence. Emphasize posture or placement, stillness or motion, foreground weight, background distance, atmosphere, and ambiguity.",
   },
   {
     name: "affect phrase cloud",
@@ -677,14 +692,24 @@ const coldStartStrategies: MutationStrategy[] = [
 
 const refinementStrategies: MutationStrategy[] = [
   {
-    name: "score-preserving edit",
+    name: "minimal score-preserving caption",
     instruction:
-      "Keep the strongest previous phrasing, then make one restrained mutation. Prefer small edits over full rewrites.",
+      "Keep the previous best as a 10-18 word comma-separated caption. Make one restrained phrase swap while preserving its strongest affect, light, texture, distance, and ambiguity cues.",
   },
   {
-    name: "compact caption child",
+    name: "minimal caption crossover",
     instruction:
-      "Compress the previous best into a shorter caption-like phrase set that keeps the highest-signal affect, light, and subject anchors.",
+      "Write a 10-18 word comma-separated caption that combines the previous best's strongest phrases with one useful cue from the runner-up or archive context.",
+  },
+  {
+    name: "minimal caption ablation",
+    instruction:
+      "Write a 10-18 word comma-separated caption that removes one concrete anchor from the previous best and replaces it with a low-level affect, light, surface, or air cue.",
+  },
+  {
+    name: "minimal affect intensity caption",
+    instruction:
+      "Write a 10-18 word comma-separated caption that keeps the previous best's subject anchor but shifts emotional temperature, motion level, attention, ambiguity, and intimacy.",
   },
   {
     name: "surface and texture child",
@@ -692,9 +717,9 @@ const refinementStrategies: MutationStrategy[] = [
       "Keep the previous best's affect but replace some subject description with low-level surface, light, color, haze, and texture cues.",
   },
   {
-    name: "affect intensity child",
+    name: "affect phrase child",
     instruction:
-      "Keep the previous best's visual anchors but shift the emotional temperature, motion level, attention, ambiguity, and intimacy wording.",
+      "Keep the previous best's visual anchors but rewrite it as one sentence beginning 'The feeling is' with comma-separated perceptual states.",
   },
   {
     name: "one-variable ablation",

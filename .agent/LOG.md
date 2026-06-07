@@ -319,3 +319,51 @@ Interpretation:
 - Promoted `minimal neural caption` to the first cold-start strategy and
   tightened its instruction to 10-18 comma-separated words. This should help
   small candidate counts as well as 4-agent runs.
+
+## 2026-06-06 18:30 PDT - Caption Population 4x2 Run
+
+Problem:
+
+- The minimal-caption strategy was high variance. A later 4x3 test produced only
+  `0.04139772892407319` in iteration 1 and collapsed to `0.002353006227135108`
+  in iteration 2, so a single short-caption slot was not robust enough.
+
+Change:
+
+- Made the first four cold-start strategies all 10-18 word caption variants:
+  expression/light, affect/air, texture/color, and posture/depth.
+- Made the first four refinement strategies preserve 10-18 word
+  comma-separated captions: score-preserving edit, crossover, ablation, and
+  affect intensity.
+
+Real cold test:
+
+- Run id: `6d78538a-99ae-4db4-a770-2f2e722dc950`.
+- Boundary: isolated runs root, target activation cache only, no preseeded
+  target candidate archive.
+- Loop: 4 candidates x 2 iterations.
+
+Iteration 1:
+
+- `candidate-b`: `0.25988236470169435`.
+- `candidate-a`: `0.09221710678432093`.
+- `candidate-c`: `0.012898474085625677`.
+- `candidate-d`: `0.010483963859717615`.
+- Winning text: `warm stillness, held attention, quiet face, heavy air, near distance, softened ambiguity`.
+
+Iteration 2:
+
+- `candidate-b`: `0.3656164165710571`.
+- `candidate-a`: `0.3318511489960349`.
+- `candidate-c`: `0.28106761268685615`.
+- `candidate-d`: `0.19991621105623367`.
+- Winning text: `warm hush, held gaze, quiet face, heavy amber-green air, close distance, folded hands, softened uncertainty`.
+
+Interpretation:
+
+- This is the first robust cold convergence curve: `0.25988236470169435` on
+  turn 1 to `0.3656164165710571` on turn 2.
+- All iteration-2 candidates were positive and two exceeded `0.33`, so the
+  caption-preserving refinement policy is working.
+- The path is still far below `0.9`, but we now have a real search direction
+  worth scaling to more turns.
