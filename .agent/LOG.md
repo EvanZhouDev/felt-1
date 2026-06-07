@@ -883,3 +883,38 @@ Interpretation:
   still much too low. The next serious experiment should use Codex-generated
   text candidates under this benchmark harness rather than the deterministic
   baseline.
+
+## 2026-06-07 - New full-data API + temporal similarity metric
+
+Context: hosted TRIBE API upgraded. `result.json` now returns the FULL
+per-timestep matrix `predictions` `[timesteps, 20484]` plus a Yeo-7
+`predictions_by_network` breakdown. The old client mean-pooled to one R^20484
+vector then took a single global cosine — the weak signal that kept cross-modal
+similarity near 0.04-0.35 in prior runs.
+
+Changes (committed: 06ca49c oracle/types, fa35f24 scoring):
+- Oracle (`services/orchestrator/src/oracle.ts`): fetch `result.json`, keep every
+  timestep in `ActivationTrace.values`, expose network breakdown via
+  `diagnostics.networkMeans`.
+- Scorer (`packages/core/src/scoring/activation.ts`): `neuralTrajectorySimilarity`
+  = 0.5 * per-timestep mean-centered cosine + 0.5 * frame-to-frame delta cosine,
+  mapped to [0,1] via (raw+1)/2.
+
+Metric validation (8-probe text set, target = swirling Starry-Night text):
+- naive cosine over averaged 20k: true vibe-match ranks 2/8 (loses to a calm
+  night sky counterfactual). gap -0.017.
+- Yeo-7 cosine (unweighted / engagement-weighted / variance-weighted): all 2/8.
+- temporal+dynamics: match ranks 1/8, repetition reward-hack +0.037 BELOW match.
+- Diagnosis: calm-sky beats match in EVERY one of the 7 networks after
+  time-averaging; the discriminative signal is temporal, not spatial. No
+  spatial reweighting fixes a pooled metric.
+
+CALIBRATION NOTE (important): the new metric maps cosine to [0,1] with
+(raw+1)/2, so 0.5 == orthogonal, not 0. The old "0.9" target was on the raw
+cosine scale. Before chasing 0.9 we must re-measure where a single image->text
+score lands on the NEW scale, and what a strong vs weak candidate spread looks
+like. Target for this round: maximize the new neuralSimilarity efficiently and
+report the realistic ceiling, rather than assume 0.9 transfers across metrics.
+
+Server fix: `/predict/image` was briefly broken (NameError 'extra'); owner fixed
+it. Image jobs now return timesteps=2, vertices=20484, with network breakdown.
