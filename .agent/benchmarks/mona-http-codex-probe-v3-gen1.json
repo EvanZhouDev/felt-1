@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-06-07T04:16:29.035Z",
+  "updatedAt": "2026-06-07T04:18:18.856Z",
+  "oracleMode": "http",
+  "backend": "codex",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 2,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "textProbeCount": 3
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/real-probe-v3/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/real-probe-v3/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "mona-image-to-text",
+      "runId": "mona-image-to-text-a5d5a538",
+      "status": "completed",
+      "description": "Use the Mona Lisa image target as an image-to-text cold benchmark.",
+      "tags": [
+        "image",
+        "text",
+        "mona-lisa",
+        "cold-start"
+      ],
+      "outputType": "text",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/real-probe-v3/runs/mona-image-to-text-a5d5a538",
+      "bestScore": 0.47519911109800184,
+      "bestNeuralSimilarity": 0.4467130158542883,
+      "iterationCount": 1,
+      "selectedAgentId": "probe-01"
+    }
+  ]
+}

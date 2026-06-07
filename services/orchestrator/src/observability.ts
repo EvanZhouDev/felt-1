@@ -64,6 +64,7 @@ export function runSummary(args: {
     scoringConcurrency: number;
     reuseTargetArchive: boolean;
     textMicroMutations: number;
+    textProbeCount: number;
   };
 }) {
   return {

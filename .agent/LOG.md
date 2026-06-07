@@ -1028,3 +1028,71 @@ Interpretation:
   high precision. The next real trial should use the fixed priority-targeted
   axis replacement and stop quickly if first-generation offspring do not beat
   `0.222097`.
+
+## 2026-06-06 21:20 PDT - Per-Run Text Probe Calibration
+
+Problem:
+
+- The fixed-priority memetic v2 run still underperformed:
+  `.agent/benchmarks/mona-http-codex-memetic-v2-gen1.json`
+  - setup: hosted TRIBE, Codex backend, Mona image-to-text, 3 parents, 2
+    micro-mutations each, 1 generation, fresh runs root
+  - best neural similarity: `0.194941`
+  - best text:
+    `tension stilled, gaze slowed, warmth dense, distance intimate, cool haze, calm ambiguous, texture aged`
+- Fixed lexical micro-mutations are not enough. They sometimes improve a parent,
+  but they are too brittle and can easily move away from the target activation.
+
+Change:
+
+- Added opt-in per-run text probe calibration:
+  - config: `VOLTA_TEXT_PROBE_COUNT`
+  - benchmark flag: `--text-probe-count`
+  - default: `0`, so normal runs do not spend extra TRIBE jobs silently
+- For text outputs, iteration 1 can score a universal probe library against the
+  target activation before candidate generation.
+- Probe scores are written incrementally under `text-probes/probe-XX.json`, with
+  a sorted summary in `text-probes.json` after calibration completes.
+- Probe outputs are appended to the run-local archive, so Codex candidates see
+  the freshly computed basis as target-specific hints.
+- Top probe elites now also enter `scores.json` as ranked outputs, so the
+  pipeline can return a strong probe state directly instead of using it only as
+  prompt context.
+
+Real TRIBE evidence:
+
+- Partial 4-probe calibration run:
+  `.volta/real-probe-v2/runs/mona-image-to-text-1286c7f5`
+  - stopped because hosted TRIBE stalled on probe 4
+  - completed probes:
+    - probe-01 `0.446713`:
+      `stillness held, attention suspended, near quiet, soft ambiguity`
+    - probe-02 `0.310583`:
+      `gaze quieted, warm shadow, dense air, calm uncertain`
+    - probe-03 `0.263460`:
+      `slow pressure, muted warmth, intimate distance, heavy calm`
+- Completed v3 run:
+  `.agent/benchmarks/mona-http-codex-probe-v3-gen1.json`
+  - setup: hosted TRIBE, Codex backend, Mona image-to-text, 3 probes, 2 Codex
+    candidates, 1 generation, fresh runs root, no target archive reuse
+  - best neural similarity: `0.446713`
+  - selected agent: `probe-01`
+  - selected output:
+    `stillness held, attention suspended, near quiet, soft ambiguity`
+  - Codex candidates scored lower (`0.183261`, `0.143498`), but they used the
+    probe archive and produced plausible children.
+- Attempted v4 3-turn probe refinement was stopped because hosted TRIBE stalled
+  before completing probe 1; no useful search result.
+
+Interpretation:
+
+- This is the strongest generic architectural improvement so far. It is a fresh
+  per-run calibration step, not old Mona state, and it gives a one-turn cold
+  score near the earlier manual/probe best range.
+- The current bottleneck is no longer discovering a decent text state; it is
+  improving from a high-scoring probe elite. Next experiments should:
+  - make the probe library adaptive/MAP-Elites-style rather than fixed order,
+  - generate probe recombinations from the top 2-3 probes,
+  - run refinement from `probe-01` only when hosted TRIBE is responsive,
+  - implement a real Flux-backed image output path before claiming image-to-image
+    results.

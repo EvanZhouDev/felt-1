@@ -60,6 +60,7 @@ const loop = normalizeLoopConfig({
   reuseTargetArchive: args.reuseTargetArchive ?? false,
   textMicroMutations:
     args.textMicroMutations ?? baseConfig.loop.textMicroMutations,
+  textProbeCount: args.textProbeCount ?? baseConfig.loop.textProbeCount,
 });
 const backendConfig = args.backend
   ? backendConfigFromMode(args.backend, baseConfig.agentBackend)
@@ -338,6 +339,7 @@ function parseArgs(argv: string[]): {
   candidateCount?: number;
   scoringConcurrency?: number;
   textMicroMutations?: number;
+  textProbeCount?: number;
   reuseTargetArchive?: boolean;
   runsRoot?: string;
   databasePath?: string;
@@ -385,6 +387,9 @@ function parseArgs(argv: string[]): {
       index += 1;
     } else if (flag === "--text-micro-mutations") {
       parsed.textMicroMutations = nonNegativeInteger(value, flag);
+      index += 1;
+    } else if (flag === "--text-probe-count") {
+      parsed.textProbeCount = nonNegativeInteger(value, flag);
       index += 1;
     } else if (flag === "--runs-root") {
       parsed.runsRoot = value;

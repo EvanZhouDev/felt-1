@@ -38,6 +38,7 @@ export type LoopConfig = {
   scoringConcurrency: number;
   reuseTargetArchive: boolean;
   textMicroMutations: number;
+  textProbeCount: number;
 };
 
 export type WeaveConfig = {
@@ -71,6 +72,7 @@ export function loadConfig(): OrchestratorConfig {
       scoringConcurrency: numberFromEnv("VOLTA_SCORING_CONCURRENCY", 1),
       reuseTargetArchive: process.env.VOLTA_REUSE_TARGET_ARCHIVE === "true",
       textMicroMutations: integerFromEnv("VOLTA_TEXT_MICRO_MUTATIONS", 0),
+      textProbeCount: integerFromEnv("VOLTA_TEXT_PROBE_COUNT", 0),
     }),
     weave: {
       enabled: process.env.VOLTA_WEAVE_ENABLED === "true",
@@ -90,6 +92,7 @@ export function normalizeLoopConfig(
     scoringConcurrency: positiveInteger(config?.scoringConcurrency, 1),
     reuseTargetArchive: config?.reuseTargetArchive === true,
     textMicroMutations: nonNegativeInteger(config?.textMicroMutations, 0),
+    textProbeCount: nonNegativeInteger(config?.textProbeCount, 0),
   };
 }
 

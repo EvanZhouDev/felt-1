@@ -433,6 +433,10 @@ async function executeIteration(
   );
   await mkdir(iterationPath, { recursive: true });
   await writeJson(join(iterationPath, "target.json"), args.target);
+  const probeElites = await seedTextProbeArchive({
+    ...args,
+    target: args.target,
+  });
   const archive = mergeCandidateArchives(
     ...(args.loop.reuseTargetArchive
       ? [loadTargetCandidateArchive(args.runsRoot, args.target.rendered.sha256)]
@@ -503,7 +507,7 @@ async function executeIteration(
 
   args.store.updateStatus(args.id, "scoring");
   await mkdir(join(iterationPath, "scores"), { recursive: true });
-  const evaluatedOutputs = await mapWithConcurrency(
+  const evaluatedCandidateOutputs = await mapWithConcurrency(
     candidateOutputs,
     args.loop.scoringConcurrency,
     async (candidate) => {
@@ -519,6 +523,7 @@ async function executeIteration(
       return evaluated;
     },
   );
+  const evaluatedOutputs = [...probeElites, ...evaluatedCandidateOutputs];
   evaluatedOutputs.sort((left, right) => right.score.total - left.score.total);
   await writeJson(join(iterationPath, "scores.json"), evaluatedOutputs);
   await appendCandidateArchive({
@@ -657,6 +662,116 @@ async function evaluateCandidate(
     score,
   };
 }
+
+async function seedTextProbeArchive(
+  args: RunLoopArgs & {
+    iteration: number;
+    target: RunLoopResult["target"];
+  },
+): Promise<EvaluatedOutput[]> {
+  if (
+    args.iteration !== 1 ||
+    args.output.outputType !== "text" ||
+    args.loop.textProbeCount <= 0
+  ) {
+    return [];
+  }
+
+  const existingArchive = loadCandidateArchive(args.runPath);
+  if (
+    existingArchive.entries.some((entry) =>
+      entry.entropy?.includes("strategy=text-probe-calibration"),
+    )
+  ) {
+    return [];
+  }
+
+  const probes = TEXT_PROBE_LIBRARY.slice(0, args.loop.textProbeCount);
+  if (probes.length === 0) {
+    return [];
+  }
+
+  const probePath = join(args.runPath, "text-probes");
+  await mkdir(probePath, { recursive: true });
+  const evaluatedProbes = await mapWithConcurrency(
+    probes,
+    args.loop.scoringConcurrency,
+    async (text, index) => {
+      const candidate: CandidateOutput = {
+        agentId: `probe-${String(index + 1).padStart(2, "0")}`,
+        entropy:
+          "iteration=0 | strategy=text-probe-calibration | outputType=text | " +
+          "Score a universal text probe against the target to build a fresh per-run activation basis.",
+        outputNode: {
+          type: "text",
+          payload: {
+            type: "text",
+            text,
+          },
+        },
+      };
+      const evaluated = await evaluateCandidate({
+        ...args,
+        iteration: 0,
+        candidate,
+        targetActivation: args.target.activation,
+      });
+      await writeJson(
+        join(probePath, `${candidate.agentId}.json`),
+        evaluatedOutputSummary(evaluated),
+      );
+      return evaluated;
+    },
+  );
+  evaluatedProbes.sort(
+    (left, right) => right.score.neuralSimilarity - left.score.neuralSimilarity,
+  );
+  await writeJson(
+    join(args.runPath, "text-probes.json"),
+    evaluatedProbes.map(evaluatedOutputSummary),
+  );
+  await appendCandidateArchive({
+    runPath: args.runPath,
+    iteration: 0,
+    rankedOutputs: evaluatedProbes,
+    runId: args.id,
+  });
+  return evaluatedProbes.slice(0, probeEliteCount(args.loop));
+}
+
+function probeEliteCount(loop: LoopConfig): number {
+  if (loop.textProbeCount <= 0) {
+    return 0;
+  }
+  return Math.min(2, Math.max(1, Math.floor(loop.candidateCount / 2)));
+}
+
+const TEXT_PROBE_LIBRARY = [
+  "stillness held, attention suspended, near quiet, soft ambiguity",
+  "gaze quieted, warm shadow, dense air, calm uncertain",
+  "slow pressure, muted warmth, intimate distance, heavy calm",
+  "edges feathered, low contrast, softened haze, centered weight",
+  "distance receding, central presence, veiled light, restrained motion",
+  "dense air, suspended attention, warm stillness, unreadable calm",
+  "cool haze, distant intimacy, quiet tension, aged surface",
+  "soft rhythm, blurred edge, guarded warmth, folded quiet",
+  "urgent rhythm, clipped pressure, cold focus, narrow motion",
+  "bright motion, quick lift, open space, playful light",
+  "sparse pressure, hard edge, low warmth, focused distance",
+  "crowded energy, sharp contrast, active rhythm, tense proximity",
+  "round calm, diffuse light, slow openness, gentle weight",
+  "dark density, close air, inward attention, withheld meaning",
+  "high salience, centered anchor, quiet field, balanced tension",
+  "surface muted, texture aged, light lowered, motion stilled",
+  "open distance, thin air, pale light, quiet release",
+  "near body, heavy foreground, low motion, ambiguous presence",
+  "faint warmth, shadow softened, gaze held, still depth",
+  "abstract tension, softened structure, muted signal, slow drift",
+  "fine texture, shallow depth, dim glow, calm restraint",
+  "intimate scale, centered silence, atmospheric veil, uncertain mood",
+  "fast brightness, crisp edge, high contrast, outward pull",
+  "low contrast, old warmth, feathered boundary, hidden expression",
+];
 
 function expandCandidateOutputs(args: {
   candidates: CandidateOutput[];
