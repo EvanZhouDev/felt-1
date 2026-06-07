@@ -96,3 +96,22 @@ Takeaways:
 - CMA-ES is less directly applicable to raw text, but useful for tunable strategy distributions and mutation strengths.
 
 Added `.agent/HUMAN_LOG.md` with a readable summary and source links.
+
+## 2026-06-06 17:43 PDT - Target Activation Cache
+
+Changes in progress:
+
+- Added a target activation cache under `<runsRoot>/../target-cache/<renderedSha>.json`.
+- `buildTarget` now renders the target first, checks the cache by rendered stimulus hash, and reuses the cached activation if present.
+- On cache hit, the run still writes its own `target.json` with the current rendered target plus cached activation.
+
+Expected effect:
+
+- Repeated parameter experiments for the same Mona Lisa target should not re-encode the target video.
+- This is a general optimization for any repeated stable input target, not a Mona Lisa special case.
+
+Validation:
+
+- `bun run smoke` passed.
+- Initial `bun run check` found one formatting wrap in `run.ts`; fixed with Biome format.
+- `bun run check` passed after formatting.

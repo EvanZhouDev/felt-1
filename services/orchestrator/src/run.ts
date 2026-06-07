@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type AgentBackend,
   type AgentSpec,
@@ -337,6 +337,11 @@ async function buildTarget(
     run: () => renderNode(args.input.inputNode),
     output: renderedSummary,
   });
+  const cachedTarget = await loadCachedTarget(args, targetRendered);
+  if (cachedTarget) {
+    await writeJson(join(args.runPath, "target.json"), cachedTarget);
+    return cachedTarget;
+  }
 
   args.store.updateStatus(args.id, "extracting_features");
   const targetActivation = await args.journal.trace({
@@ -353,7 +358,40 @@ async function buildTarget(
     activation: targetActivation,
   };
   await writeJson(join(args.runPath, "target.json"), target);
+  await writeCachedTarget(args, target);
   return target;
+}
+
+async function loadCachedTarget(
+  args: RunLoopArgs,
+  rendered: RenderedStimulus,
+): Promise<RunLoopResult["target"] | undefined> {
+  const cached = readOptionalJson<RunLoopResult["target"]>(
+    targetCachePath(args, rendered),
+  );
+  if (!cached?.activation) {
+    return undefined;
+  }
+  return {
+    rendered,
+    activation: cached.activation,
+  };
+}
+
+async function writeCachedTarget(
+  args: RunLoopArgs,
+  target: RunLoopResult["target"],
+): Promise<void> {
+  const path = targetCachePath(args, target.rendered);
+  await mkdir(dirname(path), { recursive: true });
+  await writeJson(path, target);
+}
+
+function targetCachePath(
+  args: RunLoopArgs,
+  rendered: RenderedStimulus,
+): string {
+  return join(args.runsRoot, "..", "target-cache", `${rendered.sha256}.json`);
 }
 
 async function executeIteration(
