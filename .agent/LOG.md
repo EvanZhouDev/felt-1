@@ -405,3 +405,43 @@ Next:
 - Run a fresh bounded cold run with the caption population plus elite
   preservation. The expected behavior is that later turns do not drift away from
   a high-scoring iteration-2-style caption.
+
+## 2026-06-06 18:47 PDT - Fresh Elite-Preserved 4x4 Run
+
+Run:
+
+- Run id: `738e1334-f9b2-4105-a08e-573c1de321b2`.
+- Boundary: isolated runs root, target activation cache only, no preseeded
+  candidate archive.
+- Loop: 4 candidates x 4 iterations.
+
+Scores by iteration:
+
+- Iteration 1 best: `0.3400386823277736`.
+- Iteration 2 best: `0.4447056855600945`.
+- Iteration 3 best: `0.30969653102678785`.
+- Iteration 4 best: `0.42138055417989095`.
+
+Best text:
+
+`warm stillness, suspended attention, heavy air, close distance, shadowed face, unreadable calm`
+
+Elite preservation check:
+
+- Iteration 3 regressed below the iteration-2 elite.
+- `iterations/003/next-seed.json` was overwritten with the iteration-2 elite.
+- Iteration 4 was generated from the elite and recovered to `0.42138055417989095`.
+- Final `run.json` reports `bestNeuralSimilarity: 0.4447056855600945` and
+  carries the elite-preservation reasoning in `nextIterationSeed`.
+
+Interpretation:
+
+- Caption population + elite preservation gives a credible from-scratch curve:
+  `0.3400 -> 0.4447` in 2 turns, then a regression and partial recovery.
+- We still need a way to push past the `0.44` local basin. Tiny phrase swaps are
+  now conservative enough to avoid collapse, but not exploratory enough to break
+  through.
+- Next likely knob: add a small number of more aggressive but still compact
+  mutation strategies around the elite, such as replacing one semantic axis
+  (face/gaze, air/distance, warmth/shadow, texture/surface) while preserving
+  caption length.
