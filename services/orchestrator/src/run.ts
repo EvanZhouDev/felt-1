@@ -14,6 +14,7 @@ import {
   cosineSimilarity,
   type EvaluatedOutput,
   flattenTrace,
+  type InputNode,
   type InputObj,
   type NeuralOracle,
   type NextIterationSeed,
@@ -47,6 +48,7 @@ import {
   targetSummary,
 } from "./observability.ts";
 import { renderNode } from "./render.ts";
+import { imageSeedPromptConstraint } from "./seed-constraints.ts";
 import type { RunStore } from "./storage.ts";
 
 export type ExecuteRunArgs = {
@@ -243,6 +245,8 @@ type ResumeState = {
 type SeedTarget = {
   prompt: string;
   text: string;
+  modality: "text" | "image";
+  sourceNode?: Extract<InputNode, { type: "image" }>;
   rendered: RenderedStimulus;
   activation: Awaited<ReturnType<NeuralOracle["encode"]>>;
 };
@@ -363,6 +367,7 @@ async function executeRunLoop(
       ? {
           prompt: seedTarget.prompt,
           text: seedTarget.text,
+          modality: seedTarget.modality,
           rendered: renderedSummary(seedTarget.rendered),
           activation: activationSummary(seedTarget.activation),
         }
@@ -446,24 +451,44 @@ async function buildSeedTarget(
   }
 
   const text = seedActivationText(prompt);
-  const seedNode = {
-    type: "text",
-    payload: {
-      type: "text",
-      text,
-    },
-  } as const;
+  const seedNode = args.input.seed?.node;
+  if (shouldUseSeedNodeTarget(args, seedNode)) {
+    return buildNodeSeedTarget(args, prompt, text, seedNode);
+  }
+
+  if (shouldUseVisualSeedTarget(args)) {
+    return buildVisualSeedTarget(args, prompt, text);
+  }
+
+  return buildTextSeedTarget(args, prompt, text);
+}
+
+async function buildNodeSeedTarget(
+  args: RunLoopArgs,
+  prompt: string,
+  text: string,
+  seedNode: Extract<InputNode, { type: "image" }>,
+): Promise<SeedTarget> {
   const rendered = await args.journal.trace({
     name: "seed.render",
     input: {
       runId: args.id,
       prompt,
       text,
+      modality: seedNode.type,
+      node: seedNode,
     },
     run: () => renderNode(seedNode),
     output: renderedSummary,
   });
-  const cached = await loadCachedSeedTarget(args, prompt, text, rendered);
+  const cached = await loadCachedSeedTarget(
+    args,
+    prompt,
+    text,
+    seedNode.type,
+    rendered,
+    seedNode,
+  );
   if (cached) {
     await writeJson(join(args.runPath, "seed-target.json"), cached);
     return cached;
@@ -481,6 +506,155 @@ async function buildSeedTarget(
   const seedTarget = {
     prompt,
     text,
+    modality: seedNode.type,
+    sourceNode: seedNode,
+    rendered,
+    activation,
+  };
+  await writeJson(join(args.runPath, "seed-target.json"), seedTarget);
+  await writeCachedSeedTarget(args, seedTarget);
+  return seedTarget;
+}
+
+async function buildTextSeedTarget(
+  args: RunLoopArgs,
+  prompt: string,
+  text: string,
+): Promise<SeedTarget> {
+  const seedNode = {
+    type: "text",
+    payload: {
+      type: "text",
+      text,
+    },
+  } as const;
+  const rendered = await args.journal.trace({
+    name: "seed.render",
+    input: {
+      runId: args.id,
+      prompt,
+      text,
+    },
+    run: () => renderNode(seedNode),
+    output: renderedSummary,
+  });
+  const cached = await loadCachedSeedTarget(
+    args,
+    prompt,
+    text,
+    "text",
+    rendered,
+  );
+  if (cached) {
+    await writeJson(join(args.runPath, "seed-target.json"), cached);
+    return cached;
+  }
+
+  const activation = await args.journal.trace({
+    name: "seed.encode",
+    input: {
+      runId: args.id,
+      rendered: renderedSummary(rendered),
+    },
+    run: () => args.oracle.encode(rendered.encoderInput),
+    output: activationSummary,
+  });
+  const seedTarget = {
+    prompt,
+    text,
+    modality: "text" as const,
+    rendered,
+    activation,
+  };
+  await writeJson(join(args.runPath, "seed-target.json"), seedTarget);
+  await writeCachedSeedTarget(args, seedTarget);
+  return seedTarget;
+}
+
+async function buildVisualSeedTarget(
+  args: RunLoopArgs,
+  prompt: string,
+  text: string,
+): Promise<SeedTarget> {
+  const visualPrompt = visualSeedPrompt(text);
+  const seedNode = {
+    type: "image",
+    payload: {
+      type: "image",
+      source: {
+        uri: `flux://generate?prompt=${encodeURIComponent(
+          visualPrompt,
+        )}&model=klein&steps=4&seed=${seedFromString(`visual-seed:${text}`)}`,
+        mime: "image/png",
+      },
+      timing: {
+        durationSec: 0.5,
+        fps: 2,
+      },
+      fit: "contain",
+      background: "#000000",
+    },
+  } as const;
+  const materialized = await args.journal.trace({
+    name: "seed.visual.materialize",
+    input: {
+      runId: args.id,
+      prompt,
+      text,
+      visualPrompt,
+    },
+    run: () =>
+      materializeGeneratedImageCandidate({
+        candidate: {
+          agentId: "seed-visual-target",
+          outputNode: seedNode,
+          entropy:
+            "seed visual proxy | neutral image target for seeded image scoring",
+        },
+        runPath: args.runPath,
+        fluxUrl: args.fluxUrl,
+        inheritTargetStyle: false,
+      }),
+    output: candidateSummary,
+  });
+  const rendered = await args.journal.trace({
+    name: "seed.render",
+    input: {
+      runId: args.id,
+      prompt,
+      text,
+      modality: "image",
+      visualPrompt,
+      materialized: candidateSummary(materialized),
+    },
+    run: () => renderNode(materialized.outputNode),
+    output: renderedSummary,
+  });
+  const cached = await loadCachedSeedTarget(
+    args,
+    prompt,
+    text,
+    "image",
+    rendered,
+  );
+  if (cached) {
+    await writeJson(join(args.runPath, "seed-target.json"), cached);
+    return cached;
+  }
+
+  const activation = await args.journal.trace({
+    name: "seed.encode",
+    input: {
+      runId: args.id,
+      rendered: renderedSummary(rendered),
+    },
+    run: () => args.oracle.encode(rendered.encoderInput),
+    output: activationSummary,
+  });
+  const seedTarget = {
+    prompt,
+    text,
+    modality: "image" as const,
     rendered,
     activation,
   };
@@ -521,7 +695,9 @@ async function loadCachedSeedTarget(
   args: RunLoopArgs,
   prompt: string,
   text: string,
+  modality: SeedTarget["modality"],
   rendered: RenderedStimulus,
+  sourceNode?: SeedTarget["sourceNode"],
 ): Promise<SeedTarget | undefined> {
   const cached = readOptionalJson<SeedTarget>(targetCachePath(args, rendered));
   if (!cached?.activation) {
@@ -533,6 +709,8 @@ async function loadCachedSeedTarget(
   return {
     prompt,
     text,
+    modality,
+    sourceNode,
     rendered,
     activation: cached.activation,
   };
@@ -885,6 +1063,11 @@ async function evaluateCandidate(
     inputType: args.input.inputNode.type,
     outputType: args.output.outputType,
   });
+  const seedPromptConstraint = imageSeedPromptConstraintForCandidate({
+    input: args.input,
+    output: args.output,
+    candidate: args.candidate,
+  });
   const seedScore = seedAdherenceScore({
     seedTarget: args.seedTarget,
     target: args.target.activation,
@@ -892,6 +1075,7 @@ async function evaluateCandidate(
   });
   const seedAdherence = seedAdherenceForTotal({
     seedScore,
+    seedTarget: args.seedTarget,
     outputType: args.output.outputType,
   });
   const score = await args.journal.trace({
@@ -914,13 +1098,19 @@ async function evaluateCandidate(
         candidate: activationWithDiagnostics,
         contrastTargets: loadContrastTargets(args),
         seedAdherence,
+        seedModality: args.seedTarget?.modality,
         seedSimilarity: seedScore?.similarity,
         seedTargetSimilarity: seedScore?.targetSimilarity,
         seedSpecificity: seedScore?.specificity,
+        seedPromptAdherence: seedPromptConstraint?.adherence,
+        seedPromptPenalty: seedPromptConstraint?.penalty,
         coherence: scoringPriors.coherence,
         diversity:
           scoringPriors.diversity ?? (args.candidate.entropy ? 0.75 : 0.5),
-        penalty: scoringPriors.penalty,
+        penalty: combinedPenalty(
+          scoringPriors.penalty,
+          seedPromptConstraint?.penalty,
+        ),
         useResidualAdjustedSimilarity:
           args.input.inputNode.type === args.output.outputType,
         useRawAdjustedSimilarity:
@@ -1102,6 +1292,46 @@ function loadContrastTargets(
     includeScoreActivations:
       args.input.inputNode.type === args.output.outputType,
   });
+}
+
+function imageSeedPromptConstraintForCandidate(args: {
+  input: InputObj;
+  output: OutputObj;
+  candidate: CandidateOutput;
+}): ReturnType<typeof imageSeedPromptConstraint> | undefined {
+  if (
+    !args.input.seed?.prompt ||
+    args.output.outputType !== "image" ||
+    args.candidate.outputNode.type !== "image"
+  ) {
+    return undefined;
+  }
+  const candidatePrompt = fluxPromptFromImageNode(args.candidate.outputNode);
+  if (!candidatePrompt) {
+    return undefined;
+  }
+  return imageSeedPromptConstraint({
+    seedText: seedActivationText(args.input.seed.prompt),
+    seedPrompt: args.input.seed.prompt,
+    candidatePrompt,
+  });
+}
+
+function fluxPromptFromImageNode(
+  node: Extract<CandidateOutput["outputNode"], { type: "image" }>,
+): string | undefined {
+  const parsed = parseFluxMutationUri(node.payload.source.uri);
+  return parsed?.url.searchParams.get("prompt")?.trim() || undefined;
+}
+
+function combinedPenalty(
+  ...penalties: Array<number | undefined>
+): number | undefined {
+  const total = penalties.reduce<number>(
+    (sum, penalty) => sum + (penalty ?? 0),
+    0,
+  );
+  return total > 0 ? Math.min(1, total) : undefined;
 }
 
 function candidateScoringPriors(args: {
@@ -3025,7 +3255,7 @@ function mutationStrategy(args: {
 }
 
 function hasInputSeed(input: InputObj): boolean {
-  return Boolean(input.seed?.prompt.trim());
+  return Boolean(input.seed?.prompt.trim() || input.seed?.node);
 }
 
 function selectMutationStrategy(args: {
@@ -3249,6 +3479,35 @@ function outputTypeInstruction(
   return "For code output, express the operator through renderable UI/scene structure: layout, motion/static balance, density, typography, color/contrast, texture, and interaction-free visual state.";
 }
 
+function shouldUseVisualSeedTarget(args: RunLoopArgs): boolean {
+  return (
+    args.output.outputType === "image" &&
+    args.oracle.model !== "mock-neural-oracle" &&
+    process.env.VOLTA_VISUAL_SEED_TARGET !== "false"
+  );
+}
+
+function shouldUseSeedNodeTarget(
+  args: RunLoopArgs,
+  seedNode: InputNode | undefined,
+): seedNode is Extract<InputNode, { type: "image" }> {
+  return (
+    args.output.outputType === "image" &&
+    seedNode?.type === "image" &&
+    process.env.VOLTA_SEED_NODE_TARGET !== "false"
+  );
+}
+
+function visualSeedPrompt(seedText: string): string {
+  const subject = seedText.replaceAll(/\s+/g, " ").trim();
+  return [
+    `clear simple image of ${subject} as the entire main subject`,
+    `the whole frame should be immediately recognizable as ${subject}`,
+    "centered subject dominance, neutral sparse background, ordinary photographic view",
+    "no unrelated scene, no narrative props, no room interior, no text or labels",
+  ].join(", ");
+}
+
 function seedActivationText(prompt: string): string {
   const topic = extractSeedTopic(prompt);
   return topic ?? prompt;
@@ -3256,9 +3515,11 @@ function seedActivationText(prompt: string): string {
 
 function extractSeedTopic(prompt: string): string | undefined {
   const patterns = [
-    /\babout\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:\s+while|\s+with|\s+that|\s+preserving|[.,;]|$)/i,
-    /\btopic(?:\s+is|:)\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:[.,;]|$)/i,
-    /\bsubject(?:\s+is|:)\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:[.,;]|$)/i,
+    /\babout\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+while|\s+with|\s+from|\s+that|\s+preserving|[.,;]|$)/i,
+    /\bmain subject(?:\s+is|:)\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+from|\s+while|\s+with|[.,;]|$)/i,
+    /\btopic(?:\s+is|:)\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+from|\s+while|\s+with|[.,;]|$)/i,
+    /\bsubject(?:\s+is|:)\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+from|\s+while|\s+with|[.,;]|$)/i,
+    /\b(?:image|picture|photo)\s+(?:of|about)\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+while|\s+with|\s+from|\s+that|\s+preserving|[.,;]|$)/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
@@ -3309,10 +3570,14 @@ function seedAdherenceScore(args: {
 
 function seedAdherenceForTotal(args: {
   seedScore: ReturnType<typeof seedAdherenceScore>;
+  seedTarget: SeedTarget | undefined;
   outputType: OutputObj["outputType"];
 }): number | undefined {
   if (!args.seedScore) {
     return undefined;
+  }
+  if (args.outputType === "image" && args.seedTarget?.modality === "image") {
+    return args.seedScore.adherence;
   }
   if (args.outputType === "image" || args.outputType === "code") {
     return 0.5;

@@ -88,10 +88,15 @@ function seedInstruction(invocation: CandidateAgentInvocation): string {
   ) {
     return [
       "The optional seed is a replacement subject constraint for this image-to-image run.",
+      invocation.input.seed.node
+        ? "The seed includes an attached node; treat it as visual evidence for the replacement subject."
+        : "",
       "When a seed is present, the generated image must read primarily as the seed subject, not as the target scene with seed objects added.",
       "Use the target image for perceptual transfer only: composition skeleton, camera distance, aspect ratio, low-level capture quality, light/color, texture, sparsity/density, and affect.",
       "Example: if the seed is flowers and the target is a backrooms room, output a flower image that feels like the backrooms image; do not output a backrooms room with flowers placed inside it.",
-    ].join(" ");
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
 
   return "The optional seed is content direction, not the target itself. When a seed is present, keep the generated output about the seed's requested topic or medium while matching the input target's perceptual feel.";

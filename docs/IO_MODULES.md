@@ -120,6 +120,7 @@ the output should be about.
 ```tsx
 type SeedPayload = {
   prompt: string;
+  node?: InputNode;
 };
 
 type InputObj = {
@@ -127,6 +128,11 @@ type InputObj = {
   seed?: SeedPayload;
 };
 ```
+
+`seed.prompt` is the agent-facing content constraint. `seed.node` is optional
+renderable evidence for seeded runs, for example an image seed reference whose
+activation should be used as the seed-side constraint instead of a generated
+text or image proxy.
 
 The output object specifies what kind of node agents should generate.
 

@@ -71,6 +71,7 @@ export type OutputNode = TextNode | ImageNode | CodeNode;
 
 export type SeedPayload = {
   prompt: string;
+  node?: InputNode;
 };
 
 export type InputObj = {
@@ -167,9 +168,12 @@ export type ScoreBundle = {
   calibrationTargetCount?: number;
   calibrationVertexCount?: number;
   targetSpecificity?: number;
+  seedModality?: "text" | "image";
   seedSimilarity?: number;
   seedTargetSimilarity?: number;
   seedSpecificity?: number;
+  seedPromptAdherence?: number;
+  seedPromptPenalty?: number;
   penalty?: number;
   seedAdherence: number;
   coherence: number;

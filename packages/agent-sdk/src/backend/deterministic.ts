@@ -142,9 +142,9 @@ function extractSeedTopic(prompt: string | undefined): string | undefined {
     return undefined;
   }
   const patterns = [
-    /\babout\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:\s+while|\s+with|\s+that|[.,;]|$)/i,
-    /\btopic(?:\s+is|:)\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:[.,;]|$)/i,
-    /\bsubject(?:\s+is|:)\s+(?:a|an|the)?\s*([a-z][a-z0-9 -]{1,48}?)(?:[.,;]|$)/i,
+    /\babout\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+while|\s+with|\s+from|\s+that|[.,;]|$)/i,
+    /\btopic(?:\s+is|:)\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+from|\s+while|\s+with|[.,;]|$)/i,
+    /\bsubject(?:\s+is|:)\s+(?:(?:an|a|the)\s+)?([a-z][a-z0-9 -]{1,48}?)(?:\s+from|\s+while|\s+with|[.,;]|$)/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);

@@ -3738,3 +3738,75 @@ Takeaway:
   run explorer. The large generated media remains in `.volta`, but the visualizer
   can render it through a local allowlisted route as long as the run artifact
   directories remain on disk.
+
+## 2026-06-07 09:24 PDT - Real Image Seed for Dog Target -> Backrooms Output
+
+Question:
+
+- The intended seeded image behavior is: use the dog image as the vibe target,
+  and use the backrooms image as the replacement subject/seed. The output should
+  be a backrooms image in the dog image's perceptual feel, not a dog inserted
+  into a backrooms room.
+
+Findings:
+
+- The previous seeded-image run used a generated yellow-room visual proxy for
+  the seed. That made the seed side too generic and did not really use
+  `/Users/evan/Desktop/project-volta/backrooms.jpeg`.
+- Added optional `seed.node` support. When the output type is image and
+  `seed.node` is an image, the run now renders and encodes that exact seed node
+  as the image seed target.
+- Added seeded-image prompt diagnostics to scores:
+  - `seedModality`
+  - `seedPromptAdherence`
+  - `seedPromptPenalty`
+- Added `imageSeedPromptConstraint` to penalize seeded image candidates that
+  add the target object into the seed scene instead of replacing the target
+  subject with the seed subject.
+- Fixed seed-topic extraction so articles are not partially consumed (`an`
+  should not become `n`) and prompts like "main subject is X from the attached
+  seed image" extract `X`.
+
+Run:
+
+- Run id: `dog-backrooms-real-seed-119dd6eb`
+- Report:
+  `.agent/benchmarks/dog-backrooms-real-image-seed-v1.json`
+- Contact sheet:
+  `.volta/benchmarks/runs/dog-backrooms-real-seed-119dd6eb/dog-backrooms-real-seed-score-sheet.png`
+- Target: `.volta/demo-assets/dog-256.jpg`
+- Seed node: `/Users/evan/Desktop/project-volta/backrooms.jpeg`
+
+Scores from the pre-penalty-tightening run:
+
+- `candidate-a` selected:
+  - visually: backrooms hallway with low puppy-eye height, soft blur, fuzzy
+    carpet, green-yellow dog-photo cast
+  - raw neural: `0.8906`
+  - adjusted: `0.4499`
+  - total: `0.4810`
+  - seed adherence: `1.0`
+  - prompt penalty: `0`
+- `candidate-b` additive control:
+  - visually: literal puppy inserted into backrooms; invalid for the seed task
+  - raw neural: `0.9920`
+  - adjusted: `0.9412`
+  - total before stricter patch: `0.4783`
+  - patched post-hoc total: `0.3233`
+- `candidate-c`:
+  - visually: seed-faithful backrooms corridor with weaker close dog-feel
+  - raw neural: `0.9172`
+  - adjusted: `0.2577`
+  - total before false-positive fix: `0.0510`
+  - patched post-hoc total: `0.2985`
+
+Interpretation:
+
+- Yes, `candidate-a` is approximately the intended output: backrooms in the
+  dog's low, soft, fuzzy, warm visual feel.
+- The additive dog-in-backrooms control is still a raw-neural attractor because
+  it literally preserves the dog. The stricter seed constraint is necessary:
+  raw/adjusted TRIBE alone will reward target leakage.
+- The result is promising but not yet near the target quality goal. The next
+  architecture improvement should make the scorer explicitly separate:
+  seed-subject validity, target-vibe similarity, and target-object leakage.

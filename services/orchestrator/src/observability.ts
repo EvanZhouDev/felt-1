@@ -145,9 +145,12 @@ export function scoreSummary(score: ScoreBundle) {
     calibrationTargetCount: score.calibrationTargetCount,
     calibrationVertexCount: score.calibrationVertexCount,
     targetSpecificity: score.targetSpecificity,
+    seedModality: score.seedModality,
     seedSimilarity: score.seedSimilarity,
     seedTargetSimilarity: score.seedTargetSimilarity,
     seedSpecificity: score.seedSpecificity,
+    seedPromptAdherence: score.seedPromptAdherence,
+    seedPromptPenalty: score.seedPromptPenalty,
     penalty: score.penalty,
     seedAdherence: score.seedAdherence,
     coherence: score.coherence,
@@ -304,6 +307,7 @@ function summarizeSeed(seed: InputObj["seed"]) {
   return {
     promptPreview: truncate(seed.prompt, 280),
     promptLength: seed.prompt.length,
+    node: seed.node ? summarizeNode(seed.node, false) : undefined,
   };
 }
 
