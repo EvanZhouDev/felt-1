@@ -956,6 +956,7 @@ Verification:
 - `bun run format && bun run check` passed.
 - `bun run smoke` passed.
 - `bun run smoke:generic` passed.
+
 - Smoke artifact check confirmed a 2-candidate text refinement now starts with
   `syntax-order exploit` and `slot-library exploit`.
 
@@ -1003,6 +1004,7 @@ Verification:
 - `bun run format && bun run check` passed.
 - `bun run smoke` passed.
 - `bun run smoke:generic` passed.
+
 - Mock micro benchmark passed:
   `bun run benchmark:cold -- --backend deterministic --oracle mock --scenario seeded-text-to-text-dog --max-iterations 1 --candidate-count 2 --text-micro-mutations 2 --out .agent/benchmarks/micro-mock-v1.json`
   - candidate population expanded from 2 parents to 4 scored candidates.
@@ -1368,6 +1370,34 @@ Interpretation:
   tiny random bank can distort target-specific vertex selection. Future online
   calibration fetches need visual QA or hash/perceptual-hash filtering before
   TRIBE encoding.
+
+Verification:
+
+- `bun run format && bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+## 2026-06-06 23:02 PDT - Text Timing Bug Fix
+
+Problem:
+
+- Text rendering compressed every text payload into `0.5s`, regardless of
+  length.
+- `textEvents` then divided that duration across all words, so a 40-word text
+  had `0.0125s` word events. This is physiologically implausible for
+  local/event-based TRIBE and can create serious length artifacts.
+- Hosted `/predict/text` receives only raw text from `oracle.ts`, so this bug is
+  not necessarily what hosted TRIBE used internally, but Volta's renderer
+  contract was wrong.
+
+Change:
+
+- Text rendering now uses `0.35s` per normalized word.
+- Empty/no-word text still gets a single `0.35s` text event.
+- Text render hashes now include a timing salt so stale target-cache entries
+  produced with the old `0.5s` text timing are not silently reused.
+- Added a smoke assertion that `one two three` renders as a `1.05s` text event
+  with three `0.35s` word events.
 
 Verification:
 
