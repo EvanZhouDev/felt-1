@@ -1,5 +1,6 @@
-import type { EvaluatedOutput } from "@volta/core";
+import type { AudioDescription, EvaluatedOutput } from "@volta/core";
 import type {
+  BaseAgentInvocation,
   CandidateAgentInvocation,
   JudgeAgentInvocation,
 } from "./types.ts";
@@ -46,11 +47,14 @@ export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",
     `Input object:\n${stableJson(invocation.input)}`,
+    inputDescriptionBlock(invocation),
     `Output request:\n${stableJson(invocation.output)}`,
     `Ranked candidate summaries:\n${stableJson(
       invocation.rankedOutputs.map(summarizeEvaluatedOutput),
     )}`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function candidateSharedInstructions(
@@ -65,9 +69,37 @@ function candidateSharedInstructions(
     "For image output, produce an image node referencing the intended generated image asset URI.",
     "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",
     `Input object:\n${stableJson(invocation.input)}`,
+    inputDescriptionBlock(invocation),
     `Output request:\n${stableJson(invocation.output)}`,
     `Entropy cue:\n${invocation.entropy ?? "none"}`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+// The input node may be a medium the agent cannot perceive from its payload
+// (e.g. audio, whose payload is just an asset URI). When a perceptual
+// description is supplied, surface it so the agent can match the vibe.
+function inputDescriptionBlock(invocation: BaseAgentInvocation): string {
+  const description = invocation.inputDescription;
+  if (!description) {
+    return "";
+  }
+  return [
+    "What the input sounds/feels like (perceptual description of the target the agent cannot directly perceive):",
+    stableJson(compactDescription(description)),
+    "Treat this as evidence about the target vibe, not as content to copy verbatim.",
+  ].join("\n");
+}
+
+function compactDescription(
+  description: AudioDescription,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(description).filter(([, value]) =>
+      Array.isArray(value) ? value.length > 0 : value != null,
+    ),
+  );
 }
 
 function summarizeEvaluatedOutput(output: EvaluatedOutput) {

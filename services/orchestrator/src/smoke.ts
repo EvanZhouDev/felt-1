@@ -17,6 +17,8 @@ const oracle = createOracle({
   repoRoot: process.cwd(),
   tribeUrl: "https://tribe.bryanhu.com",
   fluxUrl: "https://images.bryanhu.com",
+  audioUrl: "https://audio.ai.bryanhu.com",
+  describeAudio: false,
   agentBackend: {
     mode: "deterministic",
   },

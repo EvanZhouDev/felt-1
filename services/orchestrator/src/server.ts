@@ -11,6 +11,7 @@ import {
   loadConfig,
   normalizeLoopConfig,
 } from "./config.ts";
+import { createAudioDescriber } from "./describer.ts";
 import { createEvolutionJournal } from "./observability.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun, resumeRun } from "./run.ts";
@@ -21,6 +22,7 @@ const store = new RunStore(config.databasePath);
 const oracle = createOracle(config);
 const journal = createEvolutionJournal(config.weave);
 const backend = createAgentBackend(config.agentBackend);
+const describeAudio = createAudioDescriber(config);
 
 const server = Bun.serve({
   port: config.port,
@@ -81,6 +83,7 @@ const server = Bun.serve({
         journal,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
+        describeAudio,
       }).catch((error) => {
         console.error(`Run ${id} failed:`, error);
       });
@@ -124,6 +127,7 @@ const server = Bun.serve({
         journal,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
+        describeAudio,
       }).catch((error) => {
         console.error(`Run ${id} resume failed:`, error);
       });

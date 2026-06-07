@@ -6,6 +6,7 @@
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
     "smoke": "bun src/smoke.ts",
+    "smoke:audio": "bun src/smoke-audio.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
