@@ -430,7 +430,9 @@ async function executeIteration(
   await mkdir(iterationPath, { recursive: true });
   await writeJson(join(iterationPath, "target.json"), args.target);
   const archive = mergeCandidateArchives(
-    loadTargetCandidateArchive(args.runsRoot, args.target.rendered.sha256),
+    ...(args.loop.reuseTargetArchive
+      ? [loadTargetCandidateArchive(args.runsRoot, args.target.rendered.sha256)]
+      : []),
     loadCandidateArchive(args.runPath),
   );
   const archiveContext = archivePromptContext(archive);

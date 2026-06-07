@@ -97,6 +97,8 @@ Set in `services/orchestrator/src/config.ts`:
 - `VOLTA_CANDIDATE_COUNT` — N candidates per iteration (default `2`).
 - `VOLTA_SCORING_CONCURRENCY` — max simultaneous candidate scoring calls
   (default `1`; keep low for hosted TRIBE).
+- `VOLTA_REUSE_TARGET_ARCHIVE` — include prior candidates for the same target in
+  new runs (default `false`; enable only for explicit warm-start experiments).
 - `VOLTA_MAX_ITERATIONS` — M search iterations; loop feeds the judge's
   `NextIterationSeed` forward and keeps the best-scoring iteration (default `1`).
 - `VOLTA_CANDIDATE_MODEL` / `VOLTA_JUDGE_MODEL` — model ids passed to the agent

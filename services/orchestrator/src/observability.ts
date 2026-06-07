@@ -62,6 +62,7 @@ export function runSummary(args: {
     similarityThreshold: number;
     candidateCount: number;
     scoringConcurrency: number;
+    reuseTargetArchive: boolean;
   };
 }) {
   return {

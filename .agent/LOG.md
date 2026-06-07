@@ -621,3 +621,32 @@ Interpretation:
 
 - This makes the generic evolutionary algorithm safer to scale: we can explore
   a larger population without automatically creating concurrent oracle pressure.
+
+## 2026-06-06 19:20 PDT - Cold-Start Archive Hygiene
+
+Problem:
+
+- Target-specific candidate archives are useful for warm-start experiments, but
+  they make "10 turns from scratch" ambiguous.
+- The generic algorithm should be testable without borrowing old target-specific
+  candidates.
+
+Change:
+
+- Added `loop.reuseTargetArchive` and `VOLTA_REUSE_TARGET_ARCHIVE`.
+- Default is `false`, so new runs use only their local run archive unless a
+  warm-start experiment explicitly opts in.
+- The pipeline still writes target archives for later analysis or explicit warm
+  starts.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
+
+Interpretation:
+
+- This keeps future Mona Lisa, text, image, or audio benchmarks honest: a cold
+  run is really cold unless the experiment intentionally enables old-state
+  reuse.

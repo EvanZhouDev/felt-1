@@ -25,6 +25,7 @@ const oracle = createOracle({
     similarityThreshold: 2,
     candidateCount: 2,
     scoringConcurrency: 1,
+    reuseTargetArchive: false,
   },
   weave: {
     enabled: false,
