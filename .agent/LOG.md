@@ -1181,3 +1181,20 @@ monotonically via refinement. The remaining gap to "0.9" is likely a metric-scal
 ceiling for cross-modal image->text (0.5=orthogonal on this scale), not a loop
 failure - reaching it would need either a different target medium or accepting
 the realistic ~0.68-0.70 ceiling for image->text on this metric.
+
+## 2026-06-07 - Metric exploration: softDTW is a strong candidate
+
+Prototyped RSA, optimal-transport-soft, soft-DTW, linear-CKA vs the current
+blend on the dual test (text-text MATCH rank + cross-modal style spread):
+  current : MATCH 1/8 | hackgap +0.077 | x-spread 0.116 | PLAIN 6/6
+  RSA     : MATCH 2/8 | PLAIN ranks 1/6 (ranks flat description best - REJECT)
+  OT-soft : MATCH 2/8 (slightly worse than current)
+  softDTW : MATCH 1/8 | hackgap +0.177 | x-spread 0.125 | PLAIN 6/6  <- WINS all axes
+  CKA     : MATCH 2/8 | PLAIN 1/6 (gameable - REJECT)
+soft-DTW (order-respecting monotonic alignment of mean-centered frames, DTW on
+cosine, normalized by max(T)) beats the current blend on EVERY axis - 2.3x larger
+anti-hack margin (+0.177 vs +0.077) while keeping MATCH #1 and emotion>description.
+Worth adopting pending broader validation. NOTE: prototype DTW path-length norm is
+approximate (uses max(n,m)); a proper per-path count would be cleaner.
+
+(Tabled to run the painting-specificity experiment per user request.)
