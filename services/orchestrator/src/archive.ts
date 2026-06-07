@@ -126,6 +126,7 @@ export function archivePromptContext(
       "This archive is the evolving population for the current target, not a source of text to copy exactly.",
       "Archive ordering follows total adjusted score when available; raw neural similarity is diagnostic and can include generic modality attractors.",
       "Use top examples for elitist inheritance, diverse examples for MAP-Elites-style coverage, and recent examples for local search momentum.",
+      "For image outputs, operatorStats separates local image mutation operators such as local-style-* from elite replay; prefer high-total local operators and avoid repeating low-total local neighborhoods.",
       "Prefer offspring that preserve neural score gains while changing one behavior descriptor or one representation variable at a time.",
       "If an entropy/operator lineage repeatedly scores poorly, treat it as a negative-control region unless assigned to explore novelty.",
     ],
@@ -144,6 +145,7 @@ function archiveEntry(
     agentId: output.agentId,
     entropy: output.entropy,
     neuralSimilarity: output.score.neuralSimilarity,
+    adjustedSimilarity: output.score.adjustedSimilarity,
     total: output.score.total,
     behaviorKey: behavior.key,
     outputType: output.outputNode.type,
@@ -324,19 +326,39 @@ export function operatorStats(entries: CandidateArchiveEntry[]) {
     string,
     {
       count: number;
+      totalScore: number;
+      bestTotal: number;
+      totalAdjustedSimilarity: number;
+      adjustedSimilarityCount: number;
+      bestAdjustedSimilarity: number;
       totalNeuralSimilarity: number;
       bestNeuralSimilarity: number;
     }
   >();
 
   for (const entry of entries) {
-    const operator = operatorName(entry.entropy);
+    const operator = operatorName(entry);
     const current = byOperator.get(operator) ?? {
       count: 0,
+      totalScore: 0,
+      bestTotal: Number.NEGATIVE_INFINITY,
+      totalAdjustedSimilarity: 0,
+      adjustedSimilarityCount: 0,
+      bestAdjustedSimilarity: Number.NEGATIVE_INFINITY,
       totalNeuralSimilarity: 0,
       bestNeuralSimilarity: Number.NEGATIVE_INFINITY,
     };
     current.count += 1;
+    current.totalScore += entry.total;
+    current.bestTotal = Math.max(current.bestTotal, entry.total);
+    if (typeof entry.adjustedSimilarity === "number") {
+      current.totalAdjustedSimilarity += entry.adjustedSimilarity;
+      current.adjustedSimilarityCount += 1;
+      current.bestAdjustedSimilarity = Math.max(
+        current.bestAdjustedSimilarity,
+        entry.adjustedSimilarity,
+      );
+    }
     current.totalNeuralSimilarity += entry.neuralSimilarity;
     current.bestNeuralSimilarity = Math.max(
       current.bestNeuralSimilarity,
@@ -349,19 +371,35 @@ export function operatorStats(entries: CandidateArchiveEntry[]) {
     .map(([operator, stats]) => ({
       operator,
       count: stats.count,
+      bestTotal: stats.bestTotal,
+      meanTotal: stats.totalScore / stats.count,
+      bestAdjustedSimilarity:
+        stats.adjustedSimilarityCount > 0
+          ? stats.bestAdjustedSimilarity
+          : undefined,
+      meanAdjustedSimilarity:
+        stats.adjustedSimilarityCount > 0
+          ? stats.totalAdjustedSimilarity / stats.adjustedSimilarityCount
+          : undefined,
       bestNeuralSimilarity: stats.bestNeuralSimilarity,
       meanNeuralSimilarity: stats.totalNeuralSimilarity / stats.count,
     }))
     .sort(
       (left, right) =>
-        right.bestNeuralSimilarity - left.bestNeuralSimilarity ||
-        right.meanNeuralSimilarity - left.meanNeuralSimilarity,
+        right.bestTotal - left.bestTotal ||
+        right.meanTotal - left.meanTotal ||
+        right.bestNeuralSimilarity - left.bestNeuralSimilarity,
     );
 }
 
-function operatorName(entropy: string | undefined): string {
-  const match = entropy?.match(/strategy=([^|]+)/);
-  return match?.[1]?.trim() || "unknown";
+function operatorName(entry: CandidateArchiveEntry): string {
+  if (entry.outputType === "image") {
+    const imageMutation = entropyValue(entry.entropy, "imageMutation");
+    if (imageMutation) {
+      return imageMutation;
+    }
+  }
+  return entropyValue(entry.entropy, "strategy") || "unknown";
 }
 
 function promptItem(entry: CandidateArchiveEntry): CandidateArchivePromptItem {
@@ -370,10 +408,19 @@ function promptItem(entry: CandidateArchiveEntry): CandidateArchivePromptItem {
     agentId: entry.agentId,
     entropy: entry.entropy,
     neuralSimilarity: entry.neuralSimilarity,
+    adjustedSimilarity: entry.adjustedSimilarity,
     total: entry.total,
     behaviorKey: entry.behaviorKey,
     text: entry.text ? truncate(entry.text, 700) : undefined,
   };
+}
+
+function entropyValue(
+  entropy: string | undefined,
+  key: string,
+): string | undefined {
+  const match = entropy?.match(new RegExp(`${key}=([^|]+)`));
+  return match?.[1]?.trim();
 }
 
 function byScore<T extends CandidateArchivePromptItem>(entries: T[]): T[] {

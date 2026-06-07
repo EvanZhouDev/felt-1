@@ -84,6 +84,7 @@ export type CandidateArchivePromptItem = {
   agentId: string;
   entropy?: string;
   neuralSimilarity: number;
+  adjustedSimilarity?: number;
   total: number;
   behaviorKey: string;
   text?: string;
@@ -92,6 +93,10 @@ export type CandidateArchivePromptItem = {
 export type CandidateArchiveOperatorStat = {
   operator: string;
   count: number;
+  bestTotal: number;
+  meanTotal: number;
+  bestAdjustedSimilarity?: number;
+  meanAdjustedSimilarity?: number;
   bestNeuralSimilarity: number;
   meanNeuralSimilarity: number;
 };

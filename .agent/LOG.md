@@ -3368,3 +3368,45 @@ Verification:
 
 - Report:
   `.agent/benchmarks/backrooms-image-artifactgrid-v1.json`
+
+## 2026-06-07 07:16 PDT - Archive Operator Stats Scorer Alignment
+
+Goal:
+
+- Remove a stale scorer assumption from the evolutionary archive: operator
+  stats were still grouped by coarse `strategy=` and ranked by raw neural
+  similarity, even though corrected scoring now treats raw neural similarity as
+  diagnostic only.
+
+Problem found:
+
+- Local image mutations were all collapsed under `strategy=elite replay`.
+- The archive could not distinguish `local-style-crisp-warm`,
+  `local-style-hard-neutral`, and `local-style-hard-neutral-sharp`.
+- `operatorStats` sorted by raw `bestNeuralSimilarity`, which can reward
+  generic or misleading variants that the corrected adjusted scorer rejects.
+
+Change:
+
+- Candidate archive entries now persist `adjustedSimilarity`.
+- `operatorStats` now reports and sorts by `bestTotal` / `meanTotal`, with
+  adjusted and raw neural fields as supporting diagnostics.
+- Image archive stats identify `imageMutation=...` operators first, so local
+  image operators are separated from elite replay.
+- Archive notes now tell agents that image local operators are separated and
+  should be judged by high total score, not raw neural similarity.
+
+Evidence:
+
+- Existing backrooms archive now ranks:
+  - `local-style-hard-neutral-sharp` best total `0.9153013565654846`
+  - `local-style-hard-neutral` best total `0.8989631585087834`
+  - `elite replay` best total `0.8989631585087834`
+  - `local-style-crisp-warm` best total `0.8902964432632499`
+- Smoke archive inspection confirmed new entries include
+  `adjustedSimilarity`.
+
+Verification:
+
+- `bun run check`
+- `bun run smoke`
