@@ -71,7 +71,7 @@ function candidateSharedInstructions(
     "The entropy cue is an assigned evolutionary operator. Follow it so parallel candidates behave like a population: elite preservation, point mutation, crossover, novelty injection, ablation, or representation reset.",
     ...textOutputInstructions(invocation),
     "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
-    "For image output, produce an image node whose source.uri is a Flux generation request: flux://generate?prompt=<urlencoded image prompt>&model=klein&steps=4&seed=<integer>. Set cachedVideo to null, timing to { durationSec: 0.5, fps: 2 }, fit to contain, and background to #000000.",
+    "For image output, produce an image node whose source.uri is a Flux generation request: flux://generate?prompt=<urlencoded image prompt>&model=klein&steps=4&seed=<integer>. Set cachedVideo to null, timing to { durationSec: 0.5, fps: 2 }, fit to contain, and background to #000000. Preserve the target's camera quality and framing; do not beautify or add polished stock-photo detail unless the seed asks for it.",
     "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",
     `Input object:\n${stableJson(invocation.input)}`,
     `Output request:\n${stableJson(invocation.output)}`,

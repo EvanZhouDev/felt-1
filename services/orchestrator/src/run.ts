@@ -1999,12 +1999,12 @@ const imageImageColdStartStrategies: MutationStrategy[] = [
   {
     name: "image visual reconstruction",
     instruction:
-      "Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, scale, background, light, color palette, texture, and photographic style. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject.",
+      "Create a Flux prompt that closely preserves the visible target image's subject, composition, camera distance, crop, resolution feel, background, light, color palette, texture, and photographic style. Do not beautify, cinematicize, or add detail that is absent from the target. If the seed asks for a different subject, preserve the target's composition and feel while changing only that subject.",
   },
   {
     name: "image composition lock",
     instruction:
-      "Create a Flux prompt that locks onto the target's layout: main subject position, body scale, foreground/background balance, depth of field, lighting, and dominant colors. Avoid abstract mood-only prompts.",
+      "Create a Flux prompt that locks onto the target's layout: main subject position, body scale, wall/door/opening geometry, foreground/background balance, depth of field, lighting, dominant colors, and low-level camera quality. Avoid abstract mood-only prompts and avoid polished stock-photo detail.",
   },
   {
     name: "image semantic anchor",

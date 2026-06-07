@@ -2418,3 +2418,49 @@ Verification:
 - `dog-image-to-image-flux-v3.json` completed with same-medium residual
   adjustment:
   adjusted `0.915700`, total `0.947876`.
+
+## 2026-06-07 03:55 PDT - Backrooms Image-to-Image Generality Check
+
+Goal:
+
+- Verify the same-medium Flux path on a second image target so the dog result is
+  not mistaken for a dog-specific solution.
+
+Changes:
+
+- Added `backrooms-image-to-image` to the cold benchmark scenarios.
+- Tightened image-to-image prompt strategy and agent instruction to preserve
+  low-resolution/documentary camera quality, crop, wall/door geometry, and to
+  avoid beautified stock-photo drift.
+
+Runs:
+
+- `backrooms-image-to-image-a9c434ac`
+  - one Codex candidate, one Flux image, one local TRIBE score
+  - raw `0.9506153325779538`
+  - adjusted `0.4983757032799178`
+  - total `0.5241022680094588`
+  - generated image was plausible backrooms but too polished/detailed.
+- `backrooms-image-to-image-748f00c9`
+  - after prompt tightening
+  - raw `0.978212141163511`
+  - adjusted `0.5516443498118855`
+  - total `0.5778119015972889`
+  - generated image better matched the door/right-wall/fluorescent geometry, but
+    still too high-resolution and richly detailed compared with the target.
+
+Interpretation:
+
+- The Flux image path is generic enough to run on multiple image targets.
+- One-shot 90% is not guaranteed for harder geometry. The next improvement
+  should be a small image population search (3-5 prompts/seeds) with visual
+  prompt inheritance, not another single prompt tweak.
+- For backrooms specifically, candidate prompts should emphasize low-res
+  surveillance/documentary crop, sparse empty geometry, fewer ceiling details,
+  and target-like open room depth.
+
+Verification:
+
+- `bun run check` passed before the backrooms v2 run.
+- Backrooms v1 report: `.agent/benchmarks/backrooms-image-to-image-flux-v1.json`
+- Backrooms v2 report: `.agent/benchmarks/backrooms-image-to-image-flux-v2.json`

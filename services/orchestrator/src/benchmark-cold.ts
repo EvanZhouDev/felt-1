@@ -415,6 +415,26 @@ function buildScenarios(): BenchmarkScenario[] {
       tags: ["image", "dog", "same-medium", "cold-start"],
       skipReason: dogSkipReason,
     },
+    {
+      id: "backrooms-image-to-image",
+      description:
+        "Use the backrooms image target as an image-to-image cold benchmark.",
+      input: {
+        inputNode: {
+          type: "image",
+          payload: backroomsPayload,
+        },
+        seed: {
+          prompt:
+            "Create an image with the same empty yellow carpeted interior, fluorescent light, door openings, and unsettling quiet geometry.",
+        },
+      },
+      output: {
+        outputType: "image",
+      },
+      tags: ["image", "backrooms", "same-medium", "cold-start"],
+      skipReason: backroomsSkipReason,
+    },
   ];
 }
 
@@ -426,6 +446,7 @@ function defaultScenarioIds(): string[] {
     "dog-image-to-text",
     "mona-image-to-image",
     "dog-image-to-image",
+    "backrooms-image-to-image",
   ];
 }
 
