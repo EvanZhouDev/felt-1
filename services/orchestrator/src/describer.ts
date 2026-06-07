@@ -89,8 +89,11 @@ export class HostedAudioDescriber {
     };
   }
 
-  // Multipart upload to the captioning service. Returns the raw JSON body; the
-  // shape mapping happens in parseDescription so the two ends stay decoupled.
+  // Multipart upload to the hosted Qwen2.5-Omni audio model (Ollama-style API at
+  // audio.bryanhu.com): POST /api/generate with the audio FILE (not its name —
+  // the model hears the waveform, so no title leaks), a describe prompt, and the
+  // model id. Returns the raw JSON ({ response: "<caption>" }); the shape mapping
+  // happens in parseDescription so the two ends stay decoupled.
   private async requestDescription(file: {
     blob: Blob;
     name: string;
@@ -99,11 +102,14 @@ export class HostedAudioDescriber {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       const form = new FormData();
-      form.append("file", file.blob, file.name);
-      const response = await fetch(`${this.baseUrl}/describe`, {
+      form.append("audio", file.blob, file.name);
+      form.append("model", DESCRIBE_MODEL);
+      form.append("prompt", DESCRIBE_PROMPT);
+      const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
         body: form,
         signal: controller.signal,
+        headers: { "user-agent": "volta-describer" },
       });
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
@@ -116,6 +122,16 @@ export class HostedAudioDescriber {
   }
 }
 
+const DESCRIBE_MODEL = "qwen2.5-omni";
+// Ask for the perceptual dimensions that steer a vibe-transfer candidate.
+// Deliberately NOT asking it to name the piece/artist — we want what it SOUNDS
+// like, not what it IS, so the candidate matches the felt vibe, not a title.
+const DESCRIBE_PROMPT =
+  "Describe what this audio sounds like for someone who cannot hear it: its " +
+  "mood and emotional temperature, tempo and energy, instruments and texture, " +
+  "and overall atmosphere. Be vivid and perceptual. Do NOT name the piece, " +
+  "composer, or genre — describe the felt experience of the sound itself.";
+
 // Accept either a flat description object or a wrapper like { description: {...} }
 // / { caption: "..." }, and tolerate the caption arriving as plain text.
 function parseDescription(raw: unknown): AudioDescription | undefined {
@@ -125,7 +141,10 @@ function parseDescription(raw: unknown): AudioDescription | undefined {
   }
 
   const caption =
-    asString(obj.caption) ?? asString(obj.text) ?? asString(obj.summary);
+    asString(obj.caption) ??
+    asString(obj.response) ??
+    asString(obj.text) ??
+    asString(obj.summary);
   if (!caption) {
     return undefined;
   }
