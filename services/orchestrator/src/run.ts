@@ -18,6 +18,11 @@ import {
   type RenderedStimulus,
   scoreActivations,
 } from "@volta/core";
+import {
+  appendCandidateArchive,
+  archivePromptContext,
+  loadCandidateArchive,
+} from "./archive.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import {
   activationSummary,
@@ -409,6 +414,8 @@ async function executeIteration(
   );
   await mkdir(iterationPath, { recursive: true });
   await writeJson(join(iterationPath, "target.json"), args.target);
+  const archive = loadCandidateArchive(args.runPath);
+  const archiveContext = archivePromptContext(archive);
 
   args.store.updateStatus(args.id, "predicting");
   const candidateOutputs = await Promise.all(
@@ -445,6 +452,7 @@ async function executeIteration(
             output: args.output,
             previous: args.previous,
             entropy: mutationStrategy(args.iteration, index),
+            archive: archiveContext,
             workspace,
           }),
         output: candidateSummary,
@@ -465,6 +473,11 @@ async function executeIteration(
   );
   evaluatedOutputs.sort((left, right) => right.score.total - left.score.total);
   await writeJson(join(iterationPath, "scores.json"), evaluatedOutputs);
+  await appendCandidateArchive({
+    runPath: args.runPath,
+    iteration: args.iteration,
+    rankedOutputs: evaluatedOutputs,
+  });
 
   args.store.updateStatus(args.id, "judging");
   const judgeWorkspace = await createAgentWorkspace({

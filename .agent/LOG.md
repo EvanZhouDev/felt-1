@@ -115,3 +115,35 @@ Validation:
 - `bun run smoke` passed.
 - Initial `bun run check` found one formatting wrap in `run.ts`; fixed with Biome format.
 - `bun run check` passed after formatting.
+
+## 2026-06-06 17:49 PDT - Candidate Archive Pass 1
+
+Changes in progress:
+
+- Added a persisted per-run `candidate-archive.json`.
+- Archive entries track iteration, agent id, neural similarity, total score, output type, compact text, and behavior descriptors.
+- Behavior keys currently bucket text outputs by length, sentence style, proper-name usage, and emphasis style.
+- Candidate prompts now receive compact top/diverse/recent archive slices when available.
+
+Expected effect:
+
+- The loop can exploit top candidates without losing diversity.
+- Later iterations should have evidence beyond the single selected previous seed.
+- This is the first concrete step toward an AlphaEvolve/MAP-Elites-style candidate database.
+
+## 2026-06-06 17:56 PDT - Progress Tracking Moved to Notion
+
+User requested that the human-readable progress log live in Notion instead of `.agent/HUMAN_LOG.md`.
+
+Actions:
+
+- Updated Notion page `3789a760-ad80-80e6-bfa0-eacbb8cab5b8` with the current progress summary via `ntn pages update`.
+- Removed `.agent/HUMAN_LOG.md` from the branch to avoid maintaining two human-facing logs.
+- Kept `.agent/LOG.md` as the detailed local experiment/audit log.
+
+Validation:
+
+- `bun run smoke` passed with archive wiring.
+- Initial `bun run check` found formatter drift in `archive.ts`; fixed with Biome format.
+- `bun run check` passed after formatting.
+- Smoke artifact wrote `candidate-archive.json` with 4 entries across the two smoke iterations.

@@ -1,0 +1,245 @@
+import { existsSync, readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import type {
+  CandidateArchiveContext,
+  CandidateArchivePromptItem,
+} from "@volta/agent-sdk";
+import type { EvaluatedOutput, OutputNode } from "@volta/core";
+
+export type CandidateArchive = {
+  version: 1;
+  updatedAt: string;
+  entries: CandidateArchiveEntry[];
+};
+
+export type CandidateArchiveEntry = CandidateArchivePromptItem & {
+  outputType: OutputNode["type"];
+  textLength?: number;
+  descriptors: string[];
+};
+
+const ARCHIVE_FILE = "candidate-archive.json";
+
+export function loadCandidateArchive(runPath: string): CandidateArchive {
+  const path = archivePath(runPath);
+  if (!existsSync(path)) {
+    return emptyArchive();
+  }
+  return JSON.parse(readFileSync(path, "utf8")) as CandidateArchive;
+}
+
+export async function appendCandidateArchive(args: {
+  runPath: string;
+  iteration: number;
+  rankedOutputs: EvaluatedOutput[];
+}): Promise<CandidateArchive> {
+  const archive = loadCandidateArchive(args.runPath);
+  const entries = [
+    ...archive.entries,
+    ...args.rankedOutputs.map((output) => archiveEntry(args.iteration, output)),
+  ];
+  const updated: CandidateArchive = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    entries,
+  };
+  await writeFile(
+    archivePath(args.runPath),
+    `${JSON.stringify(updated, null, 2)}\n`,
+    "utf8",
+  );
+  return updated;
+}
+
+export function archivePromptContext(
+  archive: CandidateArchive,
+): CandidateArchiveContext | undefined {
+  if (archive.entries.length === 0) {
+    return undefined;
+  }
+
+  const top = byScore(archive.entries).slice(0, 4).map(promptItem);
+  const diverse = byScore(bestPerBehavior(archive.entries))
+    .slice(0, 6)
+    .map(promptItem);
+  const recent = [...archive.entries]
+    .sort(
+      (left, right) =>
+        right.iteration - left.iteration ||
+        right.neuralSimilarity - left.neuralSimilarity,
+    )
+    .slice(0, 4)
+    .map(promptItem);
+
+  return {
+    bestNeuralSimilarity: top[0]?.neuralSimilarity,
+    top,
+    diverse,
+    recent,
+    notes: [
+      "Use high-scoring examples as evidence, not text to copy exactly.",
+      "Use diverse examples to escape local optima when the top score has plateaued.",
+      "Prefer mutations that keep neural score gains while changing one behavior descriptor at a time.",
+    ],
+  };
+}
+
+function archiveEntry(
+  iteration: number,
+  output: EvaluatedOutput,
+): CandidateArchiveEntry {
+  const behavior = behaviorDescriptor(output.outputNode);
+  return {
+    iteration,
+    agentId: output.agentId,
+    neuralSimilarity: output.score.neuralSimilarity,
+    total: output.score.total,
+    behaviorKey: behavior.key,
+    outputType: output.outputNode.type,
+    text: textForNode(output.outputNode),
+    textLength: textForNode(output.outputNode)?.length,
+    descriptors: behavior.descriptors,
+  };
+}
+
+function behaviorDescriptor(node: OutputNode): {
+  key: string;
+  descriptors: string[];
+} {
+  if (node.type !== "text") {
+    return {
+      key: node.type,
+      descriptors: [node.type],
+    };
+  }
+
+  const text = node.payload.text;
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const descriptors = [
+    lengthBucket(words.length),
+    sentenceStyle(text),
+    properNameStyle(text),
+    emphasisStyle(text),
+  ];
+  return {
+    key: descriptors.join(":"),
+    descriptors,
+  };
+}
+
+function lengthBucket(wordCount: number): string {
+  if (wordCount < 35) {
+    return "short";
+  }
+  if (wordCount < 90) {
+    return "medium";
+  }
+  return "long";
+}
+
+function sentenceStyle(text: string): string {
+  const commaCount = (text.match(/,/g) ?? []).length;
+  const sentenceCount = (text.match(/[.!?]/g) ?? []).length;
+  if (sentenceCount <= 1 && commaCount >= 5) {
+    return "inventory";
+  }
+  if (sentenceCount <= 2) {
+    return "caption";
+  }
+  return "prose";
+}
+
+function properNameStyle(text: string): string {
+  if (/\b(Mona Lisa|Leonardo|Gherardini|Renaissance)\b/.test(text)) {
+    return "named";
+  }
+  return "unnamed";
+}
+
+function emphasisStyle(text: string): string {
+  const lower = text.toLowerCase();
+  const buckets = [
+    {
+      name: "spatial",
+      terms: ["foreground", "background", "center", "behind", "lower"],
+    },
+    {
+      name: "affect",
+      terms: ["calm", "quiet", "smile", "gaze", "mood", "emotion"],
+    },
+    {
+      name: "texture",
+      terms: ["soft", "shadow", "haze", "muted", "color", "light"],
+    },
+    {
+      name: "subject",
+      terms: ["woman", "hands", "face", "veil", "dress", "portrait"],
+    },
+  ];
+
+  return (
+    buckets
+      .map((bucket) => ({
+        name: bucket.name,
+        score: bucket.terms.filter((term) => lower.includes(term)).length,
+      }))
+      .sort((left, right) => right.score - left.score)[0]?.name ?? "mixed"
+  );
+}
+
+function bestPerBehavior(
+  entries: CandidateArchiveEntry[],
+): CandidateArchiveEntry[] {
+  const best = new Map<string, CandidateArchiveEntry>();
+  for (const entry of entries) {
+    const current = best.get(entry.behaviorKey);
+    if (!current || entry.neuralSimilarity > current.neuralSimilarity) {
+      best.set(entry.behaviorKey, entry);
+    }
+  }
+  return [...best.values()];
+}
+
+function promptItem(entry: CandidateArchiveEntry): CandidateArchivePromptItem {
+  return {
+    iteration: entry.iteration,
+    agentId: entry.agentId,
+    neuralSimilarity: entry.neuralSimilarity,
+    total: entry.total,
+    behaviorKey: entry.behaviorKey,
+    text: entry.text ? truncate(entry.text, 700) : undefined,
+  };
+}
+
+function byScore<T extends CandidateArchivePromptItem>(entries: T[]): T[] {
+  return [...entries].sort(
+    (left, right) => right.neuralSimilarity - left.neuralSimilarity,
+  );
+}
+
+function textForNode(node: OutputNode): string | undefined {
+  if (node.type === "text") {
+    return node.payload.text;
+  }
+  return undefined;
+}
+
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
+function archivePath(runPath: string): string {
+  return join(runPath, ARCHIVE_FILE);
+}
+
+function emptyArchive(): CandidateArchive {
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    entries: [],
+  };
+}

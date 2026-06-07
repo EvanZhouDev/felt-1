@@ -20,6 +20,7 @@ export function buildFirstGenerationCandidatePrompt(
     `You are Volta candidate agent ${invocation.spec.id}.`,
     "Generate the first output candidate for a vibe-transfer run.",
     candidateSharedInstructions(invocation),
+    archiveInstructions(invocation),
     "There is no previous selected output. Start fresh, but use the optional seed to steer content if present.",
     "Return only a JSON object matching the provided output schema.",
   ].join("\n\n");
@@ -32,6 +33,7 @@ export function buildRefinementCandidatePrompt(
     `You are Volta refinement candidate agent ${invocation.spec.id}.`,
     "Generate the next output candidate for a score-driven neural similarity search.",
     candidateSharedInstructions(invocation),
+    archiveInstructions(invocation),
     `Previous seed:\n${stableJson(invocation.previous)}`,
     "Use the previous selected output as evidence, not as a script to copy. Preserve what worked, change one or two meaningful variables, and keep the output aimed at the target neural activation.",
     "If the previous seed is written as instructions or an image-generation prompt, convert it into declarative descriptive prose before refining.",
@@ -71,6 +73,17 @@ function candidateSharedInstructions(
     `Input object:\n${stableJson(invocation.input)}`,
     `Output request:\n${stableJson(invocation.output)}`,
     `Entropy cue:\n${invocation.entropy ?? "none"}`,
+  ].join("\n\n");
+}
+
+function archiveInstructions(invocation: CandidateAgentInvocation): string {
+  if (!invocation.archive) {
+    return "Search archive: none yet. This is an exploration candidate.";
+  }
+  return [
+    "Search archive:",
+    stableJson(invocation.archive),
+    "Use the archive to understand what has already scored well and what behavior styles have been explored. Do not copy archive text verbatim; generate a child candidate that follows your mutation strategy.",
   ].join("\n\n");
 }
 

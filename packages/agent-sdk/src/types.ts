@@ -45,6 +45,7 @@ export type CandidateAgentInvocation = BaseAgentInvocation & {
   spec: Extract<AgentSpec, { role: "candidate" }>;
   previous?: NextIterationSeed;
   entropy?: string;
+  archive?: CandidateArchiveContext;
 };
 
 export type JudgeAgentInvocation = BaseAgentInvocation & {
@@ -67,4 +68,21 @@ export type AgentResult =
 
 export type AgentBackend = {
   run(invocation: AgentInvocation): Promise<AgentResult>;
+};
+
+export type CandidateArchiveContext = {
+  bestNeuralSimilarity?: number;
+  top: CandidateArchivePromptItem[];
+  diverse: CandidateArchivePromptItem[];
+  recent: CandidateArchivePromptItem[];
+  notes: string[];
+};
+
+export type CandidateArchivePromptItem = {
+  iteration: number;
+  agentId: string;
+  neuralSimilarity: number;
+  total: number;
+  behaviorKey: string;
+  text?: string;
 };
