@@ -18,6 +18,8 @@ scoring, and iteration. The invariant we preserve is predicted neural
 activation, not literal text or pixels.
 
 See [IO Modules](./IO_MODULES.md) for the concrete payload and node schema.
+See [Isoneural Converter](./ISONEURAL_CONVERTER.md) for the short definition of
+the system invariant and how Volta implements it.
 
 ## Core Loop
 

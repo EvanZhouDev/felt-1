@@ -883,3 +883,20 @@ Interpretation:
   still much too low. The next serious experiment should use Codex-generated
   text candidates under this benchmark harness rather than the deterministic
   baseline.
+
+## 2026-06-06 20:18 PDT - Isoneural Converter Doc
+
+Change:
+
+- Added `docs/ISONEURAL_CONVERTER.md` as the brief definition of an isoneural
+  converter and how Volta implements one.
+- Linked the new doc from `docs/ARCHITECTURE.md`.
+
+Framing:
+
+- "Vibe transfer" remains the product-level intuition.
+- "Isoneural converter" is the technical name for preserving
+  TRIBE-predicted activation across a format change.
+- The doc explicitly avoids overclaiming: Volta preserves a frozen model's
+  predicted neural activation, not measured human brain state or semantic
+  identity.
