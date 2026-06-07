@@ -1226,3 +1226,34 @@ finds the leak. The lever is therefore NOT "constrain entropy" but two things:
 Practical takeaway for the loop: lean on (1)+(2), not on penalty terms (penalties
 are themselves gameable). Keep the LLM-proposer fluency constraint explicit in
 operators; prefer a robust metric over a fragile metric + entropy throttling.
+
+## 2026-06-07 - Hypothesis: optimal text may be SEMANTICALLY UNRELATED to the source
+
+User hypothesis (from the project's origin): the text that best matches a
+painting's TRIBE signature may bear NO surface resemblance to the painting.
+Original example: the best Clair de Lune text was about a GRANDMA, not moonlight.
+
+Why this is coherent: TRIBE encodes the EMOTIONAL/perceptual neural RESPONSE.
+Any stimulus evoking that same response matches - even if semantically unrelated
+to the source. A grandma memory and a Debussy nocturne can land in the same
+emotional-neural place.
+
+Consequences for our setup:
+1. Our loop may be OVER-CONSTRAINED: the agent sees the IMAGE + seed "carry the
+   vibe of this image", biasing toward DESCRIBING the scene (Starry Night -> night
+   sky prose). If the true optimum is semantically distant, image-anchoring may
+   block the search from reaching it. The descriptive texts we get (0.68) might be
+   a local optimum, not the global one.
+2. It STRENGTHENS the specificity test: if text-for-A is semantically unlike
+   painting A yet still scores highest on A (diagonal dominance), that's stronger
+   evidence of a real neural match, not a description shortcut.
+3. Reward-hacking tie-in: semantically-unrelated-but-emotionally-matched is the
+   LEGITIMATE form of "different from source" (still on the language manifold);
+   off-manifold gibberish is the illegitimate form. The fluency constraint keeps
+   "grandma" valid and "star star star" invalid.
+
+TEST IDEA (cheap, no Codex): take a strong DESCRIPTIVE text for a painting and a
+strong NON-DESCRIPTIVE emotionally-matched text (e.g. a personal memory evoking
+the same feeling), score both vs the painting target. If non-descriptive scores
+>= descriptive, the loop's image-anchoring is leaving signal on the table and we
+should loosen the seed to allow semantic divergence.
