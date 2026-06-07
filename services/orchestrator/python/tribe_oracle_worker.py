@@ -5,6 +5,7 @@ import os
 import sys
 import traceback
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 import pandas as pd
 from tribev2 import TribeModel
@@ -17,8 +18,8 @@ class TribeOracleWorker:
 
     def encode(self, payload: dict[str, Any]) -> dict[str, Any]:
         stimulus = payload["stimulus"]
-        events = pd.DataFrame(stimulus["events"])
         model = self.get_model(payload)
+        events = self.build_events(model, stimulus)
         preds, _segments = model.predict(events=events, verbose=False)
 
         return {
@@ -31,6 +32,18 @@ class TribeOracleWorker:
                 "norm": float(math.sqrt(float((preds * preds).sum()))),
             },
         }
+
+    def build_events(self, model: Any, stimulus: dict[str, Any]) -> pd.DataFrame:
+        # Audio stimuli carry the file by path, not pre-built events: TRIBE
+        # natively ingests audio via get_events_dataframe(audio_path=...), which
+        # runs the full audio→words transform chain. (TS only emits a single
+        # placeholder Audio event; the real frame must be built here.)
+        if stimulus.get("kind") == "audio":
+            audio_path = _local_path(stimulus.get("artifactPath"))
+            if not audio_path:
+                raise ValueError("audio stimulus has no artifactPath to load.")
+            return model.get_events_dataframe(audio_path=audio_path)
+        return pd.DataFrame(stimulus["events"])
 
     def get_model(self, payload: dict[str, Any]) -> Any:
         cache_folder = payload.get("cacheFolder", "cache")
@@ -56,6 +69,19 @@ class TribeOracleWorker:
         )
         self.model_key = model_key
         return self.model
+
+
+def _local_path(uri: str | None) -> str | None:
+    if not uri:
+        return None
+    if uri.startswith("file://"):
+        return unquote(urlparse(uri).path)
+    if "://" in uri:
+        raise ValueError(
+            f"local TRIBE worker cannot fetch remote audio: {uri}. "
+            "Use VOLTA_ORACLE=http for remote artifacts."
+        )
+    return uri
 
 
 def main() -> None:
