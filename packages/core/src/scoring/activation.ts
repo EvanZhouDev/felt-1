@@ -1,6 +1,7 @@
 import type { ActivationTrace, ScoreBundle } from "../types.ts";
 
 const MIN_CALIBRATED_CONTRAST_TARGETS = 6;
+const MIN_RESIDUAL_CONTRAST_TARGETS = 6;
 
 export function scoreActivations(args: {
   target: ActivationTrace;
@@ -218,7 +219,7 @@ function residualizedSimilarity(args: {
   candidate: number[];
   contrastTargets: ActivationTrace[];
 }): number | undefined {
-  if (args.contrastTargets.length === 0) {
+  if (args.contrastTargets.length < MIN_RESIDUAL_CONTRAST_TARGETS) {
     return undefined;
   }
 

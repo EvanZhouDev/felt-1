@@ -1942,3 +1942,79 @@ Verification:
 
 - `bun run format` passed.
 - `bun run check` passed.
+
+## 2026-06-07 01:58 PDT - Sparse Residual Scoring Fix
+
+Dog calibrated canary probe exposed another scoring bug after the calibrated
+probe landed. With only two image/video contrast targets available, the scorer
+was still using residualized similarity even though CSLS retrieval calibration
+correctly refused to run below six contrast targets.
+
+Pre-fix dog probe:
+
+- `A dog.`
+  - raw `0.655368`
+  - contrast `0.605439`
+  - residual/adjusted `0.315888`
+- `White puppy in grass.`
+  - raw `0.543103`
+  - contrast `0.485552`
+  - residual/adjusted `0.298496`
+- `A small animal sits outside in grass.`
+  - raw `0.471928`
+  - contrast `0.446415`
+  - residual/adjusted `0.179985`
+
+This was reward-hack-shaped behavior: short category labels were being
+over-amplified by projecting against a tiny, underdetermined contrast basis.
+
+Code changes:
+
+- `packages/core/src/scoring/activation.ts` now requires at least six contrast
+  targets before using residualized similarity, matching the existing CSLS
+  calibration threshold.
+- `services/orchestrator/src/audit-similarity.ts` now passes target rendered
+  kind into calibration and excludes score/candidate activations for non-text
+  targets, matching the live pipeline's image-to-text calibration behavior.
+
+Post-fix dog canary:
+
+- `White puppy in grass.` adjusted `0.057551`
+- `A dog.` adjusted `0.049929`
+- `A small animal sits outside in grass.` adjusted `0.025513`
+- `A white puppy sits alone in bright green grass.` adjusted `-0.024399`
+- `A white puppy sits in green grass, facing the camera.` adjusted `-0.046254`
+
+Post-fix backrooms canary:
+
+- `An empty yellow room with beige carpet and fluorescent ceiling lights.`
+  adjusted `0.001390`
+- `Fluorescent lights shine over a yellow carpeted room.` adjusted `-0.016615`
+- `Yellow empty room.` adjusted `-0.212414`
+- `An empty room.` adjusted `-0.216116`
+
+Target-pair audit after target-kind filtering:
+
+- Mona ↔ dog raw `0.947266`, adjusted `-0.105467`
+- Mona ↔ backrooms raw `0.928585`, adjusted `-0.142831`
+- Dog ↔ backrooms raw `0.863199`, adjusted `-0.273601`
+
+Interpretation:
+
+- The corrected adjusted scorer now separates unrelated image targets even when
+  raw TRIBE cosine is extremely high.
+- Sparse contrast banks should be treated as target-specificity margins only;
+  residual and retrieval calibration need enough contrast geometry.
+- Short phrases can still win for a simple target, but they are no longer
+  inflated into large false progress. The next generator work should optimize
+  for grounded, visible captions while adding explicit minimum-content guards
+  only as output-quality constraints, not as a hidden scoring hack.
+
+Verification:
+
+- `bun run check` passed.
+- Real local TRIBE dog canary passed via
+  `/tmp/volta-dog-sparse-residual-fix-probe.json`.
+- Real local TRIBE backrooms canary passed via
+  `/tmp/volta-backrooms-sparse-residual-fix-probe.json`.
+- Target-pair audit passed with target-kind-filtered calibration.

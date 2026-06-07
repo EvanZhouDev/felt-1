@@ -168,6 +168,8 @@ function contrastBankForTarget(targetIndex: number): ActivationTrace[] {
       repoRoot: REPO_ROOT,
       targetActivation: current.artifact.activation,
       targetSha: current.artifact.rendered.sha256,
+      targetKind: current.artifact.rendered.kind,
+      includeScoreActivations: current.artifact.rendered.kind === "text",
       maxActivations: maxCalibration,
     }),
   ]);
