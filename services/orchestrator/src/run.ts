@@ -487,7 +487,7 @@ async function executeIteration(
   const archiveContext = archivePromptContext(archive);
 
   args.store.updateStatus(args.id, "predicting");
-  const generatedCandidateOutputs = await Promise.all(
+  const agentCandidateOutputs = await Promise.all(
     args.candidateSpecs.map(async (spec, index) => {
       const entropy = mutationStrategy({
         iteration: args.iteration,
@@ -536,6 +536,15 @@ async function executeIteration(
       });
     }),
   );
+  const generatedCandidateOutputs = [
+    ...eliteReplayCandidateOutputs({
+      previous: args.previous,
+      iteration: args.iteration,
+      inputType: args.input.inputNode.type,
+      outputType: args.output.outputType,
+    }),
+    ...agentCandidateOutputs,
+  ];
   await writeJson(
     join(iterationPath, "generated-candidates.json"),
     generatedCandidateOutputs,
@@ -543,23 +552,42 @@ async function executeIteration(
 
   args.store.updateStatus(args.id, "scoring");
   await mkdir(join(iterationPath, "scores"), { recursive: true });
-  const scoreCandidateOutputs = (candidates: CandidateOutput[]) =>
-    mapWithConcurrency(
+  const scoreCandidateOutputs = async (
+    candidates: CandidateOutput[],
+  ): Promise<EvaluatedOutput[]> => {
+    const evaluated = await mapWithConcurrency(
       candidates,
       args.loop.scoringConcurrency,
-      async (candidate) => {
-        const evaluated = await evaluateCandidate({
-          ...args,
-          candidate,
-          target: args.target,
-        });
-        await writeJson(
-          join(iterationPath, "scores", `${candidate.agentId}.json`),
-          evaluated,
-        );
-        return evaluated;
+      async (candidate): Promise<EvaluatedOutput | undefined> => {
+        try {
+          const evaluated = await evaluateCandidate({
+            ...args,
+            candidate,
+            target: args.target,
+          });
+          await writeJson(
+            join(iterationPath, "scores", `${candidate.agentId}.json`),
+            evaluated,
+          );
+          return evaluated;
+        } catch (error) {
+          await writeJson(
+            join(iterationPath, "scores", `${candidate.agentId}.error.json`),
+            {
+              agentId: candidate.agentId,
+              entropy: candidate.entropy,
+              outputNode: candidate.outputNode,
+              error: serializeError(error),
+            },
+          );
+          return undefined;
+        }
       },
     );
+    return evaluated.filter(
+      (output): output is EvaluatedOutput => output !== undefined,
+    );
+  };
   const evaluatedBaseOutputs = await scoreCandidateOutputs(
     generatedCandidateOutputs,
   );
@@ -570,6 +598,11 @@ async function executeIteration(
     outputType: args.output.outputType,
     imageSeedMutations: effectiveImageSeedMutationCount({
       configured: args.loop.imageSeedMutations,
+      inputType: args.input.inputNode.type,
+      outputType: args.output.outputType,
+    }),
+    imageLocalMutations: effectiveImageLocalMutationCount({
+      configured: args.loop.imageLocalMutations,
       inputType: args.input.inputNode.type,
       outputType: args.output.outputType,
     }),
@@ -585,6 +618,11 @@ async function executeIteration(
     outputType: args.output.outputType,
     imageSeedMutations: effectiveImageSeedMutationCount({
       configured: args.loop.imageSeedMutations,
+      inputType: args.input.inputNode.type,
+      outputType: args.output.outputType,
+    }),
+    imageLocalMutations: effectiveImageLocalMutationCount({
+      configured: args.loop.imageLocalMutations,
       inputType: args.input.inputNode.type,
       outputType: args.output.outputType,
     }),
@@ -607,6 +645,11 @@ async function executeIteration(
     ...evaluatedMicroOutputs,
   ];
   const evaluatedOutputs = [...probeElites, ...evaluatedCandidateOutputs];
+  if (evaluatedOutputs.length === 0) {
+    throw new Error(
+      `Iteration ${args.iteration} has no successfully evaluated candidates.`,
+    );
+  }
   evaluatedOutputs.sort((left, right) => right.score.total - left.score.total);
   await writeJson(join(iterationPath, "scores.json"), evaluatedOutputs);
   await appendCandidateArchive({
@@ -1295,18 +1338,34 @@ function effectiveImageSeedMutationCount(args: {
   return args.configured;
 }
 
+function effectiveImageLocalMutationCount(args: {
+  configured: number;
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+}): number {
+  if (args.inputType !== "image" || args.outputType !== "image") {
+    return 0;
+  }
+  return args.configured;
+}
+
 function selectMicroMutationParents(args: {
   evaluatedOutputs: EvaluatedOutput[];
   candidateOutputs: CandidateOutput[];
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
   imageSeedMutations: number;
+  imageLocalMutations: number;
   textMicroMutations: number;
 }): CandidateOutput[] {
   if (args.outputType === "text" && args.textMicroMutations <= 0) {
     return [];
   }
-  if (args.outputType === "image" && args.imageSeedMutations <= 0) {
+  if (
+    args.outputType === "image" &&
+    args.imageSeedMutations <= 0 &&
+    args.imageLocalMutations <= 0
+  ) {
     return [];
   }
   if (args.outputType !== "text" && args.outputType !== "image") {
@@ -1354,15 +1413,44 @@ function candidateFromEvaluatedOutput(
   };
 }
 
+function eliteReplayCandidateOutputs(args: {
+  previous: NextIterationSeed;
+  iteration: number;
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+}): CandidateOutput[] {
+  if (
+    args.previous.type !== "selected-output-with-reasoning" ||
+    args.previous.node.type !== args.outputType
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      agentId: "elite-replay",
+      outputNode: args.previous.node,
+      entropy: [
+        `iteration=${args.iteration}`,
+        "strategy=elite replay",
+        `inputType=${args.inputType}`,
+        `outputType=${args.outputType}`,
+        "Carry the previous selected elite forward unchanged so refinement is truly elitist and local mutation can exploit it.",
+      ].join(" | "),
+    },
+  ];
+}
+
 function microMutationCandidateOutputs(args: {
   candidates: CandidateOutput[];
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
   imageSeedMutations: number;
+  imageLocalMutations: number;
   textMicroMutations: number;
 }): CandidateOutput[] {
   if (args.outputType === "image") {
-    return imageSeedMutationCandidateOutputs(args);
+    return imageMutationCandidateOutputs(args);
   }
 
   if (args.outputType !== "text" || args.textMicroMutations <= 0) {
@@ -1408,16 +1496,17 @@ function microMutationCandidateOutputs(args: {
   return expanded;
 }
 
-function imageSeedMutationCandidateOutputs(args: {
+function imageMutationCandidateOutputs(args: {
   candidates: CandidateOutput[];
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
   imageSeedMutations: number;
+  imageLocalMutations: number;
 }): CandidateOutput[] {
   if (
     args.inputType !== "image" ||
     args.outputType !== "image" ||
-    args.imageSeedMutations <= 0
+    (args.imageSeedMutations <= 0 && args.imageLocalMutations <= 0)
   ) {
     return [];
   }
@@ -1427,16 +1516,23 @@ function imageSeedMutationCandidateOutputs(args: {
     if (candidate.outputNode.type !== "image") {
       continue;
     }
-    for (const [index, variant] of imageSeedVariants(
-      candidate.outputNode.payload.source.uri,
-      args.imageSeedMutations,
-    ).entries()) {
+    const variants = [
+      ...imageLocalStyleVariants(
+        candidate.outputNode.payload.source.uri,
+        args.imageLocalMutations,
+      ),
+      ...imageSeedVariants(
+        candidate.outputNode.payload.source.uri,
+        args.imageSeedMutations,
+      ),
+    ];
+    for (const [index, variant] of variants.entries()) {
       expanded.push({
         ...candidate,
-        agentId: `${candidate.agentId}-seed-${index + 1}`,
+        agentId: `${candidate.agentId}-image-${index + 1}`,
         entropy: [
           candidate.entropy,
-          `imageSeedMutation=${variant.name}`,
+          `imageMutation=${variant.name}`,
           `parentAgentId=${candidate.agentId}`,
         ]
           .filter(Boolean)
@@ -1468,12 +1564,102 @@ function imageSeedVariants(
   }
   return Array.from({ length: maxCount }, (_, index) => {
     const seed = mutatedFluxSeed(parsed.seed, index);
-    parsed.url.searchParams.set("seed", String(seed));
+    const url = cloneUrl(parsed.url);
+    url.searchParams.set("seed", String(seed));
     return {
       name: `flux-seed-${seed}`,
-      uri: parsed.url.toString(),
+      uri: url.toString(),
     };
   });
+}
+
+function imageLocalStyleVariants(
+  uri: string,
+  maxCount: number,
+): Array<{ name: string; uri: string }> {
+  const parsed = parseFluxMutationUri(uri);
+  if (maxCount <= 0) {
+    return [];
+  }
+
+  if (parsed) {
+    const currentStyle = parsed.url.searchParams.get("voltaStyle") ?? "";
+    return IMAGE_LOCAL_STYLE_VARIANTS.filter(
+      (variant) => variant !== currentStyle,
+    )
+      .slice(0, maxCount)
+      .map((variant) => {
+        const url = cloneUrl(parsed.url);
+        url.searchParams.set("voltaStyle", variant);
+        return {
+          name: `local-style-${variant}`,
+          uri: url.toString(),
+        };
+      });
+  }
+
+  const localStyle = parseLocalImageStyleMutationUri(uri);
+  const sourceUri = localStyle?.src ?? localStyleBaseSourceUri(uri);
+  if (!isLocalImageSourceUri(sourceUri)) {
+    return [];
+  }
+  const currentStyle = localStyle?.style ?? "";
+  return IMAGE_LOCAL_STYLE_VARIANTS.filter(
+    (variant) => variant !== currentStyle,
+  )
+    .slice(0, maxCount)
+    .map((variant) => {
+      const url = new URL("volta-style://image");
+      url.searchParams.set("src", sourceUri);
+      url.searchParams.set("style", variant);
+      return {
+        name: `local-style-${variant}`,
+        uri: url.toString(),
+      };
+    });
+}
+
+function parseLocalImageStyleMutationUri(
+  uri: string,
+): { src: string; style: string } | undefined {
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "volta-style:" || url.hostname !== "image") {
+    return undefined;
+  }
+  const src = url.searchParams.get("src");
+  const style = url.searchParams.get("style");
+  if (!src || !style) {
+    return undefined;
+  }
+  return { src, style };
+}
+
+function isLocalImageSourceUri(uri: string): boolean {
+  return uri.startsWith("/") || uri.startsWith("file://");
+}
+
+function localStyleBaseSourceUri(uri: string): string {
+  const localPath = uri.startsWith("file://")
+    ? uri.slice("file://".length)
+    : uri;
+  if (!localPath.startsWith("/")) {
+    return uri;
+  }
+  const targetStylePath = localPath.replace(
+    /-target(?:-fidelity|-style-only|-soft-muted-strong|-flat-warm|-flat-cool|-crisp-neutral)?\.png$/,
+    "-target-style.png",
+  );
+  if (targetStylePath !== localPath && existsSync(targetStylePath)) {
+    return uri.startsWith("file://")
+      ? `file://${targetStylePath}`
+      : targetStylePath;
+  }
+  return uri;
 }
 
 function parseFluxMutationUri(
@@ -1493,6 +1679,18 @@ function parseFluxMutationUri(
     seedFromString(uri);
   return { url, seed };
 }
+
+function cloneUrl(url: URL): URL {
+  return new URL(url.toString());
+}
+
+const IMAGE_LOCAL_STYLE_VARIANTS = [
+  "crisp-neutral",
+  "flat-warm",
+  "style-only",
+  "flat-cool",
+  "soft-muted-strong",
+] as const;
 
 function mutatedFluxSeed(seed: number, index: number): number {
   return (seed + 7_919 * (index + 1)) % 1_000_000;
@@ -2167,6 +2365,16 @@ const imageImageColdStartStrategies: MutationStrategy[] = [
     instruction:
       "Create a Flux prompt centered on the target's most important visual entity and setting, with concrete details for posture, framing, surface texture, and background. Keep the prompt literal and concise.",
   },
+  {
+    name: "image low-fidelity target style",
+    instruction:
+      "Create a concise Flux prompt that prioritizes the target's low-level capture style: aspect ratio, apparent resolution, blur, compression or grain, contrast, saturation, color cast, and camera distance. Include only the most important subject/composition anchors; do not over-inventory objects.",
+  },
+  {
+    name: "image absence and sparsity lock",
+    instruction:
+      "Create a Flux prompt that preserves what is absent as much as what is present. Match the target's object density, empty/filled regions, blank surfaces, uncluttered areas, and simple foreground/background balance while keeping the main subject and lighting grounded.",
+  },
 ];
 
 const textProbeColdStartStrategies: MutationStrategy[] = [
@@ -2827,6 +3035,23 @@ function iterationId(iteration: number): string {
 
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function serializeError(error: unknown): {
+  name?: string;
+  message: string;
+  stack?: string;
+} {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+  return {
+    message: String(error),
+  };
 }
 
 async function mapWithConcurrency<T, U>(

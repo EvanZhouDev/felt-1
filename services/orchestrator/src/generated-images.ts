@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentOutput, ImagePayload, RenderedStimulus } from "@volta/core";
 
@@ -11,6 +11,8 @@ const DEFAULT_FLUX_STEPS = "4";
 const DEFAULT_IMAGE_DURATION_SEC = 0.5;
 const DEFAULT_IMAGE_FPS = 2;
 const DEFAULT_FLUX_TIMEOUT_MS = 180_000;
+const FLUX_RETRY_DELAY_MS = 1500;
+const FLUX_MAX_ATTEMPTS = 3;
 
 export async function materializeGeneratedImageCandidate(args: {
   candidate: AgentOutput;
@@ -26,19 +28,29 @@ export async function materializeGeneratedImageCandidate(args: {
   const targetStyle = args.inheritTargetStyle
     ? await targetImageStyle(args.targetRendered)
     : undefined;
-  const materialized = await materializeFluxImagePayload({
+  const sourceUri = args.candidate.outputNode.payload.source.uri;
+  const fluxMaterialized = await materializeFluxImagePayload({
     payload: args.candidate.outputNode.payload,
     runPath: args.runPath,
     agentId: args.candidate.agentId,
     fluxUrl: args.fluxUrl,
     targetStyle,
   });
+  const materialized =
+    fluxMaterialized === args.candidate.outputNode.payload
+      ? await materializeLocalStyledImagePayload({
+          payload: args.candidate.outputNode.payload,
+          runPath: args.runPath,
+          agentId: args.candidate.agentId,
+          targetStyle,
+        })
+      : fluxMaterialized;
   if (materialized === args.candidate.outputNode.payload) {
     return args.candidate;
   }
 
   const targetFidelity = targetStyle
-    ? targetFidelityMode(targetStyle)
+    ? targetFidelityMode(targetStyle, requestedTargetFidelity(sourceUri))
     : undefined;
   const generationStyle = targetStyle
     ? fluxGenerationGeometry(targetStyle)
@@ -95,38 +107,50 @@ async function materializeFluxImagePayload(args: {
   const key = sha256(
     JSON.stringify({ prompt, model, steps, seed, generationStyle }),
   ).slice(0, 16);
+  const rawAssetRoot = join(args.runPath, "generated-assets", "_raw");
   const assetRoot = join(args.runPath, "generated-assets", args.agentId);
   const rawImagePath = join(assetRoot, `${key}.png`);
+  const sharedRawImagePath = join(rawAssetRoot, `${key}.png`);
   const styledImagePath = join(assetRoot, `${key}-target-style.png`);
   const targetFidelity = args.targetStyle
-    ? targetFidelityMode(args.targetStyle)
+    ? targetFidelityMode(args.targetStyle, request.voltaStyle)
     : undefined;
-  const fidelityImagePath = join(assetRoot, `${key}-target-fidelity.png`);
-  const imagePath = targetFidelity
-    ? fidelityImagePath
-    : args.targetStyle
-      ? styledImagePath
-      : rawImagePath;
+  const fidelityImagePath =
+    targetFidelity && targetFidelity !== "style-only"
+      ? join(
+          assetRoot,
+          `${key}-${targetFidelityPathSuffix(targetFidelity)}.png`,
+        )
+      : undefined;
+  const imagePath =
+    fidelityImagePath ?? (args.targetStyle ? styledImagePath : rawImagePath);
   const videoPath = join(
     assetRoot,
-    targetFidelity
-      ? `${key}-target-fidelity-0.5s.mp4`
-      : args.targetStyle
-        ? `${key}-target-style-0.5s.mp4`
-        : `${key}-0.5s.mp4`,
+    `${key}-${imageRenderSuffix({
+      hasTargetStyle: Boolean(args.targetStyle),
+      targetFidelity,
+    })}-0.5s.mp4`,
   );
+  await mkdir(rawAssetRoot, { recursive: true });
   await mkdir(assetRoot, { recursive: true });
 
+  if (!existsSync(sharedRawImagePath)) {
+    if (existsSync(rawImagePath)) {
+      await copyFile(rawImagePath, sharedRawImagePath);
+    } else {
+      await downloadFluxImage({
+        url: args.fluxUrl ?? DEFAULT_FLUX_URL,
+        prompt,
+        model,
+        steps,
+        seed,
+        geometry: generationStyle,
+        outPath: sharedRawImagePath,
+      });
+    }
+  }
   if (!existsSync(rawImagePath)) {
-    await downloadFluxImage({
-      url: args.fluxUrl ?? DEFAULT_FLUX_URL,
-      prompt,
-      model,
-      steps,
-      seed,
-      geometry: generationStyle,
-      outPath: rawImagePath,
-    });
+    await copyFile(sharedRawImagePath, rawImagePath);
   }
   if (args.targetStyle && !existsSync(styledImagePath)) {
     await createTargetStyleImage({
@@ -135,11 +159,98 @@ async function materializeFluxImagePayload(args: {
       geometry: args.targetStyle,
     });
   }
-  if (targetFidelity && !existsSync(fidelityImagePath)) {
+  if (targetFidelity && fidelityImagePath && !existsSync(fidelityImagePath)) {
     await createTargetFidelityImage({
       inputPath: styledImagePath,
       outputPath: fidelityImagePath,
       mode: targetFidelity,
+    });
+  }
+  if (!existsSync(videoPath)) {
+    await createStillVideo({
+      imagePath,
+      videoPath,
+      durationSec:
+        args.payload.timing?.durationSec ?? DEFAULT_IMAGE_DURATION_SEC,
+      fps: args.payload.timing?.fps ?? DEFAULT_IMAGE_FPS,
+      geometry: args.targetStyle,
+    });
+  }
+
+  return {
+    ...args.payload,
+    source: {
+      uri: imagePath,
+      mime: "image/png",
+    },
+    cachedVideo: {
+      uri: videoPath,
+      mime: "video/mp4",
+    },
+    timing: {
+      durationSec:
+        args.payload.timing?.durationSec ?? DEFAULT_IMAGE_DURATION_SEC,
+      fps: args.payload.timing?.fps ?? DEFAULT_IMAGE_FPS,
+    },
+    fit: args.payload.fit ?? "contain",
+    background: args.payload.background ?? "#000000",
+  };
+}
+
+async function materializeLocalStyledImagePayload(args: {
+  payload: ImagePayload;
+  runPath: string;
+  agentId: string;
+  targetStyle?: ImageGeometry;
+}): Promise<ImagePayload> {
+  const request = parseLocalStyleUri(args.payload.source.uri);
+  if (!request) {
+    return args.payload;
+  }
+
+  const sourcePath = localImagePath(request.src);
+  if (!sourcePath) {
+    throw new Error(`Unsupported local style source URI: ${request.src}`);
+  }
+
+  const key = sha256(
+    JSON.stringify({
+      sourcePath,
+      style: request.style,
+      targetStyle: args.targetStyle,
+    }),
+  ).slice(0, 16);
+  const assetRoot = join(args.runPath, "generated-assets", args.agentId);
+  const normalizedImagePath = join(assetRoot, `${key}-target-style.png`);
+  const fidelityImagePath = join(
+    assetRoot,
+    `${key}-${targetFidelityPathSuffix(request.style)}.png`,
+  );
+  const imagePath =
+    request.style === "style-only" ? normalizedImagePath : fidelityImagePath;
+  const videoPath = join(
+    assetRoot,
+    `${key}-${targetFidelityPathSuffix(request.style)}-0.5s.mp4`,
+  );
+  await mkdir(assetRoot, { recursive: true });
+
+  if (args.targetStyle) {
+    if (!existsSync(normalizedImagePath)) {
+      await createTargetStyleImage({
+        inputPath: sourcePath,
+        outputPath: normalizedImagePath,
+        geometry: args.targetStyle,
+      });
+    }
+  } else if (!existsSync(normalizedImagePath)) {
+    await copyFile(sourcePath, normalizedImagePath);
+  }
+
+  if (request.style !== "style-only" && !existsSync(fidelityImagePath)) {
+    await createTargetFidelityImage({
+      inputPath: normalizedImagePath,
+      outputPath: fidelityImagePath,
+      mode: request.style,
     });
   }
   if (!existsSync(videoPath)) {
@@ -178,7 +289,13 @@ type ImageGeometry = {
   height: number;
 };
 
-type TargetFidelityMode = "soft-muted";
+type TargetFidelityMode =
+  | "style-only"
+  | "soft-muted"
+  | "soft-muted-strong"
+  | "flat-warm"
+  | "flat-cool"
+  | "crisp-neutral";
 
 async function targetImageStyle(
   targetRendered: RenderedStimulus | undefined,
@@ -193,9 +310,40 @@ async function targetImageStyle(
 
 function targetFidelityMode(
   geometry: ImageGeometry,
+  requestedMode?: string,
 ): TargetFidelityMode | undefined {
+  if (isTargetFidelityMode(requestedMode)) {
+    return requestedMode;
+  }
   const area = geometry.width * geometry.height;
   return area <= 512 * 512 ? "soft-muted" : undefined;
+}
+
+function isTargetFidelityMode(
+  mode: string | undefined,
+): mode is TargetFidelityMode {
+  return (
+    mode === "style-only" ||
+    mode === "soft-muted" ||
+    mode === "soft-muted-strong" ||
+    mode === "flat-warm" ||
+    mode === "flat-cool" ||
+    mode === "crisp-neutral"
+  );
+}
+
+function targetFidelityPathSuffix(mode: TargetFidelityMode): string {
+  return mode === "soft-muted" ? "target-fidelity" : `target-${mode}`;
+}
+
+function imageRenderSuffix(args: {
+  hasTargetStyle: boolean;
+  targetFidelity?: TargetFidelityMode;
+}): string {
+  if (args.targetFidelity) {
+    return targetFidelityPathSuffix(args.targetFidelity);
+  }
+  return args.hasTargetStyle ? "target-style" : "raw";
 }
 
 function fluxGenerationGeometry(geometry: ImageGeometry): ImageGeometry {
@@ -224,6 +372,7 @@ function parseFluxGenerationUri(uri: string):
       seed?: string;
       width?: string;
       height?: string;
+      voltaStyle?: string;
     }
   | undefined {
   if (!uri.startsWith("flux://generate")) {
@@ -238,7 +387,47 @@ function parseFluxGenerationUri(uri: string):
     seed: parsed.searchParams.get("seed") ?? undefined,
     width: parsed.searchParams.get("width") ?? undefined,
     height: parsed.searchParams.get("height") ?? undefined,
+    voltaStyle: parsed.searchParams.get("voltaStyle") ?? undefined,
   };
+}
+
+function parseLocalStyleUri(
+  uri: string,
+): { src: string; style: TargetFidelityMode } | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(uri);
+  } catch {
+    return undefined;
+  }
+  if (parsed.protocol !== "volta-style:" || parsed.hostname !== "image") {
+    return undefined;
+  }
+  const src = parsed.searchParams.get("src");
+  const style = parsed.searchParams.get("style") ?? undefined;
+  if (!src || !isTargetFidelityMode(style)) {
+    return undefined;
+  }
+  return {
+    src,
+    style,
+  };
+}
+
+function requestedTargetFidelity(uri: string): string | undefined {
+  return (
+    parseFluxGenerationUri(uri)?.voltaStyle ?? parseLocalStyleUri(uri)?.style
+  );
+}
+
+function localImagePath(uri: string): string | undefined {
+  if (uri.startsWith("file://")) {
+    return uri.slice("file://".length);
+  }
+  if (uri.startsWith("/")) {
+    return uri;
+  }
+  return undefined;
 }
 
 async function downloadFluxImage(args: {
@@ -260,11 +449,7 @@ async function downloadFluxImage(args: {
     url.searchParams.set("height", String(args.geometry.height));
   }
 
-  const response = await fetchWithTimeout(url, DEFAULT_FLUX_TIMEOUT_MS);
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Flux generation failed: ${response.status} ${detail}`);
-  }
+  const response = await fetchFluxWithRetries(url);
 
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.startsWith("image/")) {
@@ -273,6 +458,33 @@ async function downloadFluxImage(args: {
   }
 
   await writeFile(args.outPath, new Uint8Array(await response.arrayBuffer()));
+}
+
+async function fetchFluxWithRetries(url: URL): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= FLUX_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(url, DEFAULT_FLUX_TIMEOUT_MS);
+      if (response.ok || !isRetryableFluxStatus(response.status)) {
+        return response;
+      }
+      const detail = await response.text().catch(() => "");
+      lastError = new Error(
+        `Flux generation failed: ${response.status} ${detail}`,
+      );
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt < FLUX_MAX_ATTEMPTS) {
+      await delay(FLUX_RETRY_DELAY_MS * attempt);
+    }
+  }
+  throw lastError;
+}
+
+function isRetryableFluxStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
 }
 
 function createTargetStyleImage(args: {
@@ -299,10 +511,7 @@ function createTargetFidelityImage(args: {
   outputPath: string;
   mode: TargetFidelityMode;
 }): Promise<void> {
-  const filter =
-    args.mode === "soft-muted"
-      ? "boxblur=0.8:1,eq=contrast=0.92:saturation=0.88:brightness=-0.02"
-      : undefined;
+  const filter = targetFidelityFilter(args.mode);
   if (!filter) {
     throw new Error(`Unsupported target fidelity mode: ${args.mode}`);
   }
@@ -318,6 +527,23 @@ function createTargetFidelityImage(args: {
     "1",
     args.outputPath,
   ]).then(() => undefined);
+}
+
+function targetFidelityFilter(mode: TargetFidelityMode): string | undefined {
+  switch (mode) {
+    case "style-only":
+      return undefined;
+    case "soft-muted":
+      return "boxblur=0.8:1,eq=contrast=0.92:saturation=0.88:brightness=-0.02";
+    case "soft-muted-strong":
+      return "boxblur=1.2:1,eq=contrast=0.86:saturation=0.78:brightness=-0.03";
+    case "flat-warm":
+      return "boxblur=0.6:1,eq=contrast=0.88:saturation=0.82:brightness=-0.01:gamma_r=1.04:gamma_b=0.96";
+    case "flat-cool":
+      return "boxblur=0.6:1,eq=contrast=0.9:saturation=0.86:brightness=-0.01:gamma_r=0.96:gamma_b=1.04";
+    case "crisp-neutral":
+      return "eq=contrast=0.98:saturation=0.95:brightness=-0.01,unsharp=3:3:0.25:3:3:0.0";
+  }
 }
 
 function createStillVideo(args: {
@@ -420,6 +646,10 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function stableSeed(value: string): string {

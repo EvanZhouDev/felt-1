@@ -64,6 +64,8 @@ export function runSummary(args: {
     scoringConcurrency: number;
     reuseTargetArchive: boolean;
     textMicroMutations: number;
+    imageSeedMutations: number;
+    imageLocalMutations: number;
     textProbeCount: number;
     textProbeRecombinations: number;
     textProbeLocalMutations: number;

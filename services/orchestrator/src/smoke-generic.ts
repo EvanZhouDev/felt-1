@@ -35,6 +35,7 @@ const oracle = createOracle({
     reuseTargetArchive: false,
     textMicroMutations: 0,
     imageSeedMutations: 0,
+    imageLocalMutations: 0,
     textProbeCount: 0,
     textProbeRecombinations: 0,
     textProbeLocalMutations: 0,

@@ -31,6 +31,7 @@ const oracle = createOracle({
     reuseTargetArchive: false,
     textMicroMutations: 0,
     imageSeedMutations: 0,
+    imageLocalMutations: 0,
     textProbeCount: 0,
     textProbeRecombinations: 0,
     textProbeLocalMutations: 0,
@@ -116,9 +117,9 @@ if (result.iterations.length !== 2) {
     `Expected 2 iterations, received ${result.iterations.length}.`,
   );
 }
-if (result.candidates.length !== 2) {
+if (result.candidates.length < 2) {
   throw new Error(
-    `Expected 2 candidates, received ${result.candidates.length}.`,
+    `Expected at least 2 candidates, received ${result.candidates.length}.`,
   );
 }
 if (result.judge.selectedAgentId !== result.candidates[0]?.agentId) {

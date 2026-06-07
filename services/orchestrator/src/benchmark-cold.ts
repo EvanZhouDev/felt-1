@@ -61,6 +61,10 @@ const loop = normalizeLoopConfig({
   reuseTargetArchive: args.reuseTargetArchive ?? false,
   textMicroMutations:
     args.textMicroMutations ?? baseConfig.loop.textMicroMutations,
+  imageSeedMutations:
+    args.imageSeedMutations ?? baseConfig.loop.imageSeedMutations,
+  imageLocalMutations:
+    args.imageLocalMutations ?? baseConfig.loop.imageLocalMutations,
   textProbeCount: args.textProbeCount ?? baseConfig.loop.textProbeCount,
   textProbeRecombinations:
     args.textProbeRecombinations ?? baseConfig.loop.textProbeRecombinations,
@@ -500,6 +504,8 @@ function parseArgs(argv: string[]): {
   candidateCount?: number;
   scoringConcurrency?: number;
   textMicroMutations?: number;
+  imageSeedMutations?: number;
+  imageLocalMutations?: number;
   textProbeCount?: number;
   textProbeRecombinations?: number;
   textProbeLocalMutations?: number;
@@ -551,6 +557,12 @@ function parseArgs(argv: string[]): {
       index += 1;
     } else if (flag === "--text-micro-mutations") {
       parsed.textMicroMutations = nonNegativeInteger(value, flag);
+      index += 1;
+    } else if (flag === "--image-seed-mutations") {
+      parsed.imageSeedMutations = nonNegativeInteger(value, flag);
+      index += 1;
+    } else if (flag === "--image-local-mutations") {
+      parsed.imageLocalMutations = nonNegativeInteger(value, flag);
       index += 1;
     } else if (flag === "--text-probe-count") {
       parsed.textProbeCount = nonNegativeInteger(value, flag);

@@ -2882,3 +2882,91 @@ Verification:
 - Reports:
   - `.agent/benchmarks/mona-image-to-image-aspect-pop3-v1.json`
   - `.agent/benchmarks/mona-image-to-image-aspect-refine2-v1.json`
+
+## 2026-06-07 05:55 PDT - Elitist Image Local Mutation
+
+Goal:
+
+- Move faster on the hard image-to-image case without reward hacking or burning
+  unnecessary Flux calls while the hosted image service is unstable.
+
+Changes:
+
+- Added two generic image cold-start strategies:
+  - `image low-fidelity target style`
+  - `image absence and sparsity lock`
+- Added retry handling for transient Flux `408`, `429`, and `5xx` responses.
+- Isolated per-candidate scoring failures so one failed Flux/materialization
+  candidate writes `<agentId>.error.json` instead of killing the whole
+  population. The iteration still fails if every candidate fails.
+- Exposed image mutation knobs in the benchmark harness:
+  - `--image-seed-mutations`
+  - `--image-local-mutations`
+  - env: `VOLTA_IMAGE_LOCAL_MUTATIONS`
+- Added an explicit `elite-replay` candidate on refinement turns so the
+  previous selected elite participates in ranking, archive updates, judging, and
+  local mutation. This makes the loop genuinely elitist instead of relying only
+  on a post-hoc global-best override.
+- Added local image-style mutations:
+  - Flux prompt descendants can set `voltaStyle=<style>` and reuse a shared
+    run-level raw Flux cache under `generated-assets/_raw`.
+  - Local rendered image descendants can use internal
+    `volta-style://image?src=...&style=...` URIs, so replayed elites can be
+    postprocessed without Flux.
+  - Local replay mutations use the unfiltered `*-target-style.png` sibling when
+    available to avoid stacking filters on top of `*-target-fidelity.png`.
+  - Empirical variant order now tries `crisp-neutral` first.
+
+Runs and probes:
+
+- Hosted Flux health check is still failing:
+  - `https://images.bryanhu.com/health -> error code: 502`
+- A 5-candidate backrooms run attempted before failure isolation could not
+  complete because the image host returned Cloudflare `502`.
+- Local ffmpeg filter smoke passed for `soft-muted-strong`, `flat-warm`,
+  `flat-cool`, and `crisp-neutral`.
+- Direct materializer smoke passed for a child image mutation:
+  - `candidate-b-image-1`
+  - output:
+    `.volta/benchmarks/runs/backrooms-image-to-image-cb8068ad/generated-assets/candidate-b-image-1/aedc0aee51daa8e0-target-crisp-neutral.png`
+  - no hosted Flux call after the shared raw cache existed.
+
+Real local TRIBE probes:
+
+- On cached backrooms parent
+  `backrooms-image-to-image-cb8068ad` / `candidate-b`:
+  - default `soft-muted`: adjusted `0.8299616970091929`, total
+    `0.8506138112650937`
+  - `style-only`: adjusted `0.7932027622395679`
+  - `soft-muted-strong`: adjusted `0.6113269896215473`
+  - `flat-warm`: adjusted `0.8294251141322622`
+  - `flat-cool`: adjusted `0.8041630687048694`
+  - `crisp-neutral`: adjusted `0.8484280146268046`, total
+    `0.8692264422681254`
+- On stronger backrooms elite
+  `backrooms-image-to-image-f42a6a6b` / iteration 2 `candidate-b`:
+  - previous stored adjusted `0.8566271777650765`, total
+    `0.8823599576974804`
+  - `crisp-neutral`: adjusted `0.8629998557657745`, total
+    `0.8836278475705585`
+  - `flat-warm`: adjusted `0.8300318100737368`
+  - `style-only`: adjusted `0.8033783734044497`
+  - `flat-cool`: adjusted `0.8469416035507983`
+
+Interpretation:
+
+- `crisp-neutral` is a real, generic low-cost local operator. It improved a
+  cached backrooms parent by about `+0.0185` adjusted and the stronger elite by
+  about `+0.0064` adjusted without copying the target or calling Flux.
+- More muting is not generally good. `soft-muted-strong` was destructive, and
+  `style-only` consistently lost score, so the operator should be scored, not
+  assumed.
+- This does not get backrooms to 90 yet, but it improves exploitation speed,
+  makes refinement more elitist, and lets the pipeline keep making useful local
+  progress even when image generation is flaky.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed; smoke now reports `candidateCount: 3` because
+  refinement includes `elite-replay`.
