@@ -565,8 +565,14 @@ async function executeIteration(
   );
   const microParentCandidates = selectMicroMutationParents({
     evaluatedOutputs: evaluatedBaseOutputs,
+    candidateOutputs: generatedCandidateOutputs,
     inputType: args.input.inputNode.type,
     outputType: args.output.outputType,
+    imageSeedMutations: effectiveImageSeedMutationCount({
+      configured: args.loop.imageSeedMutations,
+      inputType: args.input.inputNode.type,
+      outputType: args.output.outputType,
+    }),
     textMicroMutations: effectiveTextMicroMutationCount({
       configured: args.loop.textMicroMutations,
       inputType: args.input.inputNode.type,
@@ -577,6 +583,11 @@ async function executeIteration(
     candidates: microParentCandidates,
     inputType: args.input.inputNode.type,
     outputType: args.output.outputType,
+    imageSeedMutations: effectiveImageSeedMutationCount({
+      configured: args.loop.imageSeedMutations,
+      inputType: args.input.inputNode.type,
+      outputType: args.output.outputType,
+    }),
     textMicroMutations: effectiveTextMicroMutationCount({
       configured: args.loop.textMicroMutations,
       inputType: args.input.inputNode.type,
@@ -1273,27 +1284,64 @@ function effectiveTextMicroMutationCount(args: {
     : 0;
 }
 
-function selectMicroMutationParents(args: {
-  evaluatedOutputs: EvaluatedOutput[];
+function effectiveImageSeedMutationCount(args: {
+  configured: number;
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
+}): number {
+  if (args.inputType !== "image" || args.outputType !== "image") {
+    return 0;
+  }
+  return args.configured;
+}
+
+function selectMicroMutationParents(args: {
+  evaluatedOutputs: EvaluatedOutput[];
+  candidateOutputs: CandidateOutput[];
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+  imageSeedMutations: number;
   textMicroMutations: number;
 }): CandidateOutput[] {
-  if (args.outputType !== "text" || args.textMicroMutations <= 0) {
+  if (args.outputType === "text" && args.textMicroMutations <= 0) {
+    return [];
+  }
+  if (args.outputType === "image" && args.imageSeedMutations <= 0) {
+    return [];
+  }
+  if (args.outputType !== "text" && args.outputType !== "image") {
     return [];
   }
 
-  const parentLimit =
-    args.inputType === "image" && args.outputType === "text"
-      ? Math.min(2, args.evaluatedOutputs.length)
-      : args.evaluatedOutputs.length;
+  const parentLimit = microMutationParentLimit(args);
+
+  const originalByAgentId = new Map(
+    args.candidateOutputs.map((candidate) => [candidate.agentId, candidate]),
+  );
 
   return [...args.evaluatedOutputs]
     .sort(
       (left, right) => outputSelectionScore(right) - outputSelectionScore(left),
     )
     .slice(0, parentLimit)
-    .map(candidateFromEvaluatedOutput);
+    .map(
+      (output) =>
+        originalByAgentId.get(output.agentId) ??
+        candidateFromEvaluatedOutput(output),
+    );
+}
+
+function microMutationParentLimit(args: {
+  evaluatedOutputs: EvaluatedOutput[];
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+}): number {
+  if (args.outputType === "image") {
+    return Math.min(1, args.evaluatedOutputs.length);
+  }
+  return args.inputType === "image" && args.outputType === "text"
+    ? Math.min(2, args.evaluatedOutputs.length)
+    : args.evaluatedOutputs.length;
 }
 
 function candidateFromEvaluatedOutput(
@@ -1310,8 +1358,13 @@ function microMutationCandidateOutputs(args: {
   candidates: CandidateOutput[];
   inputType: InputObj["inputNode"]["type"];
   outputType: OutputObj["outputType"];
+  imageSeedMutations: number;
   textMicroMutations: number;
 }): CandidateOutput[] {
+  if (args.outputType === "image") {
+    return imageSeedMutationCandidateOutputs(args);
+  }
+
   if (args.outputType !== "text" || args.textMicroMutations <= 0) {
     return [];
   }
@@ -1353,6 +1406,105 @@ function microMutationCandidateOutputs(args: {
     }
   }
   return expanded;
+}
+
+function imageSeedMutationCandidateOutputs(args: {
+  candidates: CandidateOutput[];
+  inputType: InputObj["inputNode"]["type"];
+  outputType: OutputObj["outputType"];
+  imageSeedMutations: number;
+}): CandidateOutput[] {
+  if (
+    args.inputType !== "image" ||
+    args.outputType !== "image" ||
+    args.imageSeedMutations <= 0
+  ) {
+    return [];
+  }
+
+  const expanded: CandidateOutput[] = [];
+  for (const candidate of args.candidates) {
+    if (candidate.outputNode.type !== "image") {
+      continue;
+    }
+    for (const [index, variant] of imageSeedVariants(
+      candidate.outputNode.payload.source.uri,
+      args.imageSeedMutations,
+    ).entries()) {
+      expanded.push({
+        ...candidate,
+        agentId: `${candidate.agentId}-seed-${index + 1}`,
+        entropy: [
+          candidate.entropy,
+          `imageSeedMutation=${variant.name}`,
+          `parentAgentId=${candidate.agentId}`,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        outputNode: {
+          ...candidate.outputNode,
+          payload: {
+            ...candidate.outputNode.payload,
+            cachedVideo: undefined,
+            source: {
+              ...candidate.outputNode.payload.source,
+              uri: variant.uri,
+            },
+          },
+        },
+      });
+    }
+  }
+  return expanded;
+}
+
+function imageSeedVariants(
+  uri: string,
+  maxCount: number,
+): Array<{ name: string; uri: string }> {
+  const parsed = parseFluxMutationUri(uri);
+  if (!parsed) {
+    return [];
+  }
+  return Array.from({ length: maxCount }, (_, index) => {
+    const seed = mutatedFluxSeed(parsed.seed, index);
+    parsed.url.searchParams.set("seed", String(seed));
+    return {
+      name: `flux-seed-${seed}`,
+      uri: parsed.url.toString(),
+    };
+  });
+}
+
+function parseFluxMutationUri(
+  uri: string,
+): { url: URL; seed: number } | undefined {
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "flux:" || url.hostname !== "generate") {
+    return undefined;
+  }
+  const seed =
+    Number.parseInt(url.searchParams.get("seed") ?? "", 10) ||
+    seedFromString(uri);
+  return { url, seed };
+}
+
+function mutatedFluxSeed(seed: number, index: number): number {
+  return (seed + 7_919 * (index + 1)) % 1_000_000;
+}
+
+function seedFromString(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % 1_000_000;
 }
 
 type TextMicroVariant = {

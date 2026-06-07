@@ -38,6 +38,7 @@ export type LoopConfig = {
   scoringConcurrency: number;
   reuseTargetArchive: boolean;
   textMicroMutations: number;
+  imageSeedMutations: number;
   textProbeCount: number;
   textProbeRecombinations: number;
   textProbeLocalMutations: number;
@@ -75,6 +76,7 @@ export function loadConfig(): OrchestratorConfig {
       scoringConcurrency: numberFromEnv("VOLTA_SCORING_CONCURRENCY", 1),
       reuseTargetArchive: process.env.VOLTA_REUSE_TARGET_ARCHIVE === "true",
       textMicroMutations: integerFromEnv("VOLTA_TEXT_MICRO_MUTATIONS", 0),
+      imageSeedMutations: integerFromEnv("VOLTA_IMAGE_SEED_MUTATIONS", 0),
       textProbeCount: integerFromEnv("VOLTA_TEXT_PROBE_COUNT", 0),
       textProbeRecombinations: integerFromEnv(
         "VOLTA_TEXT_PROBE_RECOMBINATIONS",
@@ -106,6 +108,7 @@ export function normalizeLoopConfig(
     scoringConcurrency: positiveInteger(config?.scoringConcurrency, 1),
     reuseTargetArchive: config?.reuseTargetArchive === true,
     textMicroMutations: nonNegativeInteger(config?.textMicroMutations, 0),
+    imageSeedMutations: nonNegativeInteger(config?.imageSeedMutations, 0),
     textProbeCount: nonNegativeInteger(config?.textProbeCount, 0),
     textProbeRecombinations: nonNegativeInteger(
       config?.textProbeRecombinations,

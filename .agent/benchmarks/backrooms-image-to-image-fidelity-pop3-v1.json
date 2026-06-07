@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-06-07T11:34:55.750Z",
+  "updatedAt": "2026-06-07T11:38:11.985Z",
+  "oracleMode": "tribe",
+  "backend": "codex",
+  "loop": {
+    "maxIterations": 1,
+    "similarityThreshold": 0.9,
+    "candidateCount": 3,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "imageSeedMutations": 0,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "backrooms-image-to-image",
+      "runId": "backrooms-image-to-image-fcfaf007",
+      "status": "completed",
+      "description": "Use the backrooms image target as an image-to-image cold benchmark.",
+      "tags": ["image", "backrooms", "same-medium", "cold-start"],
+      "outputType": "image",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/backrooms-image-to-image-fcfaf007",
+      "bestScore": 0.8090943031725147,
+      "bestNeuralSimilarity": 0.992088157197358,
+      "bestAdjustedSimilarity": 0.7831973749206479,
+      "iterationCount": 1,
+      "selectedAgentId": "candidate-c"
+    }
+  ]
+}

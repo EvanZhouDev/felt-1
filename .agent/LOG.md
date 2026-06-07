@@ -2580,3 +2580,91 @@ Verification:
 - Reports:
   - `.agent/benchmarks/backrooms-image-to-image-style-v1.json`
   - `.agent/benchmarks/dog-image-to-image-style-v1.json`
+
+## 2026-06-07 04:40 PDT - Image Fidelity Filter and Seed-Child GA Probe
+
+Goal:
+
+- Push same-medium image matching higher without target-specific cheating, then
+  verify the gains against dog/backrooms cross-target controls.
+
+Changes:
+
+- Added a conservative target-fidelity postprocess for small target-style image
+  outputs: after Flux generation and target-geometry scaling/cropping, the
+  scored image is softened and slightly muted (`targetFidelity=soft-muted`).
+  Raw Flux PNGs and target-style intermediates remain on disk for audit.
+- Added an opt-in image genetic operator:
+  `VOLTA_IMAGE_SEED_MUTATIONS=<n>` creates same-prompt Flux seed children from
+  the best scored image parent. It is off by default.
+- Fixed image seed-child parent selection so mutations use the original
+  generated Flux URI instead of the already-materialized local PNG.
+
+Offline probe:
+
+- Applying `soft-muted` to an existing strong backrooms candidate improved its
+  run-style adjusted score from about `0.697` to `0.7350629136532122`.
+- Heavy low-res/coarse degradation hurt (`0.5181005972702428` and
+  `0.47319865453330817` adjusted), so the useful operator is conservative
+  softening/muting, not blanket degradation.
+- Dog soft/muted probe stayed high and improved slightly:
+  adjusted `0.9699466406512799`.
+
+Real runs:
+
+- `backrooms-image-to-image-b8382507`
+  - one candidate, fidelity filter enabled
+  - adjusted `0.5875286458688272`
+  - interpretation: postprocess cannot rescue a weak generated composition.
+- `backrooms-image-to-image-33cf8bc1`
+  - one Codex prompt plus two Flux seed children
+  - adjusted `0.6368204044715934`
+  - seed children were scored, but neither beat the parent. Useful architecture
+    knob, not currently the strongest operator for this Flux backend.
+- `backrooms-image-to-image-fcfaf007`
+  - three prompt-family candidates, one iteration, fidelity filter enabled
+  - best candidate `candidate-c`
+  - raw `0.992088157197358`
+  - adjusted `0.7831973749206479`
+  - total `0.8090943031725147`
+  - output: `.volta/benchmarks/runs/backrooms-image-to-image-fcfaf007/generated-assets/candidate-c/d3eb69ba5a498019-target-fidelity.png`
+  - this beats the prior backrooms best (`0.7060327167800182` adjusted) and the
+    earlier 3-candidate style-only run (`0.6973838375005834` adjusted).
+- `dog-image-to-image-0f2c017d`
+  - one candidate, fidelity filter enabled
+  - raw `0.9989522584332954`
+  - adjusted `0.9924409428594287`
+  - total `1.0223720034003638`
+  - dog remains above 90% in one turn.
+
+Cross-target audit:
+
+- Dog fidelity output:
+  - vs dog adjusted `0.9895345701504914`, total `1.0167254526173715`
+  - vs Mona adjusted `0`, total `0`
+  - vs backrooms adjusted `0.10436777712491818`, total `0.10436777712491818`
+- Backrooms fidelity-population winner:
+  - vs backrooms adjusted `0.81216244900834`, total `0.8362080469521576`
+  - vs dog adjusted `0`, total `0`
+  - vs Mona adjusted `0.2751004113629446`, total `0.2751004113629446`
+
+Interpretation:
+
+- The largest backrooms jump came from combining prompt-family population
+  diversity with target-style/fidelity rendering, not from seed-only mutation.
+- The seed-child genetic operator is now available as a knob, but the current
+  evidence says it should not be the default expensive move.
+- Backrooms still has a moderate Mona false-positive in audit scoring and is
+  still below the 90% adjusted goal. Next improvement should use judge-informed
+  second-turn refinement or reference-conditioned image generation/editing,
+  because Flux text prompts still miss target geometry.
+
+Verification:
+
+- `bun run check` passed.
+- Reports:
+  - `.agent/benchmarks/backrooms-image-to-image-fidelity-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-seedmut-v1.json`
+  - `.agent/benchmarks/backrooms-image-to-image-seedmut-v2.json`
+  - `.agent/benchmarks/backrooms-image-to-image-fidelity-pop3-v1.json`
+  - `.agent/benchmarks/dog-image-to-image-fidelity-v1.json`

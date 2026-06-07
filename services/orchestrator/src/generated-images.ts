@@ -37,6 +37,10 @@ export async function materializeGeneratedImageCandidate(args: {
     return args.candidate;
   }
 
+  const targetFidelity = targetStyle
+    ? targetFidelityMode(targetStyle)
+    : undefined;
+
   return {
     ...args.candidate,
     entropy: [
@@ -45,6 +49,7 @@ export async function materializeGeneratedImageCandidate(args: {
       targetStyle
         ? `targetStyle=${targetStyle.width}x${targetStyle.height}`
         : undefined,
+      targetFidelity ? `targetFidelity=${targetFidelity}` : undefined,
     ]
       .filter(Boolean)
       .join(" | "),
@@ -82,10 +87,22 @@ async function materializeFluxImagePayload(args: {
   const assetRoot = join(args.runPath, "generated-assets", args.agentId);
   const rawImagePath = join(assetRoot, `${key}.png`);
   const styledImagePath = join(assetRoot, `${key}-target-style.png`);
-  const imagePath = args.targetStyle ? styledImagePath : rawImagePath;
+  const targetFidelity = args.targetStyle
+    ? targetFidelityMode(args.targetStyle)
+    : undefined;
+  const fidelityImagePath = join(assetRoot, `${key}-target-fidelity.png`);
+  const imagePath = targetFidelity
+    ? fidelityImagePath
+    : args.targetStyle
+      ? styledImagePath
+      : rawImagePath;
   const videoPath = join(
     assetRoot,
-    args.targetStyle ? `${key}-target-style-0.5s.mp4` : `${key}-0.5s.mp4`,
+    targetFidelity
+      ? `${key}-target-fidelity-0.5s.mp4`
+      : args.targetStyle
+        ? `${key}-target-style-0.5s.mp4`
+        : `${key}-0.5s.mp4`,
   );
   await mkdir(assetRoot, { recursive: true });
 
@@ -104,6 +121,13 @@ async function materializeFluxImagePayload(args: {
       inputPath: rawImagePath,
       outputPath: styledImagePath,
       geometry: args.targetStyle,
+    });
+  }
+  if (targetFidelity && !existsSync(fidelityImagePath)) {
+    await createTargetFidelityImage({
+      inputPath: styledImagePath,
+      outputPath: fidelityImagePath,
+      mode: targetFidelity,
     });
   }
   if (!existsSync(videoPath)) {
@@ -142,6 +166,8 @@ type ImageGeometry = {
   height: number;
 };
 
+type TargetFidelityMode = "soft-muted";
+
 async function targetImageStyle(
   targetRendered: RenderedStimulus | undefined,
 ): Promise<ImageGeometry | undefined> {
@@ -151,6 +177,13 @@ async function targetImageStyle(
     return undefined;
   }
   return probeVideoGeometry(localPath).catch(() => undefined);
+}
+
+function targetFidelityMode(
+  geometry: ImageGeometry,
+): TargetFidelityMode | undefined {
+  const area = geometry.width * geometry.height;
+  return area <= 512 * 512 ? "soft-muted" : undefined;
 }
 
 function parseFluxGenerationUri(uri: string):
@@ -214,6 +247,32 @@ function createTargetStyleImage(args: {
     args.inputPath,
     "-vf",
     `scale=${args.geometry.width}:${args.geometry.height}:force_original_aspect_ratio=increase,crop=${args.geometry.width}:${args.geometry.height}`,
+    "-frames:v",
+    "1",
+    "-update",
+    "1",
+    args.outputPath,
+  ]).then(() => undefined);
+}
+
+function createTargetFidelityImage(args: {
+  inputPath: string;
+  outputPath: string;
+  mode: TargetFidelityMode;
+}): Promise<void> {
+  const filter =
+    args.mode === "soft-muted"
+      ? "boxblur=0.8:1,eq=contrast=0.92:saturation=0.88:brightness=-0.02"
+      : undefined;
+  if (!filter) {
+    throw new Error(`Unsupported target fidelity mode: ${args.mode}`);
+  }
+  return runProcess("ffmpeg", [
+    "-y",
+    "-i",
+    args.inputPath,
+    "-vf",
+    filter,
     "-frames:v",
     "1",
     "-update",

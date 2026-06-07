@@ -34,6 +34,7 @@ const oracle = createOracle({
     scoringConcurrency: 1,
     reuseTargetArchive: false,
     textMicroMutations: 0,
+    imageSeedMutations: 0,
     textProbeCount: 0,
     textProbeRecombinations: 0,
     textProbeLocalMutations: 0,
