@@ -1091,3 +1091,37 @@ Takeaways:
 - Per user's framing: this is the per-target winner, not a global one. Loop
   prompt was fixed to invite register diversity + target-matching (commit ddf9e91),
   NOT to hardcode dread-sublime.
+
+## 2026-06-07 - v3 run: register-diversity prompts (commit ddf9e91)
+
+Fresh loop (6 iters x 4 candidates, http+codex) with the word-soup prescription
+removed and target-matched register guidance added.
+
+curve = 0.6712 -> 0.6716 -> 0.6790 -> 0.6790 -> 0.6797 -> 0.6797 (MONOTONIC).
+
+Progression across all changes:
+  baseline (old metric+prompts): 0.5714  (DEAD FLAT)
+  v2 (cross-modal metric fix):   0.6270  (slow climb)
+  v3 (+ register prompts):       0.6797  (steady climb)
+=> +0.108 total. v3 also SURPASSED the entire 48-candidate persona fan-out best
+(0.6712) via refinement - the optimizer added value beyond one-shot generation.
+
+The loop now produces emotion-targeting prose from iteration 1 with NO hardcoded
+persona - it discovered the charged/turbulent register on its own because the
+prompt invites target-matching. Final best generation (0.6797):
+> Stillness has been wound too tight here. Blue-black air spirals like a charged
+> tide, thick ridges dragging each gold flare into a trembling ring. Low things
+> shrink into shadow while one dark, needle-heavy form leans up close, and the
+> whole distance quivers with cold depth, fevered light, and a silence that hums
+> under the skin.
+
+Remaining pattern (next lever): refinement gains are still small once near the
+optimum (iters 4 and 6 held; fresh candidates often regress below the elite).
+The cold-start (iter 1) gets the big win; refinement only nudges. Candidate
+diversity within an iteration could be widened - e.g. seed cold-start with the
+diverse emotional registers (persona panel) instead of the feature-extractor
+"genotype" operators, so each iteration's population spans registers.
+
+Note: "[starry] DONE best=0.638" is a display quirk - it re-renders the final
+selected candidate once more and reports that fresh score; the tracked
+per-iteration best (the curve) is the real 0.6797.
