@@ -104,7 +104,6 @@ const panZoomScript = `
 
     viewport.addEventListener("pointerdown", (event) => {
       if (event.target.closest("button, input, select, textarea")) return;
-      event.preventDefault();
       dragging = true;
       moved = false;
       startX = event.clientX;
