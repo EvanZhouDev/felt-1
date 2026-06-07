@@ -1,9 +1,5 @@
 import { join } from "node:path";
-import {
-  type AgentBackend,
-  CodexCliBackend,
-  DeterministicAgentBackend,
-} from "@volta/agent-sdk";
+import { type AgentBackend, CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
 import {
   type AgentBackendConfig,
@@ -169,9 +165,6 @@ function json(value: unknown, status = 200): Response {
 }
 
 function createAgentBackend(config: AgentBackendConfig): AgentBackend {
-  if (config.mode === "deterministic") {
-    return new DeterministicAgentBackend();
-  }
   return new CodexCliBackend({
     command: config.command,
     model: config.model,

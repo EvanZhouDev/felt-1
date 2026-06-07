@@ -6,7 +6,6 @@ import {
   type AgentSpec,
   type CandidateArchiveOperatorStat,
   createAgentWorkspace,
-  DeterministicAgentBackend,
   runCandidateAgent,
   runJudgeAgent,
 } from "@volta/agent-sdk";
@@ -56,7 +55,7 @@ export type ExecuteRunArgs = {
   store: RunStore;
   oracle: NeuralOracle;
   runsRoot: string;
-  backend?: AgentBackend;
+  backend: AgentBackend;
   loop?: Partial<LoopConfig>;
   journal?: EvolutionJournal;
   candidateModel?: string;
@@ -72,7 +71,7 @@ const judgeSpec: Extract<AgentSpec, { role: "judge" }> = {
 };
 
 export async function executeRun(args: ExecuteRunArgs): Promise<void> {
-  const backend = args.backend ?? new DeterministicAgentBackend();
+  const backend = args.backend;
   const loop = normalizeLoopConfig(args.loop);
   const journal =
     args.journal ??
@@ -121,7 +120,7 @@ export async function executeRun(args: ExecuteRunArgs): Promise<void> {
 }
 
 export async function resumeRun(args: ResumeRunArgs): Promise<void> {
-  const backend = args.backend ?? new DeterministicAgentBackend();
+  const backend = args.backend;
   const loop = normalizeLoopConfig(args.loop);
   const journal =
     args.journal ??

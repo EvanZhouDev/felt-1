@@ -2,11 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import {
-  type AgentBackend,
-  CodexCliBackend,
-  DeterministicAgentBackend,
-} from "@volta/agent-sdk";
+import { type AgentBackend, CodexCliBackend } from "@volta/agent-sdk";
 import type { ImagePayload, InputObj, OutputObj } from "@volta/core";
 import {
   type AgentBackendConfig,
@@ -288,9 +284,6 @@ function defaultScenarioIds(): string[] {
 }
 
 function createAgentBackend(config: AgentBackendConfig): AgentBackend {
-  if (config.mode === "deterministic") {
-    return new DeterministicAgentBackend();
-  }
   return new CodexCliBackend({
     command: config.command,
     model: config.model,
@@ -300,22 +293,10 @@ function createAgentBackend(config: AgentBackendConfig): AgentBackend {
 }
 
 function backendConfigFromMode(
-  mode: "codex" | "deterministic",
+  _mode: "codex",
   fallback: AgentBackendConfig,
 ): AgentBackendConfig {
-  if (mode === "deterministic") {
-    return { mode };
-  }
-  if (fallback.mode === "codex") {
-    return fallback;
-  }
-  return {
-    mode,
-    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
-    model: process.env.VOLTA_CODEX_MODEL,
-    profile: process.env.VOLTA_CODEX_PROFILE,
-    timeoutMs: Number(process.env.VOLTA_CODEX_TIMEOUT_MS ?? 900_000),
-  };
+  return fallback;
 }
 
 type BenchmarkRunResult = {
@@ -331,7 +312,7 @@ function parseArgs(argv: string[]): {
   scenarios?: string[];
   out?: string;
   oracle?: OracleMode;
-  backend?: "codex" | "deterministic";
+  backend?: "codex";
   maxIterations?: number;
   candidateCount?: number;
   scoringConcurrency?: number;
@@ -366,10 +347,12 @@ function parseArgs(argv: string[]): {
       parsed.oracle = value as OracleMode;
       index += 1;
     } else if (flag === "--backend") {
-      if (!["codex", "deterministic"].includes(value)) {
-        throw new Error(`Invalid backend: ${value}`);
+      if (value !== "codex") {
+        throw new Error(
+          `Invalid backend: ${value} (only "codex" is supported)`,
+        );
       }
-      parsed.backend = value as "codex" | "deterministic";
+      parsed.backend = value;
       index += 1;
     } else if (flag === "--max-iterations") {
       parsed.maxIterations = positiveInteger(value, flag);

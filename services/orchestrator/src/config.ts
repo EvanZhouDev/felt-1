@@ -21,17 +21,13 @@ export type OrchestratorConfig = {
   weave: WeaveConfig;
 };
 
-export type AgentBackendConfig =
-  | {
-      mode: "codex";
-      command: string;
-      model?: string;
-      profile?: string;
-      timeoutMs: number;
-    }
-  | {
-      mode: "deterministic";
-    };
+export type AgentBackendConfig = {
+  mode: "codex";
+  command: string;
+  model?: string;
+  profile?: string;
+  timeoutMs: number;
+};
 
 export type LoopConfig = {
   maxIterations: number;
@@ -105,12 +101,6 @@ function loadOracleMode(): OracleMode {
 }
 
 function loadAgentBackendConfig(): AgentBackendConfig {
-  if (process.env.VOLTA_AGENT_BACKEND === "deterministic") {
-    return {
-      mode: "deterministic",
-    };
-  }
-
   return {
     mode: "codex",
     command: process.env.VOLTA_CODEX_COMMAND ?? "codex",

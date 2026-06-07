@@ -1,6 +1,7 @@
 import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
 import type { OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -45,7 +46,11 @@ const config: OrchestratorConfig = {
   fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
   audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://audio.ai.bryanhu.com",
   describeAudio: process.env.VOLTA_DESCRIBE_AUDIO === "true",
-  agentBackend: { mode: "deterministic" as const },
+  agentBackend: {
+    mode: "codex" as const,
+    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+    timeoutMs: 900_000,
+  },
   loop: {
     maxIterations: 1,
     similarityThreshold: 2,
@@ -60,6 +65,12 @@ const config: OrchestratorConfig = {
 };
 
 const oracle = createOracle(config);
+const backend = new CodexCliBackend({
+  command: config.agentBackend.command,
+  model: config.agentBackend.model,
+  profile: config.agentBackend.profile,
+  timeoutMs: config.agentBackend.timeoutMs,
+});
 const describeAudio = createAudioDescriber(config);
 
 const input: InputObj = {
@@ -86,6 +97,7 @@ await executeRun({
   output,
   store,
   oracle,
+  backend,
   runsRoot: join(smokeRoot, "runs"),
   describeAudio,
   loop: {

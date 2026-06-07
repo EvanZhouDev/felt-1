@@ -1,6 +1,7 @@
 import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
 import { createOracle } from "./oracle.ts";
 import { executeRun } from "./run.ts";
@@ -27,7 +28,9 @@ const oracle = createOracle({
   audioUrl: "https://audio.ai.bryanhu.com",
   describeAudio: false,
   agentBackend: {
-    mode: "deterministic",
+    mode: "codex",
+    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+    timeoutMs: 900_000,
   },
   loop: {
     maxIterations: 1,
@@ -40,6 +43,10 @@ const oracle = createOracle({
     enabled: false,
     capturePayloads: false,
   },
+});
+const backend = new CodexCliBackend({
+  command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+  timeoutMs: 900_000,
 });
 
 const scenarios: Scenario[] = [
@@ -135,6 +142,7 @@ for (const scenario of scenarios) {
     output: scenario.output,
     store,
     oracle,
+    backend,
     runsRoot,
     loop: {
       maxIterations: 1,
