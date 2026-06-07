@@ -88,6 +88,10 @@ h3 {
   min-height: 720px;
 }
 
+.trace-shell.sidebar-collapsed {
+  grid-template-columns: minmax(520px, 1fr) 340px;
+}
+
 .trace-sidebar,
 .inspector {
   min-height: 0;
@@ -144,8 +148,8 @@ h3 {
 }
 
 .score-strip {
-  grid-template-columns: repeat(5, minmax(86px, 1fr));
-  min-width: min(680px, 100%);
+  grid-template-columns: repeat(5, minmax(54px, 1fr));
+  min-width: 0;
 }
 
 .score-table {
@@ -235,18 +239,19 @@ h3 {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .run-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
   min-width: 0;
   border-bottom: 1px solid var(--line);
   background: #fffdf8;
-  padding: 0.95rem 1rem;
+  padding: 0.58rem 0.75rem;
 }
 
 .run-header > div:first-child {
@@ -255,6 +260,54 @@ h3 {
 
 .run-header h2 {
   overflow: hidden;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-title-bar {
+  display: flex;
+  flex: 1 1 210px;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 180px;
+}
+
+.run-title-copy {
+  min-width: 0;
+}
+
+.run-title-copy .eyebrow {
+  font-size: 0.64rem;
+}
+
+.run-header-actions {
+  display: flex;
+  flex: 3 1 420px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.run-header .score-strip {
+  flex: 1 1 300px;
+}
+
+.run-header .metric {
+  gap: 0.06rem;
+  min-width: 0;
+  padding: 0.28rem 0.42rem;
+}
+
+.run-header .metric span {
+  font-size: 0.62rem;
+}
+
+.run-header .metric strong {
+  overflow: hidden;
+  font-size: 0.82rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -274,6 +327,27 @@ h3 {
   padding: 0.62rem 0.7rem;
 }
 
+.sidebar-toggle {
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #171715;
+  color: #fffdf8;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 0.42rem 0.58rem;
+  white-space: nowrap;
+}
+
+.sidebar-toggle:hover {
+  background: #2a2720;
+}
+
+.sidebar-toggle[aria-pressed="false"] {
+  background: #fffefa;
+  color: var(--foreground);
+}
+
 .static-graph-scroll {
   min-width: 0;
   min-height: 0;
@@ -286,7 +360,6 @@ h3 {
   overscroll-behavior: contain;
   scrollbar-color: #908776 #efe9db;
   scrollbar-gutter: stable both-edges;
-  scroll-behavior: smooth;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -298,11 +371,12 @@ h3 {
 
 .graph-tools {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.45rem;
-  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
   background: #fffdf8;
-  padding: 0.5rem 0.75rem;
+  padding-left: 0.65rem;
 }
 
 .graph-tools button {
@@ -320,7 +394,7 @@ h3 {
 }
 
 .zoom-readout {
-  min-width: 48px;
+  min-width: 44px;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
@@ -329,11 +403,11 @@ h3 {
 
 .graph-nav {
   display: flex;
-  gap: 0.45rem;
+  gap: 0.32rem;
   overflow-x: auto;
   border-bottom: 1px solid var(--line);
   background: #f8f5ed;
-  padding: 0.55rem 0.75rem;
+  padding: 0.36rem 0.55rem;
   scrollbar-gutter: stable;
 }
 
@@ -343,9 +417,9 @@ h3 {
   border-radius: 7px;
   background: #fffdf8;
   color: var(--foreground);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  padding: 0.46rem 0.62rem;
+  padding: 0.32rem 0.48rem;
   text-decoration: none;
   text-transform: uppercase;
 }
@@ -751,6 +825,10 @@ h3 {
     grid-template-rows: minmax(0, 1fr) 360px;
   }
 
+  .trace-shell.sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .inspector {
     grid-column: 1 / -1;
     border-top: 1px solid var(--line);
@@ -782,10 +860,28 @@ h3 {
 
   .run-header {
     display: grid;
+    gap: 0.55rem;
+  }
+
+  .run-header-actions {
+    display: grid;
+    justify-content: stretch;
   }
 
   .score-strip,
   .inspector-content {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.trace-shell.sidebar-collapsed .trace-sidebar {
+  display: none;
+}
+
+.trace-shell.sidebar-collapsed .run-header {
+  flex-wrap: nowrap;
+}
+
+.trace-shell.sidebar-collapsed .run-header-actions {
+  flex-wrap: nowrap;
 }

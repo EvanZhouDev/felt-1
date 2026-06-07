@@ -28,6 +28,8 @@ const panZoomScript = `
     const zoomOut = document.querySelector("[data-graph-zoom-out]");
     const reset = document.querySelector("[data-graph-reset]");
     const readout = document.querySelector("[data-graph-zoom-readout]");
+    const shell = document.querySelector("[data-trace-shell]");
+    const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
     const baseWidth = Number(spacer.dataset.baseWidth || spacer.clientWidth || 1);
     const baseHeight = Number(spacer.dataset.baseHeight || spacer.clientHeight || 1);
     let scale = 1;
@@ -65,6 +67,21 @@ const panZoomScript = `
       if (readout) readout.textContent = Math.round(scale * 100) + "%";
     };
 
+    const setSidebarCollapsed = (collapsed) => {
+      shell?.classList.toggle("sidebar-collapsed", collapsed);
+      if (sidebarToggle) {
+        sidebarToggle.setAttribute("aria-pressed", String(collapsed));
+        sidebarToggle.textContent = collapsed ? "Show runs" : "Hide runs";
+        sidebarToggle.setAttribute(
+          "title",
+          collapsed ? "Show run list" : "Hide run list",
+        );
+      }
+      try {
+        localStorage.setItem("voltaTraceSidebarCollapsed", collapsed ? "1" : "0");
+      } catch {}
+    };
+
     const applyScale = (nextScale, originX, originY) => {
       const rect = viewport.getBoundingClientRect();
       const localX = originX - rect.left;
@@ -86,7 +103,8 @@ const panZoomScript = `
     };
 
     viewport.addEventListener("pointerdown", (event) => {
-      if (event.target.closest("a, button, input, select, textarea")) return;
+      if (event.target.closest("button, input, select, textarea")) return;
+      event.preventDefault();
       dragging = true;
       moved = false;
       startX = event.clientX;
@@ -99,6 +117,7 @@ const panZoomScript = `
 
     viewport.addEventListener("pointermove", (event) => {
       if (!dragging) return;
+      event.preventDefault();
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
       if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
@@ -141,6 +160,17 @@ const panZoomScript = `
       viewport.scrollLeft = 0;
       viewport.scrollTop = 0;
     });
+
+    sidebarToggle?.addEventListener("click", () => {
+      setSidebarCollapsed(!shell?.classList.contains("sidebar-collapsed"));
+    });
+
+    try {
+      const saved = localStorage.getItem("voltaTraceSidebarCollapsed");
+      setSidebarCollapsed(saved === null ? true : saved === "1");
+    } catch {
+      setSidebarCollapsed(true);
+    }
 
     document.addEventListener("click", (event) => {
       const link = event.target.closest("[data-node-link-id]");
@@ -201,7 +231,7 @@ export default async function Home({ searchParams }: PageProps) {
   const bounds = graphBounds(positionedNodes);
 
   return (
-    <main className="trace-shell">
+    <main className="trace-shell sidebar-collapsed" data-trace-shell>
       <aside className="trace-sidebar">
         <header className="brand-block">
           <span className="eyebrow">Project Volta</span>
@@ -263,27 +293,74 @@ export default async function Home({ searchParams }: PageProps) {
 
       <section className="graph-stage">
         <div className="run-header">
-          <div>
-            <span className="eyebrow">
-              {activeRun.inputType} to {activeRun.outputType}
-            </span>
-            <h2>{activeRun.id}</h2>
+          <div className="run-title-bar">
+            <button
+              aria-label="Toggle run list"
+              aria-pressed="true"
+              className="sidebar-toggle"
+              data-sidebar-toggle
+              title="Show run list"
+              type="button"
+            >
+              Show runs
+            </button>
+            <div className="run-title-copy">
+              <span className="eyebrow">
+                {activeRun.inputType} to {activeRun.outputType}
+              </span>
+              <h2>{activeRun.id}</h2>
+            </div>
           </div>
-          <div className="score-strip">
-            <Metric
-              label="Adjusted"
-              value={scoreText(activeRun.bestAdjustedSimilarity)}
-            />
-            <Metric
-              label="Neural"
-              value={scoreText(activeRun.bestNeuralSimilarity)}
-            />
-            <Metric label="Total" value={scoreText(activeRun.bestScore)} />
-            <Metric label="Turns" value={activeRun.iterationCount} />
-            <Metric
-              label="Candidates"
-              value={activeRun.candidateCount ?? candidateNodes.length}
-            />
+          <div className="run-header-actions">
+            <div className="score-strip">
+              <Metric
+                label="Adjusted"
+                value={scoreText(activeRun.bestAdjustedSimilarity)}
+              />
+              <Metric
+                label="Neural"
+                value={scoreText(activeRun.bestNeuralSimilarity)}
+              />
+              <Metric label="Total" value={scoreText(activeRun.bestScore)} />
+              <Metric label="Turns" value={activeRun.iterationCount} />
+              <Metric
+                label="Candidates"
+                value={activeRun.candidateCount ?? candidateNodes.length}
+              />
+            </div>
+            <div
+              aria-label="Graph zoom controls"
+              className="graph-tools"
+              role="toolbar"
+            >
+              <button
+                aria-label="Zoom out"
+                data-graph-zoom-out
+                title="Zoom out"
+                type="button"
+              >
+                -
+              </button>
+              <button
+                aria-label="Reset graph view"
+                data-graph-reset
+                title="Reset graph view"
+                type="button"
+              >
+                Reset
+              </button>
+              <button
+                aria-label="Zoom in"
+                data-graph-zoom-in
+                title="Zoom in"
+                type="button"
+              >
+                +
+              </button>
+              <span className="zoom-readout" data-graph-zoom-readout>
+                100%
+              </span>
+            </div>
           </div>
         </div>
 
@@ -305,40 +382,6 @@ export default async function Home({ searchParams }: PageProps) {
             </a>
           ))}
         </nav>
-
-        <div
-          aria-label="Graph zoom controls"
-          className="graph-tools"
-          role="toolbar"
-        >
-          <button
-            aria-label="Zoom out"
-            data-graph-zoom-out
-            title="Zoom out"
-            type="button"
-          >
-            -
-          </button>
-          <button
-            aria-label="Reset graph view"
-            data-graph-reset
-            title="Reset graph view"
-            type="button"
-          >
-            Reset
-          </button>
-          <button
-            aria-label="Zoom in"
-            data-graph-zoom-in
-            title="Zoom in"
-            type="button"
-          >
-            +
-          </button>
-          <span className="zoom-readout" data-graph-zoom-readout>
-            100%
-          </span>
-        </div>
 
         <div className="static-graph-scroll" data-pan-zoom-graph>
           <div
