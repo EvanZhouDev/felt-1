@@ -1198,3 +1198,31 @@ Worth adopting pending broader validation. NOTE: prototype DTW path-length norm 
 approximate (uses max(n,m)); a proper per-path count would be cleaner.
 
 (Tabled to run the painting-specificity experiment per user request.)
+
+## 2026-06-07 - The entropy-vs-reward-hacking tension (analysis)
+
+The core difficulty: the optimizer optimizes the METRIC, not the vibe. So
+"reward hacking" is defined RELATIVE to a gameable metric. With a perfect metric,
+all entropy is safe (explore freely); with a leaky metric, ANY entropy eventually
+finds the leak. The lever is therefore NOT "constrain entropy" but two things:
+
+1. ROBUST METRIC (widen the hack<->match gap). softDTW raised MATCH-HACK margin
+   from +0.077 to +0.177 -> the same repetition hack scores far below a real
+   match, so entropy becomes safe to crank up.
+2. STAY ON THE NATURAL MANIFOLD. A reward hack is usually OFF-manifold
+   (repetition, word salad, scaffolding leak). An LLM proposer constrained to
+   fluent coherent prose physically cannot emit those, so the manifold
+   constraint is free anti-hacking. (This is why our repetition hack only hit
+   0.78 - degenerate text, metric pushes it down; and why word-soup was a WEAK
+   register, not a hack - it was still real language.) Danger zone: entropy
+   operators like "syntax reset"/"novelty injection" WITHOUT a fluency floor.
+
+3. TESTED AND REJECTED: "require agreement across metric component views (pooled/
+   temporal/dynamics/bestmatch) to count as improvement; hacks spike one view not
+   all." Empirically FALSE here - the views are correlated (dynamics is low for
+   everything ~0.31-0.38), so MATCH has HIGHER view-disagreement (0.583) than the
+   HACK (0.466). Cross-view agreement does NOT separate this hack. Negative result.
+
+Practical takeaway for the loop: lean on (1)+(2), not on penalty terms (penalties
+are themselves gameable). Keep the LLM-proposer fluency constraint explicit in
+operators; prefer a robust metric over a fragile metric + entropy throttling.
