@@ -2817,3 +2817,68 @@ Verification:
   - `.agent/benchmarks/backrooms-image-to-image-aspect-pop3-v1.json`
   - `.agent/benchmarks/backrooms-image-to-image-aspect-refine2-v1.json`
   - `.agent/benchmarks/dog-image-to-image-aspect-v1.json`
+
+## 2026-06-07 05:23 PDT - Mona Image-to-Image Crosses 90%
+
+Goal:
+
+- Test whether the current generic image pipeline transfers beyond dog and
+  backrooms, especially on the original Mona Lisa image target with a portrait
+  aspect ratio.
+
+Runs:
+
+- `mona-image-to-image-3cfc3df6`
+  - 3 candidates, 1 iteration, real local TRIBE
+  - best candidate `candidate-a`
+  - raw `0.9916074730072918`
+  - adjusted `0.8806289378573523`
+  - total `0.9079646510321191`
+  - target style `224x334`, Flux size `512x768`
+- `mona-image-to-image-b589e7ab`
+  - 3 candidates, 2 iterations, real local TRIBE
+  - iteration 1 best adjusted `0.8794157095396233`
+  - iteration 2 best / global best:
+    - candidate `candidate-b`
+    - raw `0.9969552321193252`
+    - adjusted `0.924734450983557`
+    - total `0.9518773390209511`
+    - output: `.volta/benchmarks/runs/mona-image-to-image-b589e7ab/generated-assets/candidate-b/09faba95aeb00272-target-fidelity.png`
+
+Cross-target audit:
+
+- Mona winner:
+  - vs Mona adjusted `0.9333990578812487`, total
+    `0.9611737139436194`
+  - vs backrooms adjusted `0.3586144489183148`, total
+    `0.3586144489183148`
+  - vs dog adjusted `0`, total `0`
+- Backrooms target-aspect winner remains clean:
+  - vs backrooms adjusted `0.8390786598456733`, total
+    `0.86241251710694`
+  - vs Mona adjusted `0`, total `0`
+  - vs dog adjusted `0`, total `0`
+- Dog target-aspect winner remains clean:
+  - vs dog adjusted `0.9660912372365351`, total
+    `0.9932793246673197`
+  - vs Mona adjusted `0`, total `0`
+  - vs backrooms adjusted `0`, total `0`
+
+Interpretation:
+
+- The generic image pipeline can now legitimately cross 90% adjusted similarity
+  on a non-dog, non-backrooms image target in 2 turns.
+- This is not just a universal attractor: the Mona winner has dog adjusted `0`,
+  and the dog/backrooms winners are specific. The Mona winner does retain a
+  moderate backrooms false-positive (`0.3586`), so guardrails still matter.
+- Current bests:
+  - dog: `0.9924` adjusted in 1 turn
+  - Mona: `0.9247` adjusted in 2 turns
+  - backrooms: `0.8566` adjusted in 2 turns
+
+Verification:
+
+- `bun run check` passed.
+- Reports:
+  - `.agent/benchmarks/mona-image-to-image-aspect-pop3-v1.json`
+  - `.agent/benchmarks/mona-image-to-image-aspect-refine2-v1.json`

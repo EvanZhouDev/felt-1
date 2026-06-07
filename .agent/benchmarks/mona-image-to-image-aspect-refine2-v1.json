@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-06-07T12:17:07.928Z",
+  "updatedAt": "2026-06-07T12:22:32.780Z",
+  "oracleMode": "tribe",
+  "backend": "codex",
+  "loop": {
+    "maxIterations": 2,
+    "similarityThreshold": 0.9,
+    "candidateCount": 3,
+    "scoringConcurrency": 1,
+    "reuseTargetArchive": false,
+    "textMicroMutations": 0,
+    "imageSeedMutations": 0,
+    "textProbeCount": 0,
+    "textProbeRecombinations": 0,
+    "textProbeLocalMutations": 0,
+    "contrastTargetRoots": []
+  },
+  "runsRoot": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs",
+  "databasePath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/volta.sqlite",
+  "results": [
+    {
+      "scenarioId": "mona-image-to-image",
+      "runId": "mona-image-to-image-b589e7ab",
+      "status": "completed",
+      "description": "Use the Mona Lisa image target as an image-to-image schema benchmark.",
+      "tags": ["image", "mona-lisa", "seeded", "cold-start"],
+      "outputType": "image",
+      "runPath": "/Users/evan/Desktop/project-volta-2/.volta/benchmarks/runs/mona-image-to-image-b589e7ab",
+      "bestScore": 0.9518773390209511,
+      "bestNeuralSimilarity": 0.9969552321193252,
+      "bestAdjustedSimilarity": 0.924734450983557,
+      "iterationCount": 2,
+      "selectedAgentId": "candidate-b"
+    }
+  ]
+}
