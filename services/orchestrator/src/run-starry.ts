@@ -74,13 +74,23 @@ const ticker = setInterval(() => {
 ticker.unref?.();
 
 async function reportNewIterations(): Promise<void> {
+  // Iterations are written to iterations/NNN/ (1-based, zero-padded to 3). Read
+  // the compact iteration.json (scores, no activation values) plus judge.json
+  // and candidates.json for the winning text — never the 43MB scores.json.
   for (let i = lastReported + 1; i < config.loop.maxIterations; i += 1) {
-    const scoresPath = join(runsRoot, runId, `iter-${i}`, "scores.json");
-    const scores = await readJsonSafe<RankedOutput[]>(scoresPath);
-    if (!scores) {
+    const dir = join(
+      runsRoot,
+      runId,
+      "iterations",
+      String(i + 1).padStart(3, "0"),
+    );
+    const iter = await readJsonSafe<IterationArtifact>(
+      join(dir, "iteration.json"),
+    );
+    if (!iter) {
       return; // iteration i not finished yet; stop scanning forward
     }
-    const ranked = [...scores].sort(
+    const ranked = [...(iter.rankings ?? [])].sort(
       (a, b) => b.score.neuralSimilarity - a.score.neuralSimilarity,
     );
     const best = ranked[0];
@@ -92,11 +102,11 @@ async function reportNewIterations(): Promise<void> {
       )
       .join("  ");
     console.log(
-      `[starry] iter ${i}: best=${best.score.neuralSimilarity.toFixed(4)} via ${best.agentId} | ${line}`,
+      `[starry] iter ${i}: best=${best?.score.neuralSimilarity.toFixed(4)} via ${iter.judge?.selectedAgentId} | ${line}`,
     );
-    const preview = best.outputNode?.payload?.text ?? best.rendered?.preview;
-    if (preview) {
-      console.log(`[starry]   best text: ${String(preview).slice(0, 240)}`);
+    const selected = iter.judge?.selectedNode?.payload?.text;
+    if (selected) {
+      console.log(`[starry]   selected text: ${selected.slice(0, 260)}`);
     }
     lastReported = i;
   }
@@ -118,8 +128,14 @@ type RankedOutput = {
   agentId: string;
   entropy?: string;
   score: { neuralSimilarity: number; total: number };
-  outputNode?: { payload?: { text?: string } };
-  rendered?: { preview?: string };
+};
+
+type IterationArtifact = {
+  rankings?: RankedOutput[];
+  judge?: {
+    selectedAgentId?: string;
+    selectedNode?: { payload?: { text?: string } };
+  };
 };
 
 try {

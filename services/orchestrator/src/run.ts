@@ -579,7 +579,7 @@ async function executeIteration(
       });
       await writeJson(
         join(iterationPath, "scores", `${candidate.agentId}.json`),
-        evaluated,
+        forDisk(evaluated),
       );
       return evaluated;
     },
@@ -595,7 +595,10 @@ async function executeIteration(
       ? [{ ...args.elite, agentId: "elite" }, ...evaluatedOutputs]
       : evaluatedOutputs
   ).sort((left, right) => right.score.total - left.score.total);
-  await writeJson(join(iterationPath, "scores.json"), rankedOutputs);
+  await writeJson(
+    join(iterationPath, "scores.json"),
+    rankedOutputs.map(forDisk),
+  );
   await appendCandidateArchive({
     runPath: args.runPath,
     iteration: args.iteration,
@@ -1213,6 +1216,18 @@ function iterationId(iteration: number): string {
 
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+// The full per-timestep activation matrix (~[23, 20484] for rendered text) is
+// needed in memory for scoring and elite carry-forward, but persisting it makes
+// each scores.json tens of megabytes. Drop activation.values for disk; keep
+// shape/diagnostics/summary so the artifacts stay inspectable.
+function forDisk(output: EvaluatedOutput): EvaluatedOutput {
+  if (!output.activation.values) {
+    return output;
+  }
+  const { values: _values, ...activation } = output.activation;
+  return { ...output, activation };
 }
 
 async function mapWithConcurrency<T, U>(

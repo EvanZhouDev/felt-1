@@ -918,3 +918,48 @@ report the realistic ceiling, rather than assume 0.9 transfers across metrics.
 
 Server fix: `/predict/image` was briefly broken (NameError 'extra'); owner fixed
 it. Image jobs now return timesteps=2, vertices=20484, with network breakdown.
+
+## 2026-06-07 - Baseline run: Starry Night image->text (NEW temporal metric)
+
+Run: `.agent/runs/starry-baseline`, oracle=http (hosted TRIBE), backend=codex,
+3 iterations x 3 candidates, threshold disabled (0.999) to see the full curve.
+
+Result: best neuralSimilarity = **0.5714**, curve FLAT: 0.5714 -> 0.5714 -> 0.5714.
+
+Calibration (the key reason this run existed): on the NEW temporal+dynamics
+metric, image->text starts at ~0.57, vs 0.04-0.35 on the old mean-pooled cosine.
+The new metric is a far richer signal. NOTE 0.5 == orthogonal on this scale
+(cosine mapped via (raw+1)/2), so 0.57 is a modest-but-real positive match, and
+"0.9" is a very different bar than under the old metric.
+
+Best generation (iter 1, candidate-a, "broad gestalt" operator), neural=0.5714:
+> Restless night air churns above a hushed village, cool blue turbulence
+> threaded with hot yellow pulses. Attention spirals through the sky, then drops
+> to the heavy black vertical shape at the edge. The scene feels electric but
+> lonely, dense with brushlike texture, wind, distance, and a glowing unease.
+
+Behavior diagnosis (how well does the evolution loop work?):
+- Elitism works: best(N+1) >= best(N) held; the champion was never lost.
+- But the loop CONVERGES INSTANTLY then STALLS. Iter-1 candidate-a is never beaten:
+  - Iter 2: all 3 fresh candidates regressed to 0.42-0.45 (ablation/crossover/
+    diagnostic-axis operators mutated AWAY from the winning text).
+  - Iter 3: candidate-a reached 0.5706 (tied, via "elitist point mutation" =
+    near-identical text). candidate-c reproduced the elite text near-verbatim.
+- TRIBE scoring is NOISY: near-identical / identical text varies ~0.05-0.07 in
+  neuralSimilarity. Small real improvements are below the noise floor, so the
+  judge can't reliably tell a micro-improvement from noise. This is a primary
+  obstacle to climbing past the first local optimum.
+
+Implications / next experiments:
+- To break 0.57 we need STRUCTURALLY different candidates, not micro-edits of the
+  elite. The operator mix should explore harder early (the good first hit makes
+  the bandit exploit too soon).
+- Consider averaging/repeating scoring to beat the noise floor, OR accept the
+  noise and require a margin before replacing the elite.
+- Re-confirm whether 0.9 is even reachable cross-modally on this metric, or set a
+  realistic target from the achievable ceiling.
+
+Efficiency fixes this round (verified against this run):
+- Persisted scores.json was 43MB/iteration (full [23,20484] activation matrix per
+  candidate). Stripped activation.values for disk (kept in memory for scoring +
+  elitism). run-starry.ts now reads the compact iteration.json for live logging.
