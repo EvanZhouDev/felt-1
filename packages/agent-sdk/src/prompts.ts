@@ -87,8 +87,9 @@ function textOutputInstructions(
   }
   if (invocation.input.inputNode.type === "image") {
     return [
-      "For image-to-text output, prefer one concise natural caption sentence that directly describes the visible target image.",
+      "For image-to-text output, prefer one concise natural caption sentence, usually 8-20 words, that directly describes the visible target image.",
       "Use ordinary sentence grammar, a clear subject, a simple verb or visible relation, and simple visible anchor words for subject, color, setting, gaze, texture, background, and framing.",
+      "Keep only the strongest visible anchors; do not list every detail in one long compound sentence.",
       "Do not return a label-only phrase, even if the main object category is obvious.",
       "Prefer literal common words over soft mood drift: avoid vague adverbs such as gently/calmly and avoid over-specific labels such as exact breeds or art terms unless they are visually obvious.",
       "Do not default to comma-separated activation-code fragments. Prior real TRIBE probes showed natural captions can score better than short fragment inventories.",

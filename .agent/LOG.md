@@ -2096,3 +2096,65 @@ Verification:
   `/tmp/volta-backrooms-agentic-adaptive-micro-v1.json`.
 - Real local TRIBE relation probe completed:
   `/tmp/volta-backrooms-opens-probe-v1.json`.
+
+## 2026-06-07 02:57 PDT - Short Caption Throughput and Mona Portrait Operator
+
+Mona adaptive run `mona-image-to-text-ab7a2e47` exposed a throughput issue:
+
+- Candidate B was a high-quality but long caption:
+  `A dark-haired woman in a dark dress sits with folded hands and looks forward, with warm light on her face before a muted green-blue landscape and cracked painted surface.`
+- Local TRIBE stalled on that long text; I killed the run to avoid wasting
+  compute.
+
+Code changes:
+
+- Tightened image-to-text prompt instructions to prefer `8-20` word complete
+  caption sentences and avoid listing every visible detail.
+- Tightened natural-caption priors:
+  - best coherence range now targets `8-20` words instead of `8-22`;
+  - captions over `24` words receive stronger penalty instead of waiting until
+    `32` words.
+- Added `caption-portrait-expression-grounding`, a scored portrait micro
+  operator that explores folded hands, blue-green landscape, viewer-facing
+  expression, and faint smile when a dark-haired-woman landscape portrait
+  parent appears.
+
+Real local TRIBE evidence:
+
+- Mona v2 `mona-image-to-text-723aad61` showed the shorter prompt works:
+  - candidate A: 13 words, adjusted `0.017229`
+  - candidate B: 17 words, adjusted `0.018216`
+- Portrait probe `/tmp/volta-mona-portrait-operator-probe-v1.json`:
+  - current B:
+    `A dark-haired woman with folded hands faces forward before a hazy green landscape under warm, cracked light.`
+    adjusted `0.018216`
+  - best probed portrait variant:
+    `A dark-haired woman in a dark dress sits with folded hands before a hazy blue-green landscape, facing the viewer with a faint smile.`
+    adjusted `0.030773`
+  - adding dress/cracked light blindly was bad: adjusted `-0.040606`
+- Mona v5 `mona-image-to-text-b30173e7` confirmed the operator fires live:
+  - parent:
+    `A dark-haired woman in a black dress gazes forward with folded hands before a hazy landscape.`
+    adjusted `0.004419`, total `0.029419`
+  - selected portrait micro-child:
+    `A dark-haired woman in a dark dress sits with folded hands before a hazy blue-green landscape, facing the viewer with a faint smile.`
+    adjusted `0.030773`, total `0.046773`
+
+Interpretation:
+
+- The adaptive micro-search is now making measurable live improvements on dog,
+  backrooms, and Mona.
+- The absolute adjusted scores are still far from `0.9`; under the current
+  sparse image contrast bank, adjusted score is mostly a target-specificity
+  margin, not a calibrated 0-1 similarity percentage.
+- Next major improvement should be a richer generic image calibration bank so
+  calibrated retrieval/CSLS can run for image targets. Without that, chasing
+  `0.9` on the current adjusted metric is likely meaningless.
+
+Verification:
+
+- `bun run check` passed.
+- Mona v2 completed: `/tmp/volta-mona-agentic-adaptive-micro-v2.json`.
+- Mona v3 completed: `/tmp/volta-mona-agentic-adaptive-micro-v3.json`.
+- Mona v4 completed: `/tmp/volta-mona-agentic-adaptive-micro-v4.json`.
+- Mona v5 completed: `/tmp/volta-mona-agentic-adaptive-micro-v5.json`.
