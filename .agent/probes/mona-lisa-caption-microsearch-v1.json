@@ -1,0 +1,66 @@
+[
+  {
+    "id": "elite-baseline",
+    "text": "warm stillness, suspended attention, heavy air, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "held-attention",
+    "text": "warm stillness, held attention, heavy air, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "fixed-attention",
+    "text": "warm stillness, fixed attention, heavy air, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "quiet-face",
+    "text": "warm stillness, suspended attention, heavy air, close distance, quiet face, unreadable calm"
+  },
+  {
+    "id": "veiled-face",
+    "text": "warm stillness, suspended attention, heavy air, close distance, veiled face, unreadable calm"
+  },
+  {
+    "id": "dense-air",
+    "text": "warm stillness, suspended attention, dense air, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "old-air",
+    "text": "warm stillness, suspended attention, old air, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "green-gold-haze",
+    "text": "warm stillness, suspended attention, green-gold haze, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "intimate-distance",
+    "text": "warm stillness, suspended attention, heavy air, intimate distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "near-distance",
+    "text": "warm stillness, suspended attention, heavy air, near distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "softened-ambiguity",
+    "text": "warm stillness, suspended attention, heavy air, close distance, shadowed face, softened ambiguity"
+  },
+  {
+    "id": "private-uncertainty",
+    "text": "warm stillness, suspended attention, heavy air, close distance, shadowed face, private uncertainty"
+  },
+  {
+    "id": "amber-hush",
+    "text": "amber hush, suspended attention, heavy air, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "warm-hush",
+    "text": "warm hush, suspended attention, heavy air, close distance, shadowed face, unreadable calm"
+  },
+  {
+    "id": "folded-hands",
+    "text": "warm stillness, suspended attention, heavy air, close distance, folded hands, unreadable calm"
+  },
+  {
+    "id": "quiet-face-softened-ambiguity",
+    "text": "warm stillness, suspended attention, heavy air, close distance, quiet face, softened ambiguity"
+  }
+]

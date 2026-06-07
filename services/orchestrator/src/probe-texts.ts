@@ -44,44 +44,74 @@ const config = {
   oracleMode: args.oracle ?? baseConfig.oracleMode,
 };
 const oracle = createOracle(config);
+const createdAt = new Date().toISOString();
 
 try {
   const results: ProbeResult[] = [];
   for (const [index, probe] of probes.entries()) {
-    const rendered = await renderPayload({
-      type: "text",
-      text: probe.text,
-    });
-    const activation = await oracle.encode(rendered.encoderInput);
-    const score = scoreActivations({
-      target: target.activation,
-      candidate: activation,
-      diversity: 0.5,
-    });
     const id = probe.id ?? `probe-${String(index + 1).padStart(2, "0")}`;
-    results.push({
-      id,
-      text: probe.text,
-      neuralSimilarity: score.neuralSimilarity,
-      total: score.total,
-      activation: {
-        model: activation.model,
-        shape: activation.shape,
-        summary: activation.summary,
-      },
-    });
-    console.log(
-      `${id}\t${score.neuralSimilarity.toFixed(6)}\t${probe.text.slice(0, 100)}`,
-    );
+    try {
+      const rendered = await renderPayload({
+        type: "text",
+        text: probe.text,
+      });
+      const activation = await oracle.encode(rendered.encoderInput);
+      const score = scoreActivations({
+        target: target.activation,
+        candidate: activation,
+        diversity: 0.5,
+      });
+      results.push({
+        id,
+        text: probe.text,
+        neuralSimilarity: score.neuralSimilarity,
+        total: score.total,
+        activation: {
+          model: activation.model,
+          shape: activation.shape,
+          summary: activation.summary,
+        },
+      });
+      console.log(
+        `${id}\t${score.neuralSimilarity.toFixed(6)}\t${probe.text.slice(
+          0,
+          100,
+        )}`,
+      );
+      await writeProbeReport(results, { status: "partial" });
+    } catch (error) {
+      await writeProbeReport(results, {
+        status: "failed",
+        error: `Probe ${id} failed: ${error}`,
+      });
+      throw error;
+    }
   }
 
-  results.sort((left, right) => right.neuralSimilarity - left.neuralSimilarity);
+  const report = await writeProbeReport(results, { status: "completed" });
+  console.log(JSON.stringify(report, null, 2));
+} finally {
+  await oracle.shutdown?.();
+}
+
+async function writeProbeReport(
+  results: ProbeResult[],
+  options: {
+    status: "partial" | "completed" | "failed";
+    error?: string;
+  },
+) {
   const report = {
     target: args.target,
     texts: args.texts,
     oracleMode: config.oracleMode,
-    createdAt: new Date().toISOString(),
-    results,
+    createdAt,
+    updatedAt: new Date().toISOString(),
+    status: options.status,
+    error: options.error,
+    results: [...results].sort(
+      (left, right) => right.neuralSimilarity - left.neuralSimilarity,
+    ),
   };
 
   if (args.out) {
@@ -89,9 +119,7 @@ try {
     await writeFile(args.out, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   }
 
-  console.log(JSON.stringify(report, null, 2));
-} finally {
-  await oracle.shutdown?.();
+  return report;
 }
 
 function normalizeTextProbes(value: unknown): TextProbe[] {

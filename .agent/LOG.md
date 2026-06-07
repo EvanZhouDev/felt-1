@@ -478,3 +478,51 @@ Interpretation:
   calibrate a small local phrase library by probing individual cue substitutions,
   or add a deterministic micro-search around the best caption's slots instead of
   relying only on Codex-generated one-shot children.
+
+## 2026-06-06 19:02 PDT - Caption Slot Micro-Search Partial
+
+Probe:
+
+- Added `.agent/probes/mona-lisa-caption-microsearch-v1.json`.
+- Goal: score one-slot substitutions around the current elite caption before
+  spending on more full agent turns.
+- Elite baseline reproduced at `0.444706`.
+
+Partial results before hosted TRIBE failed with `[Errno 24] Too many open files`:
+
+- `dense-air`: `0.460126` — first observed text to beat the `0.4447056855600945`
+  elite.
+- `private-uncertainty`: `0.388255`.
+- `old-air`: `0.374872`.
+- `veiled-face`: `0.362357`.
+- `quiet-face`: `0.358556`.
+- `held-attention`: `0.353134`.
+- `near-distance`: `0.344863`.
+- `softened-ambiguity`: `0.251761`.
+- `green-gold-haze`: `0.213208`.
+- `fixed-attention`: `0.187181`.
+- `warm-hush`: `0.181977`.
+- `amber-hush`: `0.162105`.
+- `intimate-distance`: `0.137337`.
+
+Failed remaining probes:
+
+- `folded-hands`.
+- `quiet-face-softened-ambiguity`.
+
+Tooling fix:
+
+- `probe:texts` now writes the output report incrementally after each scored
+  probe.
+- If a later probe fails, it writes a `status: "failed"` report with the error
+  and any completed results instead of losing all progress.
+
+Interpretation:
+
+- The best local improvement was a single slot replacement:
+  `heavy air` -> `dense air`.
+- This supports the user's suggestion to introduce new structured entropy, but
+  at the slot-library level rather than broad free-form randomness.
+- Hosted TRIBE is currently returning file-descriptor failures despite healthy
+  `/health`, so pause real scoring briefly before retrying the remaining probes
+  or Yeo-7 diagnostics.
