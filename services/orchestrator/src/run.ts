@@ -308,14 +308,22 @@ async function executeRunLoop(
     throw new Error("Run loop produced no iterations.");
   }
 
-  const bestOverall = bestOverallOutput(iterations);
+  const bestIteration = bestOverallIteration(iterations);
+  const bestOverall = bestIteration?.rankedOutputs[0];
+  const finalJudge = bestOverall
+    ? judgeFromGlobalBest({
+        best: bestOverall,
+        bestIteration: bestIteration.iteration,
+        finalJudge: finalIteration.judge,
+      })
+    : finalIteration.judge;
   const result: RunLoopResult = {
     runId: args.id,
     stopReason: finalIteration.stopReason ?? "max_iterations",
     target,
     iterations,
-    candidates: finalIteration.rankedOutputs,
-    judge: finalIteration.judge,
+    candidates: bestIteration?.rankedOutputs ?? finalIteration.rankedOutputs,
+    judge: finalJudge,
     nextIterationSeed: finalIteration.nextIterationSeed,
     bestScore: bestOverall?.score.total,
     bestNeuralSimilarity: bestOverall?.score.neuralSimilarity,
@@ -351,7 +359,7 @@ async function executeRunLoop(
   });
 
   args.store.complete(args.id, result, {
-    selectedAgentId: finalIteration.judge.selectedAgentId,
+    selectedAgentId: finalJudge.selectedAgentId,
     bestScore: result.bestScore,
   });
 
@@ -2283,11 +2291,49 @@ function readOptionalJson<T>(path: string): T | undefined {
 function bestOverallOutput(
   iterations: IterationResult[],
 ): EvaluatedOutput | undefined {
-  return iterations
-    .flatMap((iteration) => iteration.rankedOutputs)
-    .sort(
-      (left, right) => outputSelectionScore(right) - outputSelectionScore(left),
-    )[0];
+  return bestOverallIteration(iterations)?.rankedOutputs[0];
+}
+
+function bestOverallIteration(
+  iterations: IterationResult[],
+): IterationResult | undefined {
+  return [...iterations].sort((left, right) => {
+    const leftBest = left.rankedOutputs[0];
+    const rightBest = right.rankedOutputs[0];
+    if (!leftBest && !rightBest) {
+      return 0;
+    }
+    if (!leftBest) {
+      return 1;
+    }
+    if (!rightBest) {
+      return -1;
+    }
+    return outputSelectionScore(rightBest) - outputSelectionScore(leftBest);
+  })[0];
+}
+
+function judgeFromGlobalBest(args: {
+  best: EvaluatedOutput;
+  bestIteration: number;
+  finalJudge: Awaited<ReturnType<typeof runJudgeAgent>>;
+}): Awaited<ReturnType<typeof runJudgeAgent>> {
+  if (
+    args.finalJudge.selectedAgentId === args.best.agentId &&
+    JSON.stringify(args.finalJudge.selectedNode) ===
+      JSON.stringify(args.best.outputNode)
+  ) {
+    return args.finalJudge;
+  }
+  return {
+    selectedAgentId: args.best.agentId,
+    selectedNode: args.best.outputNode,
+    reasoning:
+      `Final selection preserves global best from iteration ${args.bestIteration}: ` +
+      `${args.best.agentId} with score.total=${args.best.score.total} and ` +
+      `adjustedSimilarity=${args.best.score.adjustedSimilarity}. ` +
+      `The last judge selected ${args.finalJudge.selectedAgentId}, but it was not the best adjusted-score output.`,
+  };
 }
 
 function bestOutput(

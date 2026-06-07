@@ -1691,3 +1691,52 @@ Interpretation:
 - The caption micro-mutation layer is useful beyond dog, but it needs more
   scene-general mutations for room/interior captions; the backrooms parent had
   no useful micro-child beyond optional detail ablation.
+
+## 2026-06-07 00:56 PDT - Mona Cross-Target Check and Global-Best Final Selection
+
+Mona real local TRIBE checks under the corrected scorer:
+
+- One-iteration run `mona-image-to-text-6602ff27` generated:
+  `A dark-haired woman in a green landscape faces forward within a close portrait.`
+  - raw `0.112205`
+  - contrast `0.116107`
+  - residual `0.205116`
+  - adjusted `0.201214`
+  - total `0.226214`
+- Two-iteration run `mona-image-to-text-36fc33d5`:
+  - iteration 1:
+    `A dark-haired woman in a black dress gazes forward before a hazy green landscape.`
+    - raw `0.222616`
+    - adjusted `0.229004`
+    - total `0.254004`
+  - iteration 2:
+    `A dark-haired woman in a black dress gazes forward before a distant river landscape.`
+    - raw `0.268060`
+    - adjusted `0.154581`
+    - total `0.179581`
+
+Interpretation:
+
+- The corrected scorer gives Mona a much stronger legitimate adjusted score
+  than dog/backrooms so far.
+- Iteration 2 increased raw cosine but worsened adjusted score; this is exactly
+  why raw cosine cannot be the optimizer target.
+- The loop already preserved the iteration-1 elite as the next seed, but final
+  result metadata still reported the last iteration judge. Since agent IDs
+  repeat across iterations (`candidate-a` can refer to different text), this
+  could expose a worse final selected output even when `bestScore` was correct.
+
+Code changes:
+
+- Final run results now select/report the global best-scoring iteration instead
+  of blindly using the final iteration judge.
+- `result.candidates` now points at the best iteration's ranked outputs.
+- Stored `selectedAgentId` now comes from that global-best final judge.
+- The final-judge shortcut compares both agent ID and selected node because
+  agent IDs repeat by iteration.
+
+Verification:
+
+- `bun run check` passed.
+- `bun run smoke` passed.
+- `bun run smoke:generic` passed.
