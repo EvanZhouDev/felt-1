@@ -83,7 +83,7 @@ h3 {
 
 .trace-shell {
   display: grid;
-  grid-template-columns: 318px minmax(0, 1fr) 360px;
+  grid-template-columns: 292px minmax(420px, 1fr) 340px;
   height: 100vh;
   min-height: 720px;
 }
@@ -260,7 +260,9 @@ h3 {
 }
 
 .graph-canvas {
+  position: relative;
   min-height: 0;
+  overflow: hidden;
   background: #f6f4ee;
 }
 
@@ -413,6 +415,16 @@ h3 {
   --xy-controls-button-background-color-default: #fffdf8;
   --xy-controls-button-background-color-hover-default: #f0ece2;
   --xy-controls-button-color-default: #171715;
+}
+
+.graph-canvas,
+.graph-canvas .react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+.react-flow__renderer {
+  overflow: hidden;
 }
 
 .react-flow__attribution {
@@ -733,7 +745,7 @@ h3 {
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 980px) {
   .trace-shell {
     grid-template-columns: 292px minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 360px;

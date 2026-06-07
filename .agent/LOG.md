@@ -3851,3 +3851,13 @@ Interpretation:
   `http://127.0.0.1:3001/?run=backrooms-image-to-image-5a7d21d4&node=backrooms-image-to-image-5a7d21d4%3Acandidate%3Ai3%3Aelite-replay#node-backrooms-image-to-image-5a7d21d4-candidate-i3-elite-replay`:
   19 graph nodes, 15 images, selected best node, toolbar zoom works, graph node
   clicks update the selected node, and the pan/zoom initializer reports ready.
+
+## 2026-06-07 - Trace graph interaction fix
+
+- Fixed graph node selection so node links update the selected node, URL, active
+  graph/nav/ranking states, and inspector panel in-place without a page reload.
+- Kept the static SVG graph path for reliability: current browser verification
+  shows 19 nodes, 45 SVG edges, pan/zoom ready, zoom staying at 120% after a
+  node click, and no console errors.
+- Increased iteration spacing so judge nodes no longer crowd the next candidate
+  column; measured gap after judge i1 is now about 185px in the open run.

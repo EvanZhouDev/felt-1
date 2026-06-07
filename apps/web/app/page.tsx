@@ -15,12 +15,12 @@ type PageProps = {
 
 const nodeWidth = 286;
 const fallbackNodeHeight = 270;
+const judgeHeight = 220;
 const panZoomScript = `
 (() => {
   const init = () => {
     const viewport = document.querySelector("[data-pan-zoom-graph]");
-    if (!viewport) return false;
-    if (viewport.dataset.panZoomReady === "true") return true;
+    if (!viewport || viewport.dataset.panZoomReady === "true") return Boolean(viewport);
     const spacer = viewport.querySelector(".static-graph-spacer");
     const world = viewport.querySelector(".static-graph-world");
     if (!spacer || !world) return false;
@@ -30,98 +30,150 @@ const panZoomScript = `
     const readout = document.querySelector("[data-graph-zoom-readout]");
     const baseWidth = Number(spacer.dataset.baseWidth || spacer.clientWidth || 1);
     const baseHeight = Number(spacer.dataset.baseHeight || spacer.clientHeight || 1);
-    let scale = 1, dragging = false, dragMoved = false;
-    let startX = 0, startY = 0, startLeft = 0, startTop = 0, movedTimer;
+    let scale = 1;
+    let dragging = false;
+    let moved = false;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+
+    const selectNode = (nodeId, href) => {
+      for (const node of document.querySelectorAll("[data-trace-node-id]")) {
+        node.classList.toggle("selected", node.dataset.traceNodeId === nodeId);
+      }
+      for (const link of document.querySelectorAll("[data-node-link-id]")) {
+        const active = link.dataset.nodeLinkId === nodeId;
+        link.classList.toggle("active", active);
+        if (active) {
+          link.setAttribute("aria-current", "true");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      }
+      for (const panel of document.querySelectorAll("[data-inspector-node-id]")) {
+        panel.hidden = panel.dataset.inspectorNodeId !== nodeId;
+      }
+      if (href) {
+        const nextUrl = new URL(href, window.location.href);
+        history.pushState({ nodeId }, "", nextUrl.pathname + nextUrl.search + nextUrl.hash);
+      }
+    };
+
     const update = () => {
       viewport.dataset.zoom = scale.toFixed(2);
       if (readout) readout.textContent = Math.round(scale * 100) + "%";
     };
+
     const applyScale = (nextScale, originX, originY) => {
       const rect = viewport.getBoundingClientRect();
-      const localX = originX - rect.left, localY = originY - rect.top;
+      const localX = originX - rect.left;
+      const localY = originY - rect.top;
       const graphX = (viewport.scrollLeft + localX) / scale;
       const graphY = (viewport.scrollTop + localY) / scale;
       scale = Math.min(3, Math.max(0.35, nextScale));
       spacer.style.width = baseWidth * scale + "px";
       spacer.style.height = baseHeight * scale + "px";
-      world.style.transformOrigin = "0 0";
       world.style.transform = "scale(" + scale + ")";
       viewport.scrollLeft = graphX * scale - localX;
       viewport.scrollTop = graphY * scale - localY;
       update();
     };
-    const start = (x, y) => {
-      dragging = true; dragMoved = false; startX = x; startY = y;
-      startLeft = viewport.scrollLeft; startTop = viewport.scrollTop;
-      viewport.classList.add("is-panning");
+
+    const center = () => {
+      const rect = viewport.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     };
-    const move = (x, y) => {
+
+    viewport.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("a, button, input, select, textarea")) return;
+      dragging = true;
+      moved = false;
+      startX = event.clientX;
+      startY = event.clientY;
+      startLeft = viewport.scrollLeft;
+      startTop = viewport.scrollTop;
+      viewport.classList.add("is-panning");
+      viewport.setPointerCapture(event.pointerId);
+    });
+
+    viewport.addEventListener("pointermove", (event) => {
       if (!dragging) return;
-      const dx = x - startX, dy = y - startY;
-      if (Math.abs(dx) + Math.abs(dy) > 4) dragMoved = true;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
       viewport.scrollLeft = startLeft - dx;
       viewport.scrollTop = startTop - dy;
-    };
-    const stop = () => {
-      if (!dragging) return;
-      dragging = false; viewport.classList.remove("is-panning");
-      if (movedTimer !== undefined) clearTimeout(movedTimer);
-      movedTimer = setTimeout(() => { dragMoved = false; }, 0);
-    };
-    const mouseMove = (event) => move(event.clientX, event.clientY);
-    const mouseUp = () => {
-      removeEventListener("mousemove", mouseMove);
-      stop();
-    };
-    viewport.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) return;
-      event.preventDefault(); start(event.clientX, event.clientY);
-      viewport.setPointerCapture?.(event.pointerId);
     });
-    viewport.addEventListener("pointermove", (event) => move(event.clientX, event.clientY));
-    viewport.addEventListener("pointerup", (event) => { viewport.releasePointerCapture?.(event.pointerId); stop(); });
-    viewport.addEventListener("pointercancel", (event) => { viewport.releasePointerCapture?.(event.pointerId); stop(); });
-    viewport.addEventListener("mousedown", (event) => {
-      if (event.button !== 0 || dragging) return;
-      event.preventDefault(); start(event.clientX, event.clientY);
-      addEventListener("mousemove", mouseMove);
-      addEventListener("mouseup", mouseUp, { once: true });
+
+    viewport.addEventListener("pointerup", () => {
+      dragging = false;
+      viewport.classList.remove("is-panning");
+      setTimeout(() => {
+        moved = false;
+      }, 0);
     });
-    viewport.addEventListener("dragstart", (event) => event.preventDefault());
+
     viewport.addEventListener("click", (event) => {
-      if (!dragMoved) return;
-      event.preventDefault(); event.stopPropagation();
-    }, true);
-    viewport.addEventListener("wheel", (event) => {
+      if (!moved) return;
       event.preventDefault();
-      applyScale(scale * (event.deltaY < 0 ? 1.12 : 1 / 1.12), event.clientX, event.clientY);
+      event.stopPropagation();
+    }, true);
+
+    viewport.addEventListener("wheel", (event) => {
+      if (!event.ctrlKey && !event.metaKey && !event.altKey) return;
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? 1 / 1.15 : 1.15;
+      applyScale(scale * delta, event.clientX, event.clientY);
     }, { passive: false });
+
     zoomIn?.addEventListener("click", () => {
-      const rect = viewport.getBoundingClientRect();
-      applyScale(scale * 1.2, rect.left + rect.width / 2, rect.top + rect.height / 2);
+      const point = center();
+      applyScale(scale * 1.2, point.x, point.y);
     });
     zoomOut?.addEventListener("click", () => {
-      const rect = viewport.getBoundingClientRect();
-      applyScale(scale / 1.2, rect.left + rect.width / 2, rect.top + rect.height / 2);
+      const point = center();
+      applyScale(scale / 1.2, point.x, point.y);
     });
     reset?.addEventListener("click", () => {
-      const rect = viewport.getBoundingClientRect();
-      applyScale(1, rect.left + rect.width / 2, rect.top + rect.height / 2);
-      viewport.scrollLeft = 0; viewport.scrollTop = 0;
+      const point = center();
+      applyScale(1, point.x, point.y);
+      viewport.scrollLeft = 0;
+      viewport.scrollTop = 0;
     });
+
+    document.addEventListener("click", (event) => {
+      const link = event.target.closest("[data-node-link-id]");
+      if (!link) return;
+      event.preventDefault();
+      selectNode(link.dataset.nodeLinkId, link.href);
+    });
+
+    window.addEventListener("popstate", () => {
+      const nodeId = new URL(window.location.href).searchParams.get("node");
+      if (nodeId) {
+        selectNode(nodeId);
+      }
+    });
+
     viewport.dataset.panZoomReady = "true";
     update();
     return true;
   };
-  let attempts = 0;
-  const retry = () => {
-    if (init() || attempts++ > 120) return;
-    requestAnimationFrame(retry);
-  };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", retry, { once: true });
-  } else {
+
+  const boot = () => {
+    let attempts = 0;
+    const retry = () => {
+      if (init() || attempts++ > 120) return;
+      requestAnimationFrame(retry);
+    };
     retry();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
   }
 })();
 `;
@@ -145,10 +197,7 @@ export default async function Home({ searchParams }: PageProps) {
     nodes.find((node) => node.id === activeRun.bestNodeId) ??
     nodes[0];
   const candidateNodes = candidateRanking(nodes);
-  const positionedNodes = nodes.map((node) => ({
-    node,
-    position: nodePosition(node),
-  }));
+  const positionedNodes = positionNodes(nodes);
   const bounds = graphBounds(positionedNodes);
 
   return (
@@ -241,7 +290,9 @@ export default async function Home({ searchParams }: PageProps) {
         <nav className="graph-nav" aria-label="Graph nodes">
           {positionedNodes.map(({ node }) => (
             <a
+              aria-current={node.id === selectedNode?.id ? "true" : undefined}
               className={node.id === selectedNode?.id ? "active" : undefined}
+              data-node-link-id={node.id}
               href={`${pageHref({
                 node: node.id,
                 q: query,
@@ -340,12 +391,14 @@ export default async function Home({ searchParams }: PageProps) {
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  id={nodeDomId(node.id)}
+                  data-node-link-id={node.id}
+                  data-trace-node-id={node.id}
                   href={`${pageHref({
                     node: node.id,
                     q: query,
                     run: activeRun.id,
                   })}#${nodeDomId(node.id)}`}
+                  id={nodeDomId(node.id)}
                   key={node.id}
                   style={{ left: position.x, top: position.y }}
                 >
@@ -378,17 +431,22 @@ export default async function Home({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <aside className="inspector">
-        {selectedNode ? (
-          <NodeInspector
-            candidates={candidateNodes}
-            node={selectedNode}
-            query={query}
-            run={activeRun}
-          />
-        ) : (
-          <p>No node selected.</p>
-        )}
+      <aside className="inspector" data-inspector>
+        {nodes.map((node) => (
+          <section
+            className="inspector-panel"
+            data-inspector-node-id={node.id}
+            hidden={node.id !== selectedNode?.id}
+            key={node.id}
+          >
+            <NodeInspector
+              candidates={candidateNodes}
+              node={node}
+              query={query}
+              run={activeRun}
+            />
+          </section>
+        ))}
       </aside>
       <script>{panZoomScript}</script>
     </main>
@@ -497,6 +555,7 @@ function NodeInspector({
                 ]
                   .filter(Boolean)
                   .join(" ")}
+                data-node-link-id={candidate.id}
                 href={`${pageHref({
                   node: candidate.id,
                   q: query,
@@ -641,22 +700,59 @@ function candidateRanking(nodes: TraceNode[]): TraceNode[] {
     });
 }
 
-function nodePosition(node: TraceNode): { x: number; y: number } {
+function positionNodes(
+  nodes: TraceNode[],
+): { node: TraceNode; position: { x: number; y: number } }[] {
+  const candidateCountsByIteration = new Map<number, number>();
+  for (const node of nodes) {
+    if (node.role !== "candidate") {
+      continue;
+    }
+    const iteration = node.iteration ?? 1;
+    candidateCountsByIteration.set(
+      iteration,
+      (candidateCountsByIteration.get(iteration) ?? 0) + 1,
+    );
+  }
+  return nodes.map((node) => ({
+    node,
+    position: nodePosition(node, candidateCountsByIteration),
+  }));
+}
+
+const candidateColumnX = 460;
+const candidateColumnGap = 960;
+const candidateRowY = 40;
+const candidateRowGap = 340;
+const judgeOffsetX = 520;
+
+function nodePosition(
+  node: TraceNode,
+  candidateCountsByIteration: Map<number, number>,
+): { x: number; y: number } {
   if (node.role === "target") {
     return { x: 40, y: 180 };
   }
   if (node.role === "seed") {
     return { x: 40, y: 520 };
   }
-  if (node.role === "judge") {
-    const iteration = node.iteration ?? 1;
-    return { x: 500 + iteration * 500, y: 170 + (iteration - 1) * 120 };
-  }
   const iteration = node.iteration ?? 1;
+  const iterationX = candidateColumnX + (iteration - 1) * candidateColumnGap;
+  if (node.role === "judge") {
+    const candidateCount = candidateCountsByIteration.get(iteration) ?? 1;
+    const candidateStackCenter =
+      candidateRowY +
+      Math.max(0, candidateCount - 1) * candidateRowGap * 0.5 +
+      132;
+    return {
+      x: iterationX + judgeOffsetX,
+      y: Math.max(24, Math.round(candidateStackCenter - judgeHeight / 2)),
+    };
+  }
   const rank = node.rank ?? 1;
   return {
-    x: 460 + (iteration - 1) * 500,
-    y: 40 + (rank - 1) * 340,
+    x: iterationX,
+    y: candidateRowY + (rank - 1) * candidateRowGap,
   };
 }
 
