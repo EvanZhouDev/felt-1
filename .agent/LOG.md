@@ -1490,3 +1490,100 @@ also collinear at 30 frames. The "more timesteps" lever looks like it's failing.
 Fetching remaining 3 paintings at dur=10 for the full 5x5 matrix to confirm.
 => strengthens the case that per-vertex de-baseline (common-mode removal w/ ~200
 ref corpus) is the real fix, not timesteps.
+
+## 2026-06-07 - METRIC SWEEP (offline, real cached activations) + duration resolved
+
+User asked to try many similarity functions incl raw cosine and limbic-only (Yeo7).
+Ran fully offline on the 5 saved painting targets (full per-vertex [2,20484] values)
+sliced by the per-vertex Yeo atlas (experiments/exp-1/cache/yeo7_labels_fsaverage5.npy,
+20484 labels). Zero TRIBE calls. Script: experiments/metric-sweep/sweep.py
+
+DISCRIMINATION GAP = sim(starry~scream, both turbulent) - sim(starry~lilies, turb vs calm).
+Bigger gap = metric separates vibe from common-mode better.
+  raw cosine          starry~scream 0.970  starry~lilies 0.825  gap +0.145
+  pearson (~shipped)  0.973  0.822  gap +0.151
+  spearman/rank       0.960  0.793  gap +0.167   (rank does NOT dodge common-mode)
+  debaseline LOO      0.733 -0.002  gap +0.735   <- decisive
+  Limbic-only + LOO   0.853 -0.223  gap +1.077   <- best single network
+  DefaultMode + LOO   0.909 -0.276  gap +1.186   <- best overall
+  DorsAttn + LOO      0.517  0.562  gap -0.045   WRONG (task net carries no vibe)
+
+Mean off-diagonal (lower=more separable): raw 0.852, pearson 0.855, spearman 0.820,
+debaseline_loo 0.249; per-network-pearson all 0.78-0.93 (NO help w/o de-baseline);
+per-network LOO all 0.22-0.30. zscore_self -0.231 but CIRCULAR (in-set, double-dip).
+
+KEY: raw/pearson/spearman all stuck at the ~0.85 common-mode floor. De-baselining is
+the only lever that works, and AFTER de-baselining the AFFECTIVE networks (Limbic, DMN)
+discriminate vibe BEST - contradicting the earlier methodology caution against weighting
+limbic. This overturns the old "Yeo7 is flat ~0.97" dead-end: that used the SERVER's
+pre-collapsed yeo7Means SCALARS; slicing raw per-vertex values by the atlas is different
+and works. Per-network Pearson (no de-baseline) IS still flat (0.78-0.93) - both must combine.
+
+DURATION/TIMESTEPS RESOLVED (was an open question @ line ~1333): the /predict/image API
+has duration(default 2)+fps(default 10) query params -> 2 timesteps; our oracle never
+sends them (oracle.ts:166-167 appends only `file`), so all images = 2 frames. BUT this
+does NOT matter: the audio experiment already tested it - 30 audio timesteps separated
+targets WORSE (0.934) than 2-frame images (0.855), and the 30 frames were near-static
+(consec-frame cos 0.977). More timesteps add copies, not signal. Common-mode is the
+disease; duration is not the cure. Do NOT spend cycles raising image duration.
+
+## 2026-06-07 - RAN the prescribed de-baseline validation on exp-2 gate (MIXED)
+
+The unrun experiment from the methodology synthesis is now run (zero TRIBE calls,
+mu_text from the 14 cached exp-2 preds, LOO). Full writeup appended to
+.agent/research/tribe-similarity-methodology.md (VALIDATION RUN section) and raw
+output in experiments/exp-2/results/debaseline-validation.txt. Headline: de-baseline
+FLIPS the #1 slot from the loop-best HACK (0.390) to the true match vibe-rich (0.390),
+and kills repetition hacks (rep-1x -> last). BUT the full high>mid>low gate still
+FAILS - because the prototype is in-set, single-mu (text mu on an image target), and
+POOLED-only (the temporal blend never runs). Transform DIRECTION confirmed correct;
+not shippable from this fidelity. Next: R>=200 per-modality corpus + feed into full blend.
+
+## 2026-06-07 - CLEAN head-to-head: evocative > literal on The Scream (user's test)
+
+User's requested test, run cleanly (same painting, same target, same metric, both
+freshly encoded via real TRIBE http):
+  literal description ("A pale figure with an open mouth, hands on face...")  = 0.6255
+  loop-evocative      ("The light is too hot and too low, a red wavering...")  = 0.6713
+  DELTA = +0.0458  -> EVOCATIVE/loop text WINS
+
+The 0.6713 reproduces the original paint-the_scream run score EXACTLY (deterministic
+TRIBE, no drift) - so this is a trustworthy number. This is the cleanest single
+benchmark for the project's core claim: a text that EVOKES the feeling of The Scream
+(no literal figure/bridge/sky) scores measurably higher than a text that DESCRIBES the
+scene. Demonstrated, not asserted. (Earlier 502 that killed this encode was transient.)
+
+Companion cross-probe (collinearity caveat): the SAME literal Scream description scored
+0.6150 on the STARRY NIGHT target - only 0.020 below a correct Starry description (0.6346).
+So the production metric distinguishes evocative-vs-literal on the SAME painting (+0.046)
+better than it distinguishes right-vs-wrong painting across the turbulent family (+0.020).
+Both effects are small because the production blend is common-mode-compressed (~0.6 band).
+
+## 2026-06-07 - CORRECTION: more image timesteps DOES help (dur=10 full matrix)
+
+Earlier partial (starry<->scream only) said more timesteps doesn't help. The FULL
+5x5 matrix at duration=10 OVERTURNS that:
+  mean off-diagonal collinearity: dur=2 0.855 -> dur=10 0.674 (much MORE separable)
+
+Pairs that separated strongly (calm vs turbulent now distinct):
+  mona<->starry  0.851 -> 0.528    lilies<->starry 0.822 -> 0.524
+  mona<->lilies  0.768 -> 0.442    lilies<->scream 0.784 -> 0.621
+Pairs that STAYED similar (genuinely alike):
+  starry<->scream 0.973 -> 0.984 (two turbulent swirling skies)
+  starry<->wave   0.949 -> 0.931 (two dynamic scenes)
+
+CORRECTED VERDICT: more timesteps reveals REAL structure - it separates paintings
+that should differ (calm Mona/Lilies vs turbulent Starry/Scream) while keeping
+genuinely-similar ones close. My earlier "doesn't help" was an over-generalization
+from the ONE stubborn pair (starry<->scream) that is actually genuinely similar to
+TRIBE. The 2-frame default WAS hiding painting-specific structure.
+
+IMPLICATIONS:
+- The original painting-specificity NEGATIVE result was partly a 2-frame artifact.
+  Re-running the specificity loops at duration=10 should show better diagonal
+  dominance (calm paintings should now be distinguishable).
+- Default image duration in the oracle should be raised from 2s. The image path
+  hardcodes duration=2; we can pass ?duration=N as a query param now.
+- This does NOT contradict the common-mode finding - both are true: there's a
+  common-mode AND the 2-frame default was under-sampling. dur=10 + de-baseline
+  would likely compound.
