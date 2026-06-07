@@ -1368,3 +1368,30 @@ This is the most important finding of the session and reframes the goal:
 target the RESIDUAL (whitened) signal, and/or accept coarse-category specificity.
 
 PAUSED for user decision before running the audio generation loops.
+
+## 2026-06-07 - HONEST CORRECTION: starry~scream similarity is under-determined by our data
+
+User correctly flagged: whitening over just the 5 paintings OVERFITS (common-mode
+estimated from the same points being measured). Reworked with leave-one-out
+(baseline from 6 OTHER images, excl. starry/scream):
+  raw pooled cosine starry~scream: 0.973
+  leave-out whitened:              0.504  (starry~mona -0.202, scream~lilies -0.680)
+The signs looked right (turbulent~turbulent positive, turbulent~calm negative).
+
+BUT per-Yeo-network breakdown (to test visual-vs-emotional) came back ALL ~0.97
+(visual 0.977, limbic 0.969, default-mode 0.968) - FLAT across networks. That is
+the common-mode artifact AGAIN, per-network: without an independent per-network
+baseline (unrelated images WITH network breakdowns, which we don't have),
+mean-centering per network does NOT remove the spatial common-mode, so we cannot
+separate "both busy images" from "same emotional response".
+
+HONEST CONCLUSION: cannot definitively answer whether Starry Night and The Scream
+evoke the same emotion to TRIBE. Confident claims so far (0.958 / 0.416 / 0.504 /
+"shared high-arousal family") rest on baselines too small or contaminated to
+trust. What IS robust: raw TRIBE activations make almost any two stimuli look
+0.85-0.97 similar due to a massive shared common-mode.
+
+PRINCIPLED NEXT STEP (data collection, not more n=5 analysis): fetch network-
+breakdown activations for ~20-30 UNRELATED images, estimate common-mode
+out-of-sample, THEN the visual-vs-emotional localization becomes answerable. Stop
+generating thinly-supported similarity numbers until that baseline exists.
