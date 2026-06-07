@@ -1335,3 +1335,36 @@ Open questions to resolve with user (PAUSED here per request):
 - Are image targets just inherently low-variance in TRIBE (image vs text/video)?
 - Should specificity be judged on a metric that emphasizes the residual
   between-painting variance (whiten by the common-mode)?
+
+## 2026-06-07 - Audio targets + the collinearity is a TRIBE property, not an image artifact
+
+Trimmed 3 songs to 30s (skip first 10s): Clair de Lune (gentle), Moonlight Sonata
+3rd mvt (stormy/fast), Dvorak New World IV (triumphant/driving). 30s audio ->
+30 TIMESTEPS (vs 2 for a still image), so we expected far more separable targets.
+
+RESULT - the opposite. Between-SONG target similarity is even HIGHER than images:
+  audio pooled-cosine mean off-diagonal: 0.934 (range 0.904-0.977)
+  paintings @250px:                      0.855 (range 0.759-0.973)
+  audio FULL BLENDED metric:             0.919  (0.5 = orthogonal)
+And the 30 audio frames are nearly STATIC (consecutive-frame cosine ~0.977), so
+the extra timesteps carry little new info. More timesteps did NOT help.
+
+=> The high cross-target similarity is NOT an image-resolution/timestep artifact.
+It is a property of TRIBE's pooled representation: a dominant COMMON-MODE +
+low-rank structure (a universal baseline + a few coarse axes like intense-vs-calm)
+swamps the stimulus-specific signal. Fine distinctions live in a small residual.
+
+WHITENING (subtract common-mode = mean over all targets) helps PARTIALLY:
+  audio    0.934 -> 0.850   (but Moonlight<->Dvorak stays 0.948 - both "intense")
+  painting 0.855 -> 0.769   (Mona<->Wave -> 0.532 good; Starry<->Scream stays 0.958)
+Same-category pairs (two turbulent skies; two fast orchestral works) stay
+near-identical even after whitening - TRIBE genuinely encodes them as similar.
+
+IMPLICATION for the whole project: "specificity at the level of Starry Night vs
+The Scream" may be near the FLOOR of what TRIBE can represent - not a loop bug.
+The system CAN hit coarse vibe categories (calm vs turbulent vs dread) but
+fine within-category discrimination is limited by the oracle's low-rank geometry.
+This is the most important finding of the session and reframes the goal:
+target the RESIDUAL (whitened) signal, and/or accept coarse-category specificity.
+
+PAUSED for user decision before running the audio generation loops.
