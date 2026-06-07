@@ -1,0 +1,186 @@
+{
+  "target": ".volta/benchmarks/runs/backrooms-image-to-image-f42a6a6b/target.json",
+  "images": "/tmp/volta-backrooms-sharpgrid-v1/images.json",
+  "oracleMode": "tribe",
+  "createdAt": "2026-06-07T14:02:38.849Z",
+  "updatedAt": "2026-06-07T14:05:52.065Z",
+  "status": "completed",
+  "calibrated": true,
+  "contrastTargetCount": 26,
+  "results": [
+    {
+      "id": "hard-neutral-sharp-control",
+      "image": "/tmp/volta-backrooms-sharpgrid-v1/hard-neutral-sharp-control.png",
+      "video": "/tmp/volta-backrooms-sharpgrid-v1/hard-neutral-sharp-control-0.5s.mp4",
+      "neuralSimilarity": 0.9970082640090318,
+      "adjustedSimilarity": 0.8895042345392699,
+      "calibratedSimilarity": 0.3379532329259904,
+      "contrastSimilarity": 0.9767968727068389,
+      "discriminativeSimilarity": 0.9993675421960977,
+      "residualSimilarity": 0.8895042345392699,
+      "residualAdjustedSimilarity": 0.8895042345392699,
+      "retrievalMargin": 0.01302569796716535,
+      "nearMissSimilarity": 0.5199280506553698,
+      "cslsSimilarity": 0.039877225370561376,
+      "hubnessPenalty": 0.9813554463346851,
+      "searchProgressSignal": 0.020797122026214795,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.02021139130219285,
+      "total": 0.9103013565654846,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.004406283609569073,
+          "std": 0.039578914642333984,
+          "norm": 5.699622345844846
+        }
+      }
+    },
+    {
+      "id": "hns-sharp050",
+      "image": "/tmp/volta-backrooms-sharpgrid-v1/hns-sharp050.png",
+      "video": "/tmp/volta-backrooms-sharpgrid-v1/hns-sharp050-0.5s.mp4",
+      "neuralSimilarity": 0.9969849581671553,
+      "adjustedSimilarity": 0.8860157485588881,
+      "calibratedSimilarity": 0.33827216695512674,
+      "contrastSimilarity": 0.9774164696086797,
+      "discriminativeSimilarity": 0.9994545826517441,
+      "residualSimilarity": 0.8860157485588881,
+      "residualAdjustedSimilarity": 0.8860157485588881,
+      "retrievalMargin": 0.013760435837720908,
+      "nearMissSimilarity": 0.5204187183925026,
+      "cslsSimilarity": 0.04086016100757217,
+      "hubnessPenalty": 0.9805465916089671,
+      "searchProgressSignal": 0.020816748735700105,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.019568488558475594,
+      "total": 0.9068324972945881,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.004176820162683725,
+          "std": 0.03982548788189888,
+          "norm": 5.731178660973163
+        }
+      }
+    },
+    {
+      "id": "hns-sat100-sharp050",
+      "image": "/tmp/volta-backrooms-sharpgrid-v1/hns-sat100-sharp050.png",
+      "video": "/tmp/volta-backrooms-sharpgrid-v1/hns-sat100-sharp050-0.5s.mp4",
+      "neuralSimilarity": 0.9975512469682057,
+      "adjustedSimilarity": 0.8765688120143246,
+      "calibratedSimilarity": 0.33970318984065667,
+      "contrastSimilarity": 0.9773346984419669,
+      "discriminativeSimilarity": 0.9991152601875638,
+      "residualSimilarity": 0.8765688120143246,
+      "residualAdjustedSimilarity": 0.8765688120143246,
+      "retrievalMargin": 0.018483848545043036,
+      "nearMissSimilarity": 0.5226202920625487,
+      "cslsSimilarity": 0.04527148687550031,
+      "hubnessPenalty": 0.9754566208126781,
+      "searchProgressSignal": 0.020904811682501946,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.020216548526238887,
+      "total": 0.8974736236968265,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.004990605171769857,
+          "std": 0.039168745279312134,
+          "norm": 5.651242563453309
+        }
+      }
+    },
+    {
+      "id": "hns-sharp060",
+      "image": "/tmp/volta-backrooms-sharpgrid-v1/hns-sharp060.png",
+      "video": "/tmp/volta-backrooms-sharpgrid-v1/hns-sharp060-0.5s.mp4",
+      "neuralSimilarity": 0.9978122144974692,
+      "adjustedSimilarity": 0.8651158787548647,
+      "calibratedSimilarity": 0.3403948247229999,
+      "contrastSimilarity": 0.9781542382330396,
+      "discriminativeSimilarity": 0.998701215614197,
+      "residualSimilarity": 0.8651158787548647,
+      "residualAdjustedSimilarity": 0.8651158787548647,
+      "retrievalMargin": 0.02087624194843518,
+      "nearMissSimilarity": 0.5236843457276922,
+      "cslsSimilarity": 0.04740416774017475,
+      "hubnessPenalty": 0.9724958508012701,
+      "searchProgressSignal": 0.020947373829107687,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.019657976264429555,
+      "total": 0.8860632525839724,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.005110383499413729,
+          "std": 0.03911866620182991,
+          "norm": 5.646327129696082
+        }
+      }
+    },
+    {
+      "id": "hns-sharp055",
+      "image": "/tmp/volta-backrooms-sharpgrid-v1/hns-sharp055.png",
+      "video": "/tmp/volta-backrooms-sharpgrid-v1/hns-sharp055-0.5s.mp4",
+      "neuralSimilarity": 0.9971955008709351,
+      "adjustedSimilarity": 0.8624183521348646,
+      "calibratedSimilarity": 0.3399171751047344,
+      "contrastSimilarity": 0.9770658535923491,
+      "discriminativeSimilarity": 0.9990872890617275,
+      "residualSimilarity": 0.8624183521348646,
+      "residualAdjustedSimilarity": 0.8624183521348646,
+      "retrievalMargin": 0.01898533315588924,
+      "nearMissSimilarity": 0.5229495001611298,
+      "cslsSimilarity": 0.045931273212939216,
+      "hubnessPenalty": 0.9747408922235666,
+      "searchProgressSignal": 0.020917980006445194,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.020129647278586016,
+      "total": 0.8833363321413098,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.0046426234766840935,
+          "std": 0.03925696015357971,
+          "norm": 5.657701506285791
+        }
+      }
+    },
+    {
+      "id": "hns-contrast104-sharp050",
+      "image": "/tmp/volta-backrooms-sharpgrid-v1/hns-contrast104-sharp050.png",
+      "video": "/tmp/volta-backrooms-sharpgrid-v1/hns-contrast104-sharp050-0.5s.mp4",
+      "neuralSimilarity": 0.9969322592710192,
+      "adjustedSimilarity": 0.8418946575805198,
+      "calibratedSimilarity": 0.3399793033556982,
+      "contrastSimilarity": 0.9772296768418128,
+      "discriminativeSimilarity": 0.9988079455296052,
+      "residualSimilarity": 0.8418946575805198,
+      "residualAdjustedSimilarity": 0.8418946575805198,
+      "retrievalMargin": 0.019479122726559717,
+      "nearMissSimilarity": 0.5230450820856896,
+      "cslsSimilarity": 0.04612284232741437,
+      "hubnessPenalty": 0.973990636044847,
+      "searchProgressSignal": 0.020921803283427583,
+      "calibrationVertexCount": 102,
+      "targetSpecificity": 0.019702582429206417,
+      "total": 0.8628164608639475,
+      "activation": {
+        "model": "tribev2",
+        "shape": [1, 20484],
+        "summary": {
+          "mean": 0.004798651672899723,
+          "std": 0.03936781734228134,
+          "norm": 5.6761169544346
+        }
+      }
+    }
+  ]
+}

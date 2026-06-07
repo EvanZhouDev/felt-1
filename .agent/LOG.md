@@ -3286,3 +3286,43 @@ Verification:
 - Reports:
   - `.agent/benchmarks/backrooms-image-hardneutral-finegrid-v1.json`
   - `.agent/benchmarks/backrooms-image-to-image-hard-neutral-sharp-v1.json`
+
+## 2026-06-07 07:05 PDT - Sharpness Follow-Up Probe
+
+Goal:
+
+- Test whether a very narrow follow-up around `hard-neutral-sharp` can cross
+  `0.9` adjusted similarity on the backrooms image-to-image run.
+
+Probe:
+
+- Generated 6 calibrated image probes:
+  - current `hard-neutral-sharp` control
+  - sharpen amounts `0.50`, `0.55`, `0.60`
+  - saturation `1.00` with sharpen `0.50`
+  - contrast `1.04` with sharpen `0.50`
+
+Result:
+
+- Best remained the control:
+  - `hard-neutral-sharp-control`
+  - adjusted `0.8895042345392699`
+  - total `0.9103013565654846`
+- Best non-control:
+  - `hns-sharp050`
+  - adjusted `0.8860157485588881`
+  - total `0.9068324972945881`
+
+Interpretation:
+
+- The current local filter family appears locally saturated around
+  `hard-neutral-sharp`.
+- Do not keep spending real TRIBE cycles on small sharpness/contrast tweaks
+  unless a new target or a broader operator family motivates it.
+- Next high-leverage direction should be stronger generated layout diversity,
+  learned operator scheduling, or image-to-text/cross-modal improvements.
+
+Verification:
+
+- Report:
+  `.agent/benchmarks/backrooms-image-sharpgrid-v1.json`
