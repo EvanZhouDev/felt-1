@@ -44,7 +44,7 @@ const config: OrchestratorConfig = {
   repoRoot,
   tribeUrl: process.env.VOLTA_TRIBE_URL ?? "https://tribe.bryanhu.com",
   fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
-  audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://audio.ai.bryanhu.com",
+  audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://qwen.bryanhu.com",
   describeAudio: process.env.VOLTA_DESCRIBE_AUDIO === "true",
   agentBackend: {
     mode: "codex" as const,
