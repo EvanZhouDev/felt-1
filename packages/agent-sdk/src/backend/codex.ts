@@ -364,10 +364,20 @@ function outputNodeSchema(outputType: OutputNode["type"]): JsonSchema {
             type: "string",
             enum: ["code"],
           },
+          // OpenAI strict structured output rejects a free-form
+          // additionalProperties map, so the agent returns files as an array of
+          // { path, contents }; normalizeOutputNode folds it back into the
+          // Record<string, string> the CodePayload type expects.
           files: {
-            type: "object",
-            additionalProperties: {
-              type: "string",
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["path", "contents"],
+              properties: {
+                path: { type: "string" },
+                contents: { type: "string" },
+              },
             },
           },
           entrypoint: {
@@ -525,7 +535,24 @@ function normalizeOutputNode(
   ) {
     throw new Error(`Codex returned an invalid ${outputType} output node.`);
   }
+  // The code schema returns files as an array of { path, contents } (strict
+  // structured output can't express a free-form map); fold it back into the
+  // Record<string, string> the CodePayload type uses.
+  if (outputType === "code" && Array.isArray(value.payload.files)) {
+    value.payload.files = filesArrayToRecord(value.payload.files);
+  }
   return value as OutputNode;
+}
+
+function filesArrayToRecord(files: unknown[]): Record<string, string> {
+  const record: Record<string, string> = {};
+  for (const file of files) {
+    if (isRecord(file) && typeof file.path === "string") {
+      record[file.path] =
+        typeof file.contents === "string" ? file.contents : "";
+    }
+  }
+  return record;
 }
 
 function parseJsonOutput(value: string): unknown {
