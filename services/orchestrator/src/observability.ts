@@ -62,7 +62,6 @@ export function runSummary(args: {
     similarityThreshold: number;
     candidateCount: number;
     scoringConcurrency: number;
-    reuseTargetArchive: boolean;
   };
 }) {
   return {
@@ -87,7 +86,6 @@ export function targetSummary(args: {
 export function candidateSummary(output: AgentOutput) {
   return {
     agentId: output.agentId,
-    entropy: output.entropy,
     outputNode: summarizeNode(output.outputNode, false),
   };
 }
@@ -95,7 +93,6 @@ export function candidateSummary(output: AgentOutput) {
 export function evaluatedOutputSummary(output: EvaluatedOutput) {
   return {
     agentId: output.agentId,
-    entropy: output.entropy,
     outputNode: summarizeNode(output.outputNode, false),
     rendered: summarizeRendered(output.rendered),
     activation: summarizeActivation(output.activation),

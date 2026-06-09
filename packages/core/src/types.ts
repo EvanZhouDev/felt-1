@@ -168,7 +168,6 @@ export type ScoreBundle = {
 export type AgentOutput = {
   agentId: string;
   outputNode: OutputNode;
-  entropy?: string;
 };
 
 export type EvaluatedOutput = AgentOutput & {

@@ -25,7 +25,7 @@ const oracle = createOracle({
   repoRoot: process.cwd(),
   tribeUrl: "https://tribe.bryanhu.com",
   fluxUrl: "https://images.bryanhu.com",
-  audioUrl: "https://audio.ai.bryanhu.com",
+  audioUrl: "https://qwen.bryanhu.com",
   describeAudio: false,
   agentBackend: {
     mode: "codex",
@@ -37,7 +37,6 @@ const oracle = createOracle({
     similarityThreshold: 2,
     candidateCount: 3,
     scoringConcurrency: 1,
-    reuseTargetArchive: false,
   },
   weave: {
     enabled: false,
@@ -166,10 +165,8 @@ for (const scenario of scenarios) {
     throw new Error(`${scenario.id} did not produce three candidates.`);
   }
   for (const candidate of result.candidates) {
-    if (
-      !candidate.entropy?.includes(`outputType=${scenario.output.outputType}`)
-    ) {
-      throw new Error(`${scenario.id} candidate entropy is not medium-aware.`);
+    if (candidate.outputNode?.type !== scenario.output.outputType) {
+      throw new Error(`${scenario.id} candidate is not medium-aware.`);
     }
   }
   if (scenario.id === "text-to-text") {
@@ -186,7 +183,6 @@ for (const scenario of scenarios) {
     }
   }
 
-  await assertExists(join(runsRoot, scenario.id, "candidate-archive.json"));
   await assertExists(join(runsRoot, scenario.id, "evolution-journal.json"));
 }
 
@@ -206,7 +202,6 @@ console.log(
 type GenericSmokeResult = {
   iterations: unknown[];
   candidates: Array<{
-    entropy?: string;
     outputNode?: {
       type: string;
       payload: {

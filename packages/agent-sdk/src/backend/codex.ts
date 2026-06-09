@@ -70,7 +70,6 @@ export class CodexCliBackend implements AgentBackend {
     const output = {
       agentId: invocation.spec.id,
       outputNode,
-      entropy: invocation.entropy,
     };
 
     await writeJson(join(invocation.workspace.outputPath, "candidate.json"), {

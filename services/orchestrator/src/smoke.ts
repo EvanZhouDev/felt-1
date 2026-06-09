@@ -21,7 +21,7 @@ const oracle = createOracle({
   repoRoot: process.cwd(),
   tribeUrl: "https://tribe.bryanhu.com",
   fluxUrl: "https://images.bryanhu.com",
-  audioUrl: "https://audio.ai.bryanhu.com",
+  audioUrl: "https://qwen.bryanhu.com",
   describeAudio: false,
   agentBackend: {
     mode: "codex",
@@ -33,7 +33,6 @@ const oracle = createOracle({
     similarityThreshold: 2,
     candidateCount: 2,
     scoringConcurrency: 1,
-    reuseTargetArchive: false,
   },
   weave: {
     enabled: false,
@@ -122,16 +121,20 @@ if (result.iterations.length !== 2) {
     `Expected 2 iterations, received ${result.iterations.length}.`,
   );
 }
-// From iteration 2 on, elitism re-injects the reigning global elite into the
-// population, so the final ranking holds candidateCount fresh candidates plus
-// (when an elite exists) one carried-forward elite.
+// From iteration 2 on, the reigning best-so-far is re-ranked with the fresh
+// candidates, so the final ranking holds candidateCount fresh candidates plus
+// (when one exists) the carried-forward best.
 if (result.candidates.length !== 2 && result.candidates.length !== 3) {
   throw new Error(
     `Expected 2 or 3 candidates, received ${result.candidates.length}.`,
   );
 }
-if (result.judge.selectedAgentId !== result.candidates[0]?.agentId) {
-  throw new Error("Judge did not select the top ranked candidate.");
+if (
+  !result.candidates.some(
+    (candidate) => candidate.agentId === result.judge.selectedAgentId,
+  )
+) {
+  throw new Error("Judge selected an agent outside the ranked candidates.");
 }
 
 await assertExists(

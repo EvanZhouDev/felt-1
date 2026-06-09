@@ -5,50 +5,70 @@ import type {
   JudgeAgentInvocation,
 } from "./types.ts";
 
+// Candidate prompts implement an OPRO-style optimization step (Yang et al.
+// 2023, "Large Language Models as Optimizers"): the agent sees the score-sorted
+// trajectory of past attempts plus the judge's critique of the current best
+// (Reflexion-style verbal feedback), and is asked to propose a candidate that
+// scores higher. The ranked history IS the steering signal — there are no
+// hand-coded mutation operators.
+
 export function buildCandidatePrompt(
   invocation: CandidateAgentInvocation,
 ): string {
-  if (!invocation.previous || invocation.previous.type === "fresh") {
-    return buildFirstGenerationCandidatePrompt(invocation);
+  if (!invocation.trajectory) {
+    return buildExplorationPrompt(invocation);
   }
-  return buildRefinementCandidatePrompt(invocation);
+  return buildImprovementPrompt(invocation);
 }
 
-export function buildFirstGenerationCandidatePrompt(
-  invocation: CandidateAgentInvocation,
-): string {
+// Round 1: no scored attempts yet. Parallel candidates span distinct emotional
+// registers — TRIBE scores the predicted felt response, so the first round's
+// job is to cover different affective stances toward the same target and let
+// the scores reveal which one the target rewards.
+function buildExplorationPrompt(invocation: CandidateAgentInvocation): string {
   return [
     `You are Volta candidate agent ${invocation.spec.id}.`,
-    "Generate the first output candidate for a vibe-transfer run.",
+    "Generate the first output candidate for a vibe-transfer run. No attempts have been scored yet — this is the exploration round.",
     candidateSharedInstructions(invocation),
-    archiveInstructions(invocation),
-    "There is no previous selected output. Start fresh, but use the optional seed to steer content if present.",
+    siblingDiversityInstruction(invocation),
+    "Choose ONE distinct emotional register through which the target is felt (for example: awe, tenderness, bodily sensation, stillness, tension, lyric intensity) and inhabit it fully. Read the target's actual vibe THROUGH that register — a calm target read with awe yields quiet awe, not forced drama.",
     "Return only a JSON object matching the provided output schema.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
-export function buildRefinementCandidatePrompt(
-  invocation: CandidateAgentInvocation,
-): string {
+function buildImprovementPrompt(invocation: CandidateAgentInvocation): string {
+  const trajectory = invocation.trajectory;
   return [
-    `You are Volta refinement candidate agent ${invocation.spec.id}.`,
-    "Generate the next output candidate for a score-driven neural similarity search.",
+    `You are Volta candidate agent ${invocation.spec.id}.`,
+    "Generate the next output candidate for a score-driven neural-similarity search.",
     candidateSharedInstructions(invocation),
-    archiveInstructions(invocation),
-    `Previous seed:\n${stableJson(invocation.previous)}`,
-    "Use the previous selected output as evidence, not as a script to copy. Preserve what worked, change one or two meaningful variables, and keep the output aimed at the target neural activation.",
-    "If the previous seed is written as instructions or an image-generation prompt, convert it into declarative descriptive prose before refining.",
+    [
+      "Score trajectory — past attempts sorted worst to best (higher neuralSimilarity is better; the LAST entry is the current best):",
+      stableJson(trajectory?.entries ?? []),
+      trajectory?.critique
+        ? `Judge critique of the current best:\n${trajectory.critique}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    "Propose a NEW candidate you expect to score HIGHER than the current best. Study what the higher-scoring attempts share, and use the critique to fix what the best one still lacks. Preserve what is working; change what the evidence says is holding the score back.",
+    "Do not repeat any prior attempt verbatim or near-verbatim — near-duplicates are penalized at scoring time.",
+    siblingDiversityInstruction(invocation),
     "Return only a JSON object matching the provided output schema.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
   return [
     `You are Volta judge agent ${invocation.spec.id}.`,
-    "Choose which candidate should become the seed for the next iteration.",
-    "Use the TRIBE neural similarity scores as the primary signal, but write useful reasoning about why the chosen output worked.",
-    "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as mutation-axis hints only; never let them override the full-vector neural similarity ranking.",
-    "Reason like an optimizer: name what to keep, what to discard, and what mutation should be tried next. Include the selected candidate's neural similarity and the runner-up's neural similarity when available.",
+    "Choose which candidate best matches the target's neural activation, and critique it.",
+    "Use the TRIBE neural similarity scores as the primary signal.",
+    "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as hints only; never let them override the full-vector neural similarity ranking.",
+    "Your reasoning doubles as the critique fed to the next round's candidate agents. State concretely: what the selected candidate does that earns its score, what it still lacks relative to the target's vibe, and what a higher-scoring attempt should try next.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",
     `Input object:\n${stableJson(sanitizeInput(invocation.input))}`,
@@ -71,19 +91,45 @@ function candidateSharedInstructions(
     "The optional seed is content direction, not the target itself. When a seed is present, keep the generated output about the seed's requested topic or medium while matching the input target's perceptual feel.",
     "For same-medium transfers such as text-to-text, do not solve the task by copying or paraphrasing the target. Translate the target's activation feel into the seed topic.",
     "Do not train a model. Produce one renderable output node.",
-    "The entropy cue is an assigned evolutionary operator. Follow it so parallel candidates behave like a population: elite preservation, point mutation, crossover, novelty injection, ablation, or representation reset.",
-    "For text output, write language that makes a reader FEEL the target's vibe — its emotional charge, energy, mood, and atmosphere — rather than cataloguing what is in it. TRIBE scores the predicted emotional/perceptual response, not description, so flat inventories and comma-separated keyword lists score worst. Do not write drawing instructions, image-generation prompts, commands, or phrases like render it, use, keep, make, or create.",
-    "Match the target's register: an intense, turbulent target wants charged, moving prose; a calm, still target wants quiet, restrained language. The best register varies by target, so let it follow the target rather than defaulting to one form. Use concrete subject anchors sparingly unless the entropy cue asks for more.",
-    "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
-    "For image output, produce an image node referencing the intended generated image asset URI.",
-    "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",
+    outputTypeInstruction(invocation),
     `Input object:\n${stableJson(sanitizeInput(invocation.input))}`,
     inputDescriptionBlock(invocation),
     `Output request:\n${stableJson(invocation.output)}`,
-    `Entropy cue:\n${invocation.entropy ?? "none"}`,
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+function outputTypeInstruction(invocation: CandidateAgentInvocation): string {
+  const outputType = invocation.output.outputType;
+  if (outputType === "text") {
+    // TRIBE predicts the reader's emotional/perceptual neural response, not
+    // semantic accuracy: flat description scores worst, and the register that
+    // scores best is target-dependent, so we ask for felt language and let the
+    // scores select the register.
+    return [
+      "For text output, write language that makes a reader FEEL the target's vibe — its emotional charge, energy, mood, and atmosphere — rather than cataloguing what is in it. TRIBE scores the predicted emotional/perceptual response, not description, so flat inventories and comma-separated keyword lists score worst. Do not write drawing instructions, image-generation prompts, or commands.",
+      "Match the target's register: an intense, turbulent target wants charged, moving prose; a calm, still target wants quiet, restrained language. Avoid proper names, dates, or explanatory facts unless they are central to the seed. Keep it short and high-signal.",
+    ].join(" ");
+  }
+  if (outputType === "image") {
+    return "For image output, produce an image node referencing the intended generated image asset URI. Express the vibe through composition, subject anchors, light/color, texture, framing, and atmosphere.";
+  }
+  return "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots. Express the vibe through layout, density, typography, color/contrast, and texture.";
+}
+
+// Parallel candidates within one round share the same trajectory; without an
+// explicit push they converge on one approach and the round wastes oracle
+// calls scoring near-duplicates.
+function siblingDiversityInstruction(
+  invocation: CandidateAgentInvocation,
+): string {
+  const count = invocation.candidateCount ?? 1;
+  if (count <= 1) {
+    return "";
+  }
+  const position = (invocation.candidateIndex ?? 0) + 1;
+  return `You are candidate ${position} of ${count} generated in parallel this round. Take a deliberately different angle than your siblings would — a different emotional register, structure, rhythm, or focus — so the round explores ${count} distinct directions.`;
 }
 
 // The input node may be a medium the agent cannot perceive from its payload
@@ -111,21 +157,9 @@ function compactDescription(
   );
 }
 
-function archiveInstructions(invocation: CandidateAgentInvocation): string {
-  if (!invocation.archive) {
-    return "Search archive: none yet. This is an exploration candidate.";
-  }
-  return [
-    "Search archive:",
-    stableJson(invocation.archive),
-    "Use the archive as the evolving population. Consider each entry's score, behavior key, and entropy/operator lineage. Do not copy archive text verbatim; generate a child candidate that follows your assigned operator.",
-  ].join("\n\n");
-}
-
 function summarizeEvaluatedOutput(output: EvaluatedOutput) {
   return {
     agentId: output.agentId,
-    entropy: output.entropy,
     outputNode: output.outputNode,
     score: output.score,
     rendered: {

@@ -104,9 +104,9 @@ if (!artifact?.result) {
   throw new Error("Image smoke run has no result artifact.");
 }
 const result = artifact.result as SmokeResult;
-// Elitism re-injects the reigning global elite into the population from
+// The reigning best-so-far is re-ranked with the fresh candidates from
 // iteration 2 onward, so the final ranking holds candidateCount fresh
-// candidates plus (when an elite exists) one carried-forward elite.
+// candidates plus (when one exists) the carried-forward best.
 const { candidateCount } = config.loop;
 if (
   result.candidates.length !== candidateCount &&
@@ -128,13 +128,11 @@ const journalPath = join(smokeRoot, "runs", run.id, "evolution-journal.json");
 await assertExists(journalPath);
 
 // Pull the best-similarity-per-iteration curve straight from the journal so the
-// run prints the training trajectory (what you'd plot) without re-reading files.
+// run prints the search trajectory (what you'd plot) without re-reading files.
 const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
-  operatorFitness?: {
-    perIteration?: Array<{ iteration: number; bestNeuralSimilarity: number }>;
-  };
+  scoreCurve?: Array<{ iteration: number; bestNeuralSimilarity: number }>;
 };
-const curve = (journal.operatorFitness?.perIteration ?? []).map((it) => ({
+const curve = (journal.scoreCurve ?? []).map((it) => ({
   iteration: it.iteration,
   bestNeuralSimilarity: it.bestNeuralSimilarity,
 }));

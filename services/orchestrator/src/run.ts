@@ -4,10 +4,10 @@ import { dirname, join } from "node:path";
 import {
   type AgentBackend,
   type AgentSpec,
-  type CandidateArchiveOperatorStat,
   createAgentWorkspace,
   runCandidateAgent,
   runJudgeAgent,
+  type TrajectoryContext,
 } from "@volta/agent-sdk";
 import {
   type AudioDescription,
@@ -19,15 +19,6 @@ import {
   type RenderedStimulus,
   scoreActivations,
 } from "@volta/core";
-import {
-  appendCandidateArchive,
-  appendTargetCandidateArchive,
-  archivePromptContext,
-  loadCandidateArchive,
-  loadTargetCandidateArchive,
-  mergeCandidateArchives,
-  operatorFitnessStats,
-} from "./archive.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import {
   activationSummary,
@@ -43,6 +34,32 @@ import {
 } from "./observability.ts";
 import { renderNode } from "./render.ts";
 import type { RunStore } from "./storage.ts";
+import {
+  buildTrajectoryContext,
+  type ScoredAttempt,
+  textNovelty,
+} from "./trajectory.ts";
+
+// The search loop is an OPRO-style "LLM as optimizer" with Reflexion-style
+// verbal feedback (Ranked-Reflect):
+//
+//   each iteration:
+//     1. show the candidate agents the score-sorted trajectory of past
+//        attempts plus the judge's critique of the current best
+//     2. ask for N new candidates that should score higher
+//     3. render each candidate and score it against the target's TRIBE
+//        activation (the expensive oracle calls)
+//     4. re-rank including the reigning best-so-far; the judge critiques the
+//        new leader, and that critique steers the next round
+//
+// The ranked, critiqued history is the entire steering mechanism — there are
+// no hand-coded mutation operators. Stops on similarity threshold, stall
+// (no improvement for STALL_PATIENCE iterations), or the iteration cap.
+
+// Stop early when the best neural similarity has not improved for this many
+// consecutive iterations — each iteration costs candidateCount oracle calls,
+// so a flat trajectory is expensive to keep probing.
+const STALL_PATIENCE = 3;
 
 export type AudioDescriber = (
   node: Extract<InputObj["inputNode"], { type: "audio" }>,
@@ -196,7 +213,7 @@ type IterationResult = {
   stopReason?: StopReason;
 };
 
-type StopReason = "threshold" | "max_iterations";
+type StopReason = "threshold" | "stalled" | "max_iterations";
 
 type RunLoopResult = {
   runId: string;
@@ -253,33 +270,20 @@ async function executeRunLoop(
       "iterations",
       iterationId(iteration),
     );
-    const stalled = isEliteStalled(iterations);
     const iterationResult = await executeIteration({
       ...args,
       iteration,
       candidateSpecs,
       previous,
       target,
-      stalled,
-      // Elitism: carry the reigning global best into the population as an
-      // already-scored candidate so best(N+1) >= best(N) by construction. It is
-      // an existing EvaluatedOutput, so re-injecting it costs zero TRIBE calls.
-      elite: bestOverallOutput(iterations),
+      trajectory: buildTrajectoryContext({
+        attempts: scoredAttempts(iterations),
+        critique: iterations.at(-1)?.judge.reasoning,
+      }),
+      bestSoFar: bestOverallOutput(iterations),
     });
-    // The post-injection rank-0 IS the global elite (elitism guarantees it is
-    // never displaced by something worse). Always forward it as the seed so the
-    // next iteration's challengers are mutations OF the champion — the (1+lambda)
-    // climber — rather than re-derivations from the judge's pick.
-    const bestAfter = iterationResult.rankedOutputs[0];
-    if (bestAfter) {
-      iterationResult.nextIterationSeed = seedFromElite({ elite: bestAfter });
-      await writeJson(
-        join(iterationPath, "next-seed.json"),
-        iterationResult.nextIterationSeed,
-      );
-    }
     const stopReason = getStopReason({
-      bestNeuralSimilarity: bestAfter?.score.neuralSimilarity,
+      iterations: [...iterations, iterationResult],
       iterationsCompleted: completed + 1,
       loop: args.loop,
     });
@@ -330,29 +334,6 @@ async function executeRunLoop(
       : undefined,
   };
 
-  // Operator-fitness curve: per-iteration best neural similarity plus the
-  // archive's final operator ranking. This is the signal that answers "is the
-  // discrete-operator regime plateauing?" — i.e. whether a continuous-search
-  // rewrite (CMA-ES / gradient guidance) is warranted, or operator tuning still
-  // climbs.
-  const finalArchive = loadCandidateArchive(args.runPath);
-  const finalArchiveContext = archivePromptContext(finalArchive);
-  const operatorFitness = {
-    perIteration: iterations.map((iteration) => ({
-      iteration: iteration.iteration,
-      bestNeuralSimilarity: iteration.rankedOutputs.reduce(
-        (best, output) => Math.max(best, output.score.neuralSimilarity),
-        Number.NEGATIVE_INFINITY,
-      ),
-      operators: iteration.rankedOutputs.map((output) => ({
-        agentId: output.agentId,
-        operator: operatorFromEntropy(output.entropy),
-        neuralSimilarity: output.score.neuralSimilarity,
-      })),
-    })),
-    ranking: finalArchiveContext?.operatorStats ?? [],
-  };
-
   await writeJson(join(args.runPath, "evolution-journal.json"), {
     runId: args.id,
     target: targetSummary(target),
@@ -360,7 +341,20 @@ async function executeRunLoop(
     stopReason: result.stopReason,
     bestScore: result.bestScore,
     bestNeuralSimilarity: result.bestNeuralSimilarity,
-    operatorFitness,
+    // The score curve answers "is the search climbing?" at a glance: the best
+    // neural similarity after each iteration plus every candidate's score.
+    scoreCurve: iterations.map((iteration) => ({
+      iteration: iteration.iteration,
+      bestNeuralSimilarity: iteration.rankedOutputs.reduce(
+        (best, output) => Math.max(best, output.score.neuralSimilarity),
+        Number.NEGATIVE_INFINITY,
+      ),
+      candidates: iteration.rankedOutputs.map((output) => ({
+        agentId: output.agentId,
+        neuralSimilarity: output.score.neuralSimilarity,
+        total: output.score.total,
+      })),
+    })),
     iterations: iterations.map((iteration) =>
       iterationSummary({
         iteration: iteration.iteration,
@@ -483,8 +477,8 @@ async function executeIteration(
     candidateSpecs: Extract<AgentSpec, { role: "candidate" }>[];
     previous: NextIterationSeed;
     target: RunLoopResult["target"];
-    stalled?: boolean;
-    elite?: EvaluatedOutput;
+    trajectory?: TrajectoryContext;
+    bestSoFar?: EvaluatedOutput;
   },
 ): Promise<IterationResult> {
   const iterationPath = join(
@@ -494,36 +488,13 @@ async function executeIteration(
   );
   await mkdir(iterationPath, { recursive: true });
   await writeJson(join(iterationPath, "target.json"), args.target);
-  const archive = mergeCandidateArchives(
-    ...(args.loop.reuseTargetArchive
-      ? [loadTargetCandidateArchive(args.runsRoot, args.target.rendered.sha256)]
-      : []),
-    loadCandidateArchive(args.runPath),
-  );
-  const archiveContext = archivePromptContext(archive);
-
-  // Bandit operator selection: rank refinement operators by their measured
-  // fitness in the archive (UCB over operatorStats) instead of round-robin, so
-  // the N candidates this iteration draw the N best distinct operators. When the
-  // global elite has stalled, widen exploration; when it is climbing, exploit.
-  const operatorPlan = planOperators({
-    iteration: args.iteration,
-    candidateCount: args.loop.candidateCount,
-    operatorStats: operatorFitnessStats(archive),
-    stalled: args.stalled ?? false,
-  });
-  await writeJson(join(iterationPath, "operator-plan.json"), operatorPlan);
+  if (args.trajectory) {
+    await writeJson(join(iterationPath, "trajectory.json"), args.trajectory);
+  }
 
   args.store.updateStatus(args.id, "predicting");
   const candidateOutputs = await Promise.all(
     args.candidateSpecs.map(async (spec, index) => {
-      const entropy = mutationStrategy({
-        iteration: args.iteration,
-        index,
-        candidateCount: args.loop.candidateCount,
-        outputType: args.output.outputType,
-        operator: operatorPlan[index]?.operator,
-      });
       const workspace = await createAgentWorkspace({
         runsRoot: args.runsRoot,
         runId: args.id,
@@ -537,9 +508,9 @@ async function executeIteration(
           runId: args.id,
           iteration: args.iteration,
           agentId: spec.id,
-          previousType: args.previous.type,
           outputType: args.output.outputType,
-          entropy,
+          trajectorySize: args.trajectory?.entries.length ?? 0,
+          bestNeuralSimilarity: args.trajectory?.bestNeuralSimilarity,
         },
         attributes: {
           runId: args.id,
@@ -554,9 +525,9 @@ async function executeIteration(
             spec,
             input: args.input,
             output: args.output,
-            previous: args.previous,
-            entropy,
-            archive: archiveContext,
+            trajectory: args.trajectory,
+            candidateIndex: index,
+            candidateCount: args.candidateSpecs.length,
             workspace,
             inputDescription: args.target.description,
           }),
@@ -568,14 +539,25 @@ async function executeIteration(
 
   args.store.updateStatus(args.id, "scoring");
   await mkdir(join(iterationPath, "scores"), { recursive: true });
+  const priorTexts = trajectoryTexts(args.trajectory);
   const evaluatedOutputs = await mapWithConcurrency(
     candidateOutputs,
     args.loop.scoringConcurrency,
-    async (candidate) => {
+    async (candidate, index) => {
       const evaluated = await evaluateCandidate({
         ...args,
         candidate,
         targetActivation: args.target.activation,
+        // Novelty guard: compare against everything already scored plus the
+        // sibling candidates generated this round (excluding the candidate
+        // itself), so near-duplicates from any source are penalized.
+        noveltyPriors: [
+          ...priorTexts,
+          ...candidateOutputs
+            .filter((_, otherIndex) => otherIndex !== index)
+            .map(candidateText)
+            .filter((text): text is string => Boolean(text)),
+        ],
       });
       await writeJson(
         join(iterationPath, "scores", `${candidate.agentId}.json`),
@@ -584,34 +566,19 @@ async function executeIteration(
       return evaluated;
     },
   );
-  // Elitism: re-insert the reigning global elite as an already-scored member of
-  // this iteration's population (zero TRIBE calls — its activation is cached).
-  // This guarantees best(N+1) >= best(N): the champion can only be displaced by
-  // a candidate that genuinely outscores it. The challengers are meanwhile
-  // generated as mutations *of* this elite (it is the forwarded seed), so the
-  // population is the (1+lambda) shape: [elite, mutate(elite), ...].
+  // Re-insert the reigning best-so-far as an already-scored member of this
+  // round (zero oracle calls — its activation is cached). This guarantees
+  // best(N+1) >= best(N): the leader is only displaced by a candidate that
+  // genuinely outscores it.
   const rankedOutputs = (
-    args.elite
-      ? [{ ...args.elite, agentId: "elite" }, ...evaluatedOutputs]
+    args.bestSoFar
+      ? [{ ...args.bestSoFar, agentId: "best-so-far" }, ...evaluatedOutputs]
       : evaluatedOutputs
   ).sort((left, right) => right.score.total - left.score.total);
   await writeJson(
     join(iterationPath, "scores.json"),
     rankedOutputs.map(forDisk),
   );
-  await appendCandidateArchive({
-    runPath: args.runPath,
-    iteration: args.iteration,
-    rankedOutputs,
-    runId: args.id,
-  });
-  await appendTargetCandidateArchive({
-    runsRoot: args.runsRoot,
-    targetSha: args.target.rendered.sha256,
-    iteration: args.iteration,
-    rankedOutputs,
-    runId: args.id,
-  });
 
   args.store.updateStatus(args.id, "judging");
   const judgeWorkspace = await createAgentWorkspace({
@@ -621,7 +588,7 @@ async function executeIteration(
     agentId: judgeSpec.id,
   });
   const judge = await args.journal.trace({
-    name: "judge.select",
+    name: "judge.critique",
     input: {
       runId: args.id,
       iteration: args.iteration,
@@ -646,11 +613,17 @@ async function executeIteration(
       }),
     output: (decision) => decision,
   });
-  const nextIterationSeed = {
-    type: "selected-output-with-reasoning",
-    node: judge.selectedNode,
-    reasoning: judge.reasoning,
-  } satisfies NextIterationSeed;
+  // The next seed is always the global best (rank 0 after re-insertion) so the
+  // next round refines the champion; the judge's reasoning rides along as the
+  // critique shown to the next round's candidates.
+  const best = rankedOutputs[0];
+  const nextIterationSeed: NextIterationSeed = best
+    ? {
+        type: "selected-output-with-reasoning",
+        node: best.outputNode,
+        reasoning: judge.reasoning,
+      }
+    : { type: "fresh" };
   await writeJson(join(iterationPath, "judge.json"), judge);
   await writeJson(join(iterationPath, "next-seed.json"), nextIterationSeed);
 
@@ -669,6 +642,7 @@ async function evaluateCandidate(
     iteration: number;
     candidate: Awaited<ReturnType<typeof runCandidateAgent>>;
     targetActivation: RunLoopResult["target"]["activation"];
+    noveltyPriors: string[];
   },
 ): Promise<EvaluatedOutput> {
   const rendered = await args.journal.trace({
@@ -706,6 +680,7 @@ async function evaluateCandidate(
     candidate: activation,
     target: args.targetActivation,
   });
+  const text = candidateText(args.candidate);
   const score = await args.journal.trace({
     name: "candidate.score",
     input: {
@@ -724,7 +699,7 @@ async function evaluateCandidate(
       scoreActivations({
         target: args.targetActivation,
         candidate: activationWithDiagnostics,
-        diversity: args.candidate.entropy ? 0.75 : 0.5,
+        diversity: text ? textNovelty(text, args.noveltyPriors) : undefined,
       }),
     output: scoreSummary,
   });
@@ -735,6 +710,27 @@ async function evaluateCandidate(
     activation: activationWithDiagnostics,
     score,
   };
+}
+
+function candidateText(candidate: {
+  outputNode: EvaluatedOutput["outputNode"];
+}): string | undefined {
+  return candidate.outputNode.type === "text"
+    ? candidate.outputNode.payload.text
+    : undefined;
+}
+
+function trajectoryTexts(trajectory: TrajectoryContext | undefined): string[] {
+  return (trajectory?.entries ?? []).map((entry) => entry.preview);
+}
+
+function scoredAttempts(iterations: IterationResult[]): ScoredAttempt[] {
+  return iterations.flatMap((iteration) =>
+    iteration.rankedOutputs.map((output) => ({
+      iteration: iteration.iteration,
+      output,
+    })),
+  );
 }
 
 function attachActivationDiagnostics(args: {
@@ -787,269 +783,32 @@ function candidateSuffix(index: number): string {
   return String(index + 1);
 }
 
-type MutationStrategy = {
-  name: string;
-  instruction: string;
-};
-
-// Cold-start operators are EMOTIONAL REGISTERS, not feature checklists. TRIBE
-// scores the predicted emotional/perceptual response, so the first generation's
-// job is to span distinct affective stances toward the SAME target and let the
-// optimizer keep whichever the target rewards. (In a Starry-Night sweep these
-// registers ranged ~0.65-0.67 and beat the old feature-extractor genotypes,
-// which all collapsed into one descriptive voice ~0.61.) Each register is
-// target-agnostic: read the target's actual vibe THROUGH the register — a calm
-// target read with "awe" yields quiet awe, not forced intensity. Keep them
-// medium-agnostic: the stance shapes a text's voice, an image's mood, or a
-// scene's feel alike.
-const coldStartStrategies: MutationStrategy[] = [
-  {
-    name: "sublime-dread register",
-    instruction:
-      "Inhabit the sublime: awe fused with dread before something vast and indifferent. Render the target as overwhelming and a little terrifying — magnificence that does not care about the viewer. Match this to the target's real scale and intensity; do not force it onto a small or gentle target.",
-  },
-  {
-    name: "intimate-tender register",
-    instruction:
-      "Inhabit tenderness and longing: an intimate, emotionally exposed reading of the target, close and aching. Let warmth, vulnerability, and quiet yearning shape the output rather than detached observation.",
-  },
-  {
-    name: "visceral-bodily register",
-    instruction:
-      "Inhabit the body: render the target as felt physical sensation — breath, pulse, pressure, temperature, the gut. Make the reader feel it in the nerves, not understand it in the head.",
-  },
-  {
-    name: "ecstatic-rapturous register",
-    instruction:
-      "Inhabit rapture: overwhelmed, exalted, on the edge of weeping with the intensity of the target. Let joy or wonder swell past control. Scale the intensity to what the target actually supports.",
-  },
-  {
-    name: "naive-wonder register",
-    instruction:
-      "Inhabit fresh, naive wonder, as if encountering the target for the first time with no prior names for it. Simple, sensory, emotionally direct, slightly awed by the bigness or strangeness of what is there.",
-  },
-  {
-    name: "desolate-still register",
-    instruction:
-      "Inhabit quiet, restrained feeling: stillness, solitude, hush, the emotional charge of absence and waiting. Use sparse, low-amplitude language. This is the register a calm or empty target rewards.",
-  },
-  {
-    name: "lyric-incantatory register",
-    instruction:
-      "Inhabit high lyric voice: musical, incantatory, heightened. Address the target directly if it helps. Let rhythm and cadence carry the feeling. Avoid proper names and facts; pursue the felt vibe through sound and image.",
-  },
-  {
-    name: "contrastive-tension register",
-    instruction:
-      "Inhabit the central emotional TENSION of the target: the pull between its opposed forces — still vs. active, warm vs. cold, intimate vs. vast, safe vs. exposed. Build the output around that felt contradiction.",
-  },
-  {
-    name: "anti-literal perceptual register",
-    instruction:
-      "Avoid labels, proper names, metadata, genre facts, and exhaustive inventory. Reach the target's predicted neural vibe through raw perceptual and emotional experience, not literal identification of what the thing is.",
-  },
-];
-
-const refinementStrategies: MutationStrategy[] = [
-  {
-    name: "elitist point mutation",
-    instruction:
-      "Preserve the previous elite's strongest behavior. Mutate exactly one semantic unit or rendering variable, keeping all other high-scoring traits stable.",
-  },
-  {
-    name: "operator-fitness exploit",
-    instruction:
-      "Use the archive's operatorStats to identify the strongest operator family so far. Generate a child that follows that family more deliberately while preserving the current elite's strongest traits. If no stats exist, fall back to conservative point mutation.",
-  },
-  {
-    name: "generic focus-axis mutation",
-    instruction:
-      "Preserve the previous elite except replace one concrete anchor, focus, attention, or central-presence unit with a domain-appropriate alternative supported by the input.",
-  },
-  {
-    name: "generic unit-library mutation",
-    instruction:
-      "Treat the previous elite as semantic units. Preserve unit order and replace exactly one whole unit with another unit from the same generic axis: motion, attention, distance, contrast, rhythm, texture, affect, structure, or concrete anchor.",
-  },
-  {
-    name: "space-density mutation",
-    instruction:
-      "Preserve the previous elite except replace one atmosphere, distance, density, scale, rhythm, or context variable with a nearby alternative.",
-  },
-  {
-    name: "sensory-axis mutation",
-    instruction:
-      "Preserve the previous elite except replace one sensory variable: color/tone, brightness, contrast, edge quality, timbre, rhythm, texture, or surface.",
-  },
-  {
-    name: "elite crossover",
-    instruction:
-      "Create a crossover child: combine the previous elite's strongest units with one or two high-scoring units from archive parents. Do not average everything; inherit only useful traits.",
-  },
-  {
-    name: "ablation mutation",
-    instruction:
-      "Remove one likely distracting unit from the previous elite and replace it with a lower-level perceptual variable from the same medium-neutral behavior space.",
-  },
-  {
-    name: "novelty injection",
-    instruction:
-      "Explore a behavior descriptor that is absent or weak in the archive while preserving at least two proven elite traits. Prefer novelty that can still score, not random drift.",
-  },
-  {
-    name: "diagnostic-axis correction",
-    instruction:
-      "Use the judge reasoning, archive rankings, and any auxiliary diagnostics as mutation-axis hints. Correct one suspected underrepresented perceptual variable while keeping the elite scaffold.",
-  },
-  {
-    name: "one-variable representation mutation",
-    instruction:
-      "Change exactly one representation variable: length, syntax, abstraction level, concrete-anchor density, sensory density, or medium-specific layout/rendering. Leave content traits stable.",
-  },
-  {
-    name: "negative-control escape",
-    instruction:
-      "Deliberately avoid the dominant previous representation pattern and try a different syntax or rendering form while preserving the target's perceptual feel.",
-  },
-];
-
-function mutationStrategy(args: {
-  iteration: number;
-  index: number;
-  candidateCount: number;
-  outputType: OutputObj["outputType"];
-  operator?: string;
-}): string {
-  const strategies =
-    args.iteration === 1 ? coldStartStrategies : refinementStrategies;
-  // The bandit (planOperators) chooses the operator for refinement iterations;
-  // fall back to round-robin for the cold start (no archive history yet) or if
-  // the named operator is somehow missing.
-  const named = args.operator
-    ? strategies.find((strategy) => strategy.name === args.operator)
-    : undefined;
-  const generationOffset =
-    args.iteration === 1
-      ? 0
-      : Math.max(0, args.iteration - 2) * Math.max(1, args.candidateCount);
-  const strategy =
-    named ?? strategies[(generationOffset + args.index) % strategies.length];
-  return [
-    `iteration=${args.iteration}`,
-    `strategy=${strategy.name}`,
-    `outputType=${args.outputType}`,
-    strategy.instruction,
-    outputTypeInstruction(args.outputType),
-  ].join(" | ");
-}
-
-export type OperatorPlanEntry = {
-  index: number;
-  operator: string;
-  ucb: number;
-  meanNeuralSimilarity: number | null;
-  count: number;
-  reason: "explore-cold" | "exploit" | "explore-untried";
-};
-
-// UCB1-style operator selection over the archive's measured operator fitness.
-// Each refinement operator gets a score = exploitation (its mean neural
-// similarity so far) + exploration bonus (optimistic for under-tried operators).
-// The N candidates this iteration take the N best *distinct* operators, so we
-// still cover N regions but bias the population toward proven winners. Untried
-// operators get an optimistic prior so they are always eventually sampled —
-// this is what converts the previously-ignored operatorStats into real
-// selection pressure (the round-robin read none of it).
-//
-// Deterministic given the archive (no Math.random), so smokes stay stable.
-function planOperators(args: {
-  iteration: number;
-  candidateCount: number;
-  operatorStats: CandidateArchiveOperatorStat[];
-  stalled: boolean;
-}): OperatorPlanEntry[] {
-  // Iteration 1 has no operator history; keep the diverse cold-start sweep.
-  if (args.iteration === 1) {
-    return Array.from({ length: args.candidateCount }, (_, index) => ({
-      index,
-      operator:
-        coldStartStrategies[index % coldStartStrategies.length]?.name ??
-        coldStartStrategies[0].name,
-      ucb: 0,
-      meanNeuralSimilarity: null,
-      count: 0,
-      reason: "explore-cold" as const,
-    }));
+function getStopReason(args: {
+  iterations: IterationResult[];
+  iterationsCompleted: number;
+  loop: LoopConfig;
+}): StopReason | undefined {
+  const bestNeuralSimilarity = bestOverallOutput(args.iterations)?.score
+    .neuralSimilarity;
+  if (
+    typeof bestNeuralSimilarity === "number" &&
+    bestNeuralSimilarity >= args.loop.similarityThreshold
+  ) {
+    return "threshold";
   }
-
-  const statsByName = new Map(
-    args.operatorStats.map((stat) => [stat.operator, stat]),
-  );
-  const totalPlays = Math.max(
-    1,
-    args.operatorStats.reduce((sum, stat) => sum + stat.count, 0),
-  );
-  // Stall → widen exploration (bigger bonus); climbing → exploit (smaller).
-  const explorationWeight = args.stalled ? 1.5 : 0.6;
-  // Optimistic prior for operators with no measured fitness yet, so untried
-  // operators outrank mediocre proven ones and the search keeps probing.
-  const optimisticMean = bestMean(args.operatorStats) + 0.05;
-
-  const scored = refinementStrategies.map((strategy) => {
-    const stat = statsByName.get(strategy.name);
-    const count = stat?.count ?? 0;
-    const mean = stat ? stat.meanNeuralSimilarity : optimisticMean;
-    const bonus =
-      explorationWeight *
-      Math.sqrt((2 * Math.log(totalPlays + 1)) / (count + 1));
-    return {
-      operator: strategy.name,
-      ucb: mean + bonus,
-      meanNeuralSimilarity: stat ? stat.meanNeuralSimilarity : null,
-      count,
-      reason: (stat ? "exploit" : "explore-untried") as
-        | "exploit"
-        | "explore-untried",
-    };
-  });
-
-  // Deterministic tie-break by name so identical archives plan identically.
-  scored.sort(
-    (left, right) =>
-      right.ucb - left.ucb || left.operator.localeCompare(right.operator),
-  );
-
-  return Array.from({ length: args.candidateCount }, (_, index) => {
-    const pick = scored[index % scored.length];
-    return {
-      index,
-      operator: pick.operator,
-      ucb: pick.ucb,
-      meanNeuralSimilarity: pick.meanNeuralSimilarity,
-      count: pick.count,
-      reason:
-        index === 0 && args.stalled && pick.reason === "exploit"
-          ? "explore-untried"
-          : pick.reason,
-    };
-  });
+  if (isStalled(args.iterations)) {
+    return "stalled";
+  }
+  if (args.iterationsCompleted >= args.loop.maxIterations) {
+    return "max_iterations";
+  }
+  return undefined;
 }
 
-function operatorFromEntropy(entropy: string | undefined): string {
-  return entropy?.match(/strategy=([^|]+)/)?.[1]?.trim() ?? "unknown";
-}
-
-function bestMean(stats: CandidateArchiveOperatorStat[]): number {
-  return stats.reduce(
-    (best, stat) => Math.max(best, stat.meanNeuralSimilarity),
-    0,
-  );
-}
-
-// The global elite has stalled if the best neural similarity has not improved
-// between the two most recent completed iterations. Drives wider exploration.
-function isEliteStalled(iterations: IterationResult[]): boolean {
-  if (iterations.length < 2) {
+// Stalled = the last STALL_PATIENCE iterations produced no improvement over
+// the best that existed before them.
+function isStalled(iterations: IterationResult[]): boolean {
+  if (iterations.length < STALL_PATIENCE + 1) {
     return false;
   }
   const bestUpTo = (count: number): number =>
@@ -1060,44 +819,9 @@ function isEliteStalled(iterations: IterationResult[]): boolean {
         (best, output) => Math.max(best, output.score.neuralSimilarity),
         Number.NEGATIVE_INFINITY,
       );
-  const previous = bestUpTo(iterations.length - 1);
-  const latest = bestUpTo(iterations.length);
-  return latest <= previous;
-}
-
-function outputTypeInstruction(outputType: OutputObj["outputType"]): string {
-  if (outputType === "text") {
-    // TRIBE predicts the reader's emotional/perceptual neural response, not
-    // semantic accuracy: flat description ("there is a village, the sky is
-    // blue") scores worst. The register that scores best is TARGET-DEPENDENT
-    // (a turbulent scene rewards charged prose; a calm one rewards stillness),
-    // so we do NOT prescribe one form — we ask the agent to evoke the target's
-    // felt vibe and let the optimizer select the register that scores. Do not
-    // default to comma-separated keyword lists; write language that makes a
-    // reader FEEL the target.
-    return "For text output, write language that makes a reader FEEL the target's vibe — its emotional charge, energy, and atmosphere — rather than cataloguing what is in it. Match the target's register: a turbulent, intense target wants charged, moving prose; a calm, still target wants quiet, restrained language. Avoid flat description and avoid comma-separated keyword lists unless the operator explicitly calls for a syntax reset. Keep it short and high-signal.";
-  }
-  if (outputType === "image") {
-    return "For image output, express the operator through image-generation intent: composition, subject anchors, light/color, texture, camera/framing, and atmosphere.";
-  }
-  return "For code output, express the operator through renderable UI/scene structure: layout, motion/static balance, density, typography, color/contrast, texture, and interaction-free visual state.";
-}
-
-function getStopReason(args: {
-  bestNeuralSimilarity: number | undefined;
-  iterationsCompleted: number;
-  loop: LoopConfig;
-}): StopReason | undefined {
-  if (
-    typeof args.bestNeuralSimilarity === "number" &&
-    args.bestNeuralSimilarity >= args.loop.similarityThreshold
-  ) {
-    return "threshold";
-  }
-  if (args.iterationsCompleted >= args.loop.maxIterations) {
-    return "max_iterations";
-  }
-  return undefined;
+  return (
+    bestUpTo(iterations.length) <= bestUpTo(iterations.length - STALL_PATIENCE)
+  );
 }
 
 function loadResumeState(args: ResumeRunArgs): ResumeState {
@@ -1124,16 +848,8 @@ function loadResumeState(args: ResumeRunArgs): ResumeState {
     ? diskIterations
     : artifactIterations;
   const lastIteration = existingIterations.at(-1);
-  const elite = bestOverallOutput(existingIterations);
-  const previous = elite
-    ? seedFromElite({
-        elite,
-      })
-    : shouldUseDiskIterations
-      ? lastIteration?.nextIterationSeed
-      : (result.nextIterationSeed ?? lastIteration?.nextIterationSeed);
-  if (!lastIteration || !previous) {
-    throw new Error(`Run ${args.id} has no next iteration seed.`);
+  if (!lastIteration) {
+    throw new Error(`Run ${args.id} has no completed iterations to resume.`);
   }
 
   return {
@@ -1141,7 +857,7 @@ function loadResumeState(args: ResumeRunArgs): ResumeState {
     output: artifact.output,
     runPath: record.runPath || join(args.runsRoot, args.id),
     target: result.target,
-    previous,
+    previous: lastIteration.nextIterationSeed,
     existingIterations,
     startIteration:
       Math.max(...existingIterations.map((iteration) => iteration.iteration)) +
@@ -1220,14 +936,6 @@ function bestOverallOutput(
     )[0];
 }
 
-function seedFromElite(args: { elite: EvaluatedOutput }): NextIterationSeed {
-  return {
-    type: "selected-output-with-reasoning",
-    node: args.elite.outputNode,
-    reasoning: `This is the reigning global neural elite (${args.elite.agentId} at ${args.elite.score.neuralSimilarity}). Treat it as the parent: preserve its high-scoring structure and mutate toward higher neural similarity.`,
-  };
-}
-
 function iterationId(iteration: number): string {
   return String(iteration).padStart(3, "0");
 }
@@ -1237,9 +945,9 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 }
 
 // The full per-timestep activation matrix (~[23, 20484] for rendered text) is
-// needed in memory for scoring and elite carry-forward, but persisting it makes
-// each scores.json tens of megabytes. Drop activation.values for disk; keep
-// shape/diagnostics/summary so the artifacts stay inspectable.
+// needed in memory for scoring and best-so-far carry-forward, but persisting it
+// makes each scores.json tens of megabytes. Drop activation.values for disk;
+// keep shape/diagnostics/summary so the artifacts stay inspectable.
 function forDisk(output: EvaluatedOutput): EvaluatedOutput {
   if (!output.activation.values) {
     return output;
