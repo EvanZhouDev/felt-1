@@ -23,6 +23,7 @@
       "!**/cache",
       "!**/.volta",
       "!**/.agent",
+      "!**/experiments",
       "!**/runs",
       "!**/data/runs"
     ]

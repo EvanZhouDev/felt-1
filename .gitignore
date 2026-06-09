@@ -43,4 +43,9 @@ wandb/
 
 # OS
 .DS_Store
-.agent/runs/
+
+# Agent scratch + experiment artifacts (local research, not part of the product)
+.agent/
+experiments/
+.worktrees/
+starrynight.jpg
