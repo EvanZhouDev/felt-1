@@ -1,48 +1,95 @@
 # Project Volta
 
-Project Volta is a TRIBE-backed activation-matching workbench.
+**Vibe transfer across any format.** Volta takes the "vibe" of one artifact and
+carries it into a different medium — the feeling of a song becomes a paragraph of
+text, the mood of an image becomes a UI, a poem's tone becomes a generated image.
+Any format in, any format out, with the *feeling* preserved.
 
-Vibe transfer across any format. Our system takes the "vibe" of one artifact and carries it into a completely different medium — the feeling of a song becomes a piece of text, the mood of an image becomes a UI, a paragraph's tone becomes a visual. Any format in, any format out, with the vibe preserved.
+## How it works
 
-The inspiration: someone built a system that generates text matching the feel of a specific song. We're generalizing that idea — any-to-any vibe transfer, not just song-to-text.
+The trick is a shared "vibe space." Volta uses Meta's **TRIBE v2** — a neural
+model that predicts how the brain responds to sights, sounds, and language — as a
+frozen oracle. Run any text, image, or audio through TRIBE and you get a
+predicted brain-activation trajectory. Two artifacts in *different* media become
+comparable in *one* space, so you can measure how alike two things *feel* even
+across a change of format.
 
-How it works (at a high level): We use a neural-response model (Meta's TRIBE) as a shared "vibe space" — it predicts how the brain responds to sights, sounds, and language, which gives us one common representation across modalities. We capture the vibe of the input in that space, then run a loop of generator agents that produce media payloads. A renderer turns each payload into a TRIBE-compatible artifact, the scorer ranks candidates by neural similarity, and a judge carries useful reasoning into the next iteration.
+Volta never trains TRIBE. It **searches** over output states to maximize how
+closely a candidate's predicted activation matches the target's:
 
-That's the core: a common neural representation that lets "vibe" become portable between text, images, and UI.
-Want a one-line pitch version of this too?
+```
+target (song/image/text)  ──render──►  TRIBE  ──►  target activation
 
+   ┌──────────────── one round (repeats) ────────────────┐
+   │  ranked past attempts + judge critique               │
+   │        ──►  N agent candidates                        │
+   │        ──render──►  TRIBE  ──►  score vs. target       │
+   │        ──►  re-rank, judge critiques the new best      │
+   └──────────────────────────────────────────────────────┘
 
+           ──►  best output whose vibe matches the target
+```
 
-The active codebase is the new monorepo scaffold:
+The search is **Ranked-Reflect** — an [OPRO](https://arxiv.org/abs/2309.03409)
+"LLM as optimizer" loop with [Reflexion](https://arxiv.org/abs/2303.11366)
+verbal feedback. Each round, the candidate agents see the *ranked* history of
+past attempts (sorted by brain-similarity) plus a one-line critique of the
+current best, and are asked to beat it. The ranked, critiqued history is the
+entire steering mechanism — no hand-coded mutation operators, no genetic
+algorithm. A text-novelty guard keeps the search from gaming the metric with
+repetition. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-- `apps/web` - Next.js shell for the input/output workflow.
-- `packages/core` - TypeScript contracts for payloads, nodes, render outputs, activation traces, agents, judging, and scoring.
-- `services/orchestrator` - Bun service that coordinates runs and bridges to TRIBE through Python.
-- `vendor/tribev2` - vendored Meta TRIBE v2 source used as the neural oracle.
+**Audio** is special: agents can't hear a song, so a tiered describer
+([docs/AUDIO_INPUT.md](docs/AUDIO_INPUT.md)) gives them perceptual context — a
+hosted Qwen2.5-Omni caption plus a local DSP pass (tempo, energy, brightness,
+key) that catches the musical structure the caption misses, and that keeps audio
+working when the hosted model is offline.
 
-## Commands
+## Layout
+
+Bun monorepo:
+
+- `packages/core` — TypeScript contracts (nodes, payloads, activation traces) and
+  the scoring algorithm (`src/scoring/activation.ts`).
+- `packages/agent-sdk` — candidate/judge prompt templates and the Codex CLI agent
+  backend.
+- `services/orchestrator` — the Bun service: the search loop, TRIBE oracle
+  (mock / local Python / hosted HTTP), audio describer, SQLite run index, and
+  readable per-run JSON artifacts.
+- `apps/web` — Next.js shell for the input/output workflow.
+- `vendor/tribev2` — vendored Meta TRIBE v2 (frozen oracle; do not edit beyond
+  the documented Mac-MPS patches).
+
+## Quick start
 
 ```bash
 bun install
+bun run check          # biome lint + typecheck
+
+# Fast, offline, mock oracle — proves the wiring end-to-end:
+bun run smoke          # text → text
+bun run smoke:audio    # audio → text
+bun run smoke:image    # image → text
+
+# Real TRIBE (downloads weights on first local run; or use the hosted oracle):
 bun run setup:tribe
-bun run check
-bun run smoke
 bun run smoke:tribe
 ```
 
-`bun run smoke` currently verifies the scaffold entrypoint. `bun run smoke:tribe`
-will need to be rewired after the new renderer pipeline is implemented. The
-vendored TRIBE environment lives at `vendor/tribev2/.venv/bin/python`; first
-real TRIBE runs download model weights into the ignored `vendor/tribev2/cache`
-directory.
+Run Volta on your own input — the loop is medium-agnostic, so it's the same run
+with a different input node:
 
-## Pipeline
+```bash
+# Image → text, scored by real hosted TRIBE:
+VOLTA_ORACLE=http VOLTA_SMOKE_IMAGE=path/to/photo.jpg bun run smoke:image
 
-```text
-InputObj.inputNode.payload -> render -> TRIBE activation
-OutputObj -> agents -> AgentOutput.outputNode.payload
-agent output -> render -> score -> judge -> next iteration seed
+# Audio → image, real TRIBE + audio description:
+VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true \
+  VOLTA_SMOKE_AUDIO=path/to/song.mp3 VOLTA_SMOKE_OUTPUT=image bun run smoke:audio
 ```
 
-TRIBE weights remain frozen. Volta owns the agentic layer around renderable
-media payloads.
+Each run writes inspectable artifacts (target, per-iteration trajectory, scores,
+judge critique, score curve) under the printed run root. Config knobs are
+documented in [CLAUDE.md](CLAUDE.md).
+
+TRIBE weights stay frozen. Volta owns the agentic search layer around it.

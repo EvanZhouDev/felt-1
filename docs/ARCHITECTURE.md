@@ -24,10 +24,10 @@ See [IO Modules](./IO_MODULES.md) for the concrete payload and node schema.
 ```text
 InputObj.inputNode.payload -> render -> target activation
 
-InputObj + OutputObj + entropy -> agent outputs
+trajectory (ranked past attempts + judge critique) -> agent outputs
 AgentOutput.outputNode.payload -> render -> candidate activation
 
-candidate activations -> score/rank -> judge reasoning -> next iteration seed
+candidate activations -> score/rank -> judge critique -> next round's trajectory
 ```
 
 The invariant is predicted neural activation, not literal text or pixels. The
@@ -45,36 +45,32 @@ optional seed constrains what the output should be about.
 
 ## The Iteration
 
-The loop is a **(1 + λ) evolutionary strategy** over output states, repeating
-until a fixed number of iterations or a similarity threshold (default ~90%).
-`λ` (`VOLTA_CANDIDATE_COUNT`) challenger candidates are generated each
-generation; the reigning global best — the **elite** — is carried forward
-unchanged and re-injected as an already-scored candidate, so by construction
-`best(N+1) >= best(N)` (and re-injecting it costs zero TRIBE calls). The elite,
-not the judge's pick, is what seeds the next generation: every challenger is a
-mutation *of the champion*.
+The search is **Ranked-Reflect** — an [OPRO](https://arxiv.org/abs/2309.03409)
+"LLM as optimizer" loop with [Reflexion](https://arxiv.org/abs/2303.11366)-style
+verbal feedback. It repeats until a similarity threshold (default ~90%), a stall
+(no improvement for a few rounds), or an iteration cap.
 
-Each candidate carries an **operator** drawn from two libraries
-(`run.ts`):
+The whole steering mechanism is **the ranked, critiqued history of attempts** —
+there are no hand-coded mutation operators. Each round:
 
-- **Generation 1 — cold-start registers.** Nine distinct *emotional registers*
-  (sublime-dread, intimate-tender, visceral-bodily, ecstatic-rapturous,
-  naive-wonder, desolate-still, lyric-incantatory, contrastive-tension,
-  anti-literal-perceptual). These are affective stances toward the *same*
-  target, not feature checklists — TRIBE scores the predicted emotional
-  response, so the first generation's job is to span affective space and let the
-  optimizer keep whichever the target rewards.
-- **Generations 2+ — refinement operators.** Twelve mutation operators (elitist
-  point mutation, elite crossover, ablation, novelty injection,
-  diagnostic-axis correction, operator-fitness exploit, …) applied to the elite.
+1. The candidate agents see the **score trajectory**: the best attempts so far,
+   sorted worst-to-best by neural similarity (OPRO's ordering — the LLM weights
+   the last, highest-scoring examples most), plus the judge's one-line
+   **critique** of the current best (the Reflexion "verbal gradient").
+2. They each propose one new candidate aimed at beating the current best.
+   `VOLTA_CANDIDATE_COUNT` candidates are generated in parallel, and siblings
+   are told to take deliberately different angles so the round explores rather
+   than converges.
+3. Each candidate is rendered and scored against the target. The reigning
+   best-so-far is re-ranked alongside the fresh candidates (its activation is
+   cached, so it costs zero TRIBE calls), guaranteeing `best(N+1) >= best(N)`.
+4. The judge picks and critiques the new leader; that critique steers the next
+   round.
 
-Operator selection is a **UCB1 bandit** (`planOperators`) over the candidate
-archive's measured per-operator fitness: each operator's score is its mean
-neural similarity so far (exploitation) plus an optimistic exploration bonus, so
-proven winners are favored while under-tried operators are always eventually
-sampled. A **stall detector** (`isEliteStalled`) widens the exploration weight
-when the best score stops improving. The plan is deterministic given the archive
-(no `Math.random`), so smokes stay reproducible.
+The first round has no scored attempts yet, so the parallel candidates span
+distinct emotional registers (awe, tenderness, stillness, tension, …) — TRIBE
+scores the predicted *felt* response, so the opening job is to cover affective
+space and let the scores reveal which register the target rewards.
 
 ```mermaid
 flowchart TD
@@ -83,29 +79,27 @@ flowchart TD
         Seed["Seed — optional<br>directs the output"]
     end
     InputNode --> Target0["Render target → TRIBE → target activation"]
-    Target0 --> Bandit
-    subgraph Iteration["One generation (repeats up to N times)"]
-        Bandit["UCB1 bandit picks operators<br>(gen 1: cold-start registers)"]
-        Bandit --> Agents["λ generator agents (Codex CLI)<br>generate output in target medium"]
-        Elite["Elite (reigning best)<br>re-injected, already scored"] -.-> Rank
+    Target0 --> Agents
+    subgraph Iteration["One round (repeats up to N times)"]
+        Traj["Score trajectory<br>(ranked past attempts + judge critique)"] --> Agents
+        Agents["N generator agents (Codex CLI)<br>propose outputs that should score higher"]
+        Best["Best-so-far<br>re-ranked, already scored"] -.-> Rank
         Agents --> Render["Render → still-video / text"]
         Render --> Tribe["TRIBE v2<br>neural similarity vs. target"]
-        Tribe --> Rank["Rank λ + elite by score"]
-        Rank --> Judge["Judge LLM<br>reasons why the best worked"]
-        Rank --> Archive["Candidate archive<br>operator-fitness stats"]
-        Archive -.-> Bandit
+        Tribe --> Rank["Rank N + best-so-far by score"]
+        Rank --> Judge["Judge LLM<br>critiques the new leader"]
+        Judge -.-> Traj
     end
-    Rank --> Terminate{"N iterations OR similarity >= threshold?"}
+    Rank --> Terminate{"threshold / stall / iteration cap?"}
     Terminate -->|Yes| Final["Best-ever output"]
-    Terminate -->|No| Forward["Forward rank-0 elite as next seed"]
-    Forward --> Bandit
+    Terminate -->|No| Traj
 ```
 
-The judge sees the ranked candidates plus the seed and input and records *why*
-the best one worked; that reasoning is preserved in `NextIterationSeed`. The
-loop always forwards the post-injection rank-0 output (the elite) as the seed,
-so the next generation's challengers mutate the champion rather than
-re-deriving from scratch — the climbing half of the (1 + λ) strategy.
+A soft **anti-reward-hack guard** keeps the search honest: because the metric is
+known to be gameable by repetition and generic fluent language, each candidate's
+text novelty against everything already tried is folded into its score, so
+resubmitting (or trivially rephrasing) the leader loses its diversity share
+instead of riding the leader's neural similarity.
 
 ## Scoring the Vibe
 
@@ -149,21 +143,22 @@ target activation and latest `NextIterationSeed`, then appends new
 iterations to append, not total run length.
 
 The Codex backend (`packages/agent-sdk`) is the only agent backend: it shells
-out to `codex exec` with prompt-template functions for first-generation
-candidates, refinement candidates, and judges, then asks Codex for strict JSON
-output nodes/decisions via `--output-schema`. When image or code-screenshot
-nodes point at local image files, the backend also passes those files to
-`codex exec --image` so visual targets can be inspected directly. The candidate
-archive (`archive.ts`) accumulates per-operator fitness stats that feed the
-UCB1 bandit and supply prompt context (top/diverse/recent prior candidates).
+out to `codex exec` with prompt-template functions for exploration candidates,
+improvement candidates, and judges, then asks Codex for strict JSON output
+nodes/decisions via `--output-schema`. When image or code-screenshot nodes point
+at local image files, the backend also passes those files to `codex exec
+--image` so visual targets can be inspected directly. The score trajectory shown
+to each candidate is assembled in `services/orchestrator/src/trajectory.ts`,
+which also computes the text-novelty anti-hack guard.
 
 The render boundary (`services/orchestrator/src/render.ts`) is implemented for
 all four media: text becomes a word-timed text stimulus, audio passes through as
 an audio artifact, and image/code render to a still-hold video for TRIBE. Audio
-targets are also described by the hosted audio service (`describer.ts`,
-soft-fail) so agents get perceptual context they can't hear. **Flux image
-generation is configured but not yet wired into the agent backend** — image-
-output agents currently emit a conceptual asset URI rather than a generated
-image — and the MCP tool gateway and code-screenshot capture remain open. Weave
-traces the Evolution Journal. See
+targets are also **described** for the agents (`describer.ts`, soft-fail): a
+hosted Qwen2.5-Omni service writes a perceptual caption and a local DSP pass
+(`python/audio_features.py`) adds objective musical structure — tempo, energy,
+brightness, key — that the caption misses. **Flux image generation is configured
+but not yet wired into the agent backend** — image-output agents currently emit
+a conceptual asset URI rather than a generated image — and the MCP tool gateway
+and code-screenshot capture remain open. Weave traces the Evolution Journal. See
 [IO Modules](./IO_MODULES.md#scaffold-status) for the broader checklist.

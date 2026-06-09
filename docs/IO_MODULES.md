@@ -142,7 +142,6 @@ Each agent produces an output node.
 type AgentOutput = {
   agentId: string;
   outputNode: OutputNode;
-  entropy?: string;
 };
 ```
 
@@ -281,10 +280,10 @@ Audio describer:
 AudioNode -> structured audio description -> agent context
 ```
 
-Initial agent generation:
+Initial agent generation (round 1, no trajectory yet):
 
 ```
-InputObj + OutputObj + entropy -> AgentOutput[]
+InputObj + OutputObj -> AgentOutput[]
 ```
 
 Rendering and scoring:
@@ -299,10 +298,10 @@ Judge:
 ranked EvaluatedOutput[] + InputObj -> JudgeDecision
 ```
 
-Next iteration:
+Next iteration (trajectory = ranked past attempts + judge critique):
 
 ```
-InputObj + OutputObj + NextIterationSeed + entropy -> AgentOutput[]
+InputObj + OutputObj + trajectory -> AgentOutput[]
 ```
 
 ### API integration notes (re-verified live 2026-06-07)
@@ -361,15 +360,15 @@ Implemented:
 
 - `render(payload)` dispatch for all four media (`render.ts`): text → word-timed
   text stimulus, audio → audio artifact, image/code → still-hold video for TRIBE.
-- Agent generation + entropy/operator injection via the Codex CLI backend
-  (`packages/agent-sdk`), the cold-start register / refinement-operator
-  libraries, and the UCB1 operator bandit (`run.ts`).
+- Agent generation via the Codex CLI backend (`packages/agent-sdk`), steered by
+  the OPRO-style score trajectory + Reflexion critique assembled in
+  `trajectory.ts` (the Ranked-Reflect loop in `run.ts`).
 - TRIBE scoring/ranking over `AgentOutput` (the three-view trajectory metric),
   through the mock / local-Python / hosted-HTTP oracle abstraction (`oracle.ts`).
-- Judge reasoning and next-iteration seed selection ((1 + λ) elitism: forward
-  the rank-0 elite as the seed).
-- Audio description for instrumental targets via the hosted audio service
-  (`describer.ts`, soft-fail).
+- Judge critique and best-so-far carry-forward (the new leader seeds the next
+  round; its activation is cached, so re-ranking it costs no TRIBE calls).
+- Tiered audio description (`describer.ts`, soft-fail): hosted Qwen2.5-Omni
+  caption + local DSP musical features (`python/audio_features.py`).
 - SQLite run index + readable per-iteration JSON artifacts (`storage.ts`),
   resumable runs, and Weave Evolution-Journal tracing (`observability.ts`).
 
