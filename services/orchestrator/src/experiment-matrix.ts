@@ -28,6 +28,7 @@ import {
 } from "@volta/core";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
+import { createImageGenerator } from "./imagegen.ts";
 import { loadAudioNode, loadImageNode } from "./loaders.ts";
 import { createOracle } from "./oracle.ts";
 import { renderPayload } from "./render.ts";
@@ -72,6 +73,7 @@ const config: OrchestratorConfig = {
 
 const oracle = createOracle(config);
 const describer = createAudioDescriber(config);
+const generateImage = createImageGenerator(config);
 const backend = new CodexCliBackend({
   command: config.agentBackend.command,
   model: config.agentBackend.model,
@@ -255,6 +257,7 @@ async function runTarget(target: TargetSpec): Promise<Winner> {
     runsRoot,
     loop: config.loop,
     describeAudio: target.kind === "audio" ? describer : undefined,
+    generateImage,
   });
 
   const record = store.get(id);

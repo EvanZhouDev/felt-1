@@ -5,6 +5,7 @@ import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
 import type { OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
+import { createImageGenerator } from "./imagegen.ts";
 import { loadAudioNode } from "./loaders.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun } from "./run.ts";
@@ -99,6 +100,7 @@ await executeRun({
   backend,
   runsRoot: join(smokeRoot, "runs"),
   describeAudio,
+  generateImage: createImageGenerator(config),
   loop: {
     maxIterations: 1,
     similarityThreshold: 2,

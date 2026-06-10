@@ -240,20 +240,35 @@ class HttpTribeOracle implements NeuralOracle {
 
   private async waitForJob(jobId: string): Promise<void> {
     const deadline = Date.now() + this.timeoutMs;
+    let lastSeen = "";
     while (Date.now() < deadline) {
+      // Cache-buster + no-cache: a stale intermediary serving an old
+      // "running" status would otherwise deadlock the poll until the deadline
+      // (observed once against the hosted API: the job completed server-side
+      // before the poll window opened, yet 600s of polls never saw it).
       const response = await fetchWithTimeout(
-        `${this.baseUrl}/jobs/${jobId}`,
-        undefined,
+        `${this.baseUrl}/jobs/${jobId}?_=${Date.now()}`,
+        { headers: { "cache-control": "no-cache" } },
         `GET /jobs/${jobId}`,
       );
       if (!response.ok) {
         if (response.status >= 500 || response.status === 429) {
+          if (lastSeen !== `http-${response.status}`) {
+            lastSeen = `http-${response.status}`;
+            console.error(
+              `[tribe] poll ${jobId}: transient ${response.status}, retrying`,
+            );
+          }
           await delay(TRIBE_POLL_INTERVAL_MS);
           continue;
         }
         throw new Error(`GET /jobs/${jobId} failed: ${response.status}`);
       }
       const status = (await response.json()) as TribeJobStatus;
+      if (status.status !== lastSeen) {
+        lastSeen = status.status;
+        console.error(`[tribe] poll ${jobId}: ${status.status}`);
+      }
       if (status.status === "completed") {
         return;
       }
@@ -261,6 +276,23 @@ class HttpTribeOracle implements NeuralOracle {
         throw new Error(`TRIBE job ${jobId} failed: ${status.error ?? ""}`);
       }
       await delay(TRIBE_POLL_INTERVAL_MS);
+    }
+    // One last direct look before giving up: if the job finished but every
+    // poll inside the window somehow missed it, take the result rather than
+    // wasting the whole encode.
+    const finalCheck = await fetchWithTimeout(
+      `${this.baseUrl}/jobs/${jobId}?_=${Date.now()}`,
+      { headers: { "cache-control": "no-cache" } },
+      `GET /jobs/${jobId}`,
+    );
+    if (finalCheck.ok) {
+      const status = (await finalCheck.json()) as TribeJobStatus;
+      if (status.status === "completed") {
+        console.error(
+          `[tribe] poll ${jobId}: completed (caught on final re-check)`,
+        );
+        return;
+      }
     }
     throw new Error(
       `TRIBE job ${jobId} did not complete within ${this.timeoutMs}ms.`,
@@ -368,7 +400,12 @@ function isRetryableTribeError(error: unknown): boolean {
     // the thrown errors read "...failed: 502" (no trailing space), so the old
     // whitespace match let transient bad-gateways kill a whole run.
     /\b50[234]\b/.test(message) ||
-    message.includes("Bad Gateway")
+    message.includes("Bad Gateway") ||
+    // Connection-level flakes (large uploads against the hosted API): Bun
+    // surfaces these as closed-socket / reset errors, not HTTP statuses.
+    message.includes("socket connection was closed") ||
+    message.includes("ECONNRESET") ||
+    message.includes("ConnectionClosed")
   );
 }
 

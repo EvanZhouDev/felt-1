@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
+import { createImageGenerator } from "./imagegen.ts";
 import { loadImageNode } from "./loaders.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun } from "./run.ts";
@@ -83,6 +84,7 @@ await executeRun({
   backend,
   runsRoot: join(smokeRoot, "runs"),
   loop: config.loop,
+  generateImage: createImageGenerator(config),
 });
 
 const completed = store.get(run.id);

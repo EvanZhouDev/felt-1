@@ -95,13 +95,22 @@ function trajectoryEntry(
     neuralSimilarity: round(attempt.output.score.neuralSimilarity),
     activationSimilarityToBest:
       similarityToBest === undefined ? undefined : round(similarityToBest),
-    preview: truncate(
-      attempt.output.outputNode.type === "text"
-        ? attempt.output.outputNode.payload.text
-        : attempt.output.rendered.preview,
-      TEXT_PREVIEW_LIMIT,
-    ),
+    preview: truncate(attemptPreview(attempt), TEXT_PREVIEW_LIMIT),
   };
+}
+
+// What the next round's optimizer sees as "the attempt". Text shows the text;
+// generated images show their generation prompt (the searchable medium) —
+// a file path would be opaque to the agents.
+function attemptPreview(attempt: ScoredAttempt): string {
+  const node = attempt.output.outputNode;
+  if (node.type === "text") {
+    return node.payload.text;
+  }
+  if (node.type === "image" && node.payload.prompt) {
+    return `image prompt: ${node.payload.prompt}`;
+  }
+  return attempt.output.rendered.preview;
 }
 
 // Novelty of a candidate text against everything already scored, in [0, 1].

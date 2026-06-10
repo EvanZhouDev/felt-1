@@ -33,6 +33,10 @@ export type AudioPayload = {
 export type ImagePayload = {
   type: "image";
   source: AssetRef;
+  // Generation prompt this image was materialized from (flux: candidates).
+  // Provenance for artifacts AND the search signal: the trajectory shows
+  // prompts, so the optimizer climbs in prompt space, not file-path space.
+  prompt?: string;
   timing?: RenderTiming;
   fit?: "contain" | "cover";
   background?: string;

@@ -21,6 +21,7 @@ import {
   scoreActivations,
 } from "@volta/core";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
+import { FLUX_URI_PREFIX, type ImageGenerator } from "./imagegen.ts";
 import {
   activationSummary,
   candidateSummary,
@@ -80,6 +81,7 @@ export type ExecuteRunArgs = {
   candidateModel?: string;
   judgeModel?: string;
   describeAudio?: AudioDescriber;
+  generateImage?: ImageGenerator;
 };
 
 export type ResumeRunArgs = Omit<ExecuteRunArgs, "input" | "output">;
@@ -650,19 +652,20 @@ async function evaluateCandidate(
     priorActivations: ActivationTrace[];
   },
 ): Promise<EvaluatedOutput> {
+  const candidate = await materializeImageNode(args);
   const rendered = await args.journal.trace({
     name: "candidate.render",
     input: {
       runId: args.id,
       iteration: args.iteration,
-      candidate: candidateSummary(args.candidate),
+      candidate: candidateSummary(candidate),
     },
     attributes: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
     },
-    run: () => renderNode(args.candidate.outputNode),
+    run: () => renderNode(candidate.outputNode),
     output: renderedSummary,
   });
   const activation = await args.journal.trace({
@@ -670,13 +673,13 @@ async function evaluateCandidate(
     input: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
       rendered: renderedSummary(rendered),
     },
     attributes: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
     },
     run: () => args.oracle.encode(rendered.encoderInput),
     output: activationSummary,
@@ -685,20 +688,20 @@ async function evaluateCandidate(
     candidate: activation,
     target: args.targetActivation,
   });
-  const text = candidateText(args.candidate);
+  const text = candidateText(candidate);
   const score = await args.journal.trace({
     name: "candidate.score",
     input: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
       targetActivation: activationSummary(args.targetActivation),
       candidateActivation: activationSummary(activationWithDiagnostics),
     },
     attributes: {
       runId: args.id,
       iteration: args.iteration,
-      agentId: args.candidate.agentId,
+      agentId: candidate.agentId,
     },
     run: async () =>
       scoreActivations({
@@ -720,10 +723,65 @@ async function evaluateCandidate(
   });
 
   return {
-    ...args.candidate,
+    ...candidate,
     rendered,
     activation: activationWithDiagnostics,
     score,
+  };
+}
+
+// Image candidates arrive as flux:<prompt> pseudo-URIs (agents can't paint).
+// Materialize them through the configured generator before render/score, and
+// record the prompt on the payload so trajectories steer in prompt space.
+async function materializeImageNode(
+  args: RunLoopArgs & {
+    iteration: number;
+    candidate: Awaited<ReturnType<typeof runCandidateAgent>>;
+  },
+): Promise<Awaited<ReturnType<typeof runCandidateAgent>>> {
+  const node = args.candidate.outputNode;
+  if (
+    node.type !== "image" ||
+    !node.payload.source.uri.startsWith(FLUX_URI_PREFIX)
+  ) {
+    return args.candidate;
+  }
+  const prompt = node.payload.source.uri.slice(FLUX_URI_PREFIX.length).trim();
+  const generate = args.generateImage;
+  if (!generate) {
+    throw new Error(
+      `Candidate ${args.candidate.agentId} returned a flux: image but no image generator is configured (VOLTA_FLUX_URL).`,
+    );
+  }
+  const outPath = join(
+    args.runPath,
+    "iterations",
+    iterationId(args.iteration),
+    "assets",
+    `${args.candidate.agentId}.png`,
+  );
+  const source = await args.journal.trace({
+    name: "candidate.generate-image",
+    input: {
+      runId: args.id,
+      iteration: args.iteration,
+      agentId: args.candidate.agentId,
+      prompt,
+    },
+    attributes: {
+      runId: args.id,
+      iteration: args.iteration,
+      agentId: args.candidate.agentId,
+    },
+    run: () => generate({ prompt, outPath }),
+    output: (ref) => ref,
+  });
+  return {
+    ...args.candidate,
+    outputNode: {
+      ...node,
+      payload: { ...node.payload, source, prompt },
+    },
   };
 }
 

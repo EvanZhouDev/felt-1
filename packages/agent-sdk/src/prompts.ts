@@ -134,7 +134,10 @@ function outputTypeInstruction(invocation: CandidateAgentInvocation): string {
     ].join(" ");
   }
   if (outputType === "image") {
-    return "For image output, produce an image node referencing the intended generated image asset URI. Express the vibe through composition, subject anchors, light/color, texture, framing, and atmosphere.";
+    return [
+      'For image output, set payload.source.uri to "flux:" followed by a complete image-generation prompt (example: "flux:oil painting of a storm-lit harbor, heavy impasto, cold teal and slate palette, low horizon"). The orchestrator generates the image from that prompt and scores what was generated — the prompt IS your output medium, and prior attempts\' prompts appear in the score trajectory.',
+      "Express the vibe through palette, light, composition, subject anchors, texture, framing, and atmosphere. Set source.mime to image/png and source.sha256 to null.",
+    ].join(" ");
   }
   return "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots. Express the vibe through layout, density, typography, color/contrast, and texture.";
 }

@@ -8,6 +8,7 @@ import {
   normalizeLoopConfig,
 } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
+import { createImageGenerator } from "./imagegen.ts";
 import { createEvolutionJournal } from "./observability.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun, resumeRun } from "./run.ts";
@@ -19,6 +20,7 @@ const oracle = createOracle(config);
 const journal = createEvolutionJournal(config.weave);
 const backend = createAgentBackend(config.agentBackend);
 const describeAudio = createAudioDescriber(config);
+const generateImage = createImageGenerator(config);
 
 const server = Bun.serve({
   port: config.port,
@@ -80,6 +82,7 @@ const server = Bun.serve({
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
         describeAudio,
+        generateImage,
       }).catch((error) => {
         console.error(`Run ${id} failed:`, error);
       });
@@ -126,6 +129,7 @@ const server = Bun.serve({
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
         describeAudio,
+        generateImage,
       }).catch((error) => {
         console.error(`Run ${id} resume failed:`, error);
       });
