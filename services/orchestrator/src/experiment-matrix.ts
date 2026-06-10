@@ -263,7 +263,11 @@ async function runTarget(target: TargetSpec): Promise<Winner> {
   // Fresh attempt: clear any partial state from a previously failed run of
   // this target (same run id → sqlite UNIQUE violation; stale iteration
   // artifacts would pollute winner extraction).
-  rmSync(join(expRoot, `${target.id}.sqlite`), { force: true });
+  // Remove the WAL/SHM siblings too: a stale WAL from a killed process makes
+  // a fresh database throw "SQLiteError: disk I/O error" on first write.
+  for (const suffix of ["", "-wal", "-shm"]) {
+    rmSync(join(expRoot, `${target.id}.sqlite${suffix}`), { force: true });
+  }
   rmSync(join(runsRoot, id), { recursive: true, force: true });
   const store = new RunStore(join(expRoot, `${target.id}.sqlite`));
   const inputNode =
