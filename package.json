@@ -16,6 +16,7 @@
     "check": "bun run lint && bun run typecheck",
     "typecheck": "bun --filter '*' typecheck",
     "smoke": "bun --filter @volta/orchestrator smoke",
+    "smoke:audio": "bun --filter @volta/orchestrator smoke:audio",
     "smoke:generic": "bun services/orchestrator/src/smoke-generic.ts",
     "benchmark:cold": "bun services/orchestrator/src/benchmark-cold.ts",
     "probe:images": "bun services/orchestrator/src/probe-images.ts",
@@ -27,7 +28,8 @@
     "calibration:images": "bun services/orchestrator/src/build-image-calibration.ts",
     "calibration:texts": "bun services/orchestrator/src/build-text-calibration.ts",
     "setup:tribe": "bash scripts/setup-tribe.sh",
-    "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts"
+    "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts",
+    "smoke:audio:tribe": "VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true bun services/orchestrator/src/smoke-audio.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",

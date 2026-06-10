@@ -1,5 +1,6 @@
 import type {
   AgentOutput,
+  AudioDescription,
   EvaluatedOutput,
   InputObj,
   JudgeDecision,
@@ -38,6 +39,10 @@ export type BaseAgentInvocation = {
   input: InputObj;
   output: OutputObj;
   workspace: AgentWorkspace;
+  // Perceptual description of an input the agent cannot read directly (e.g. an
+  // audio target). When present it is injected into the prompt as steering
+  // context; neural similarity remains the scoring signal.
+  inputDescription?: AudioDescription;
 };
 
 export type CandidateAgentInvocation = BaseAgentInvocation & {

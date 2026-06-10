@@ -11,6 +11,7 @@ import {
   runJudgeAgent,
 } from "@volta/agent-sdk";
 import {
+  type AudioDescription,
   cosineSimilarity,
   type EvaluatedOutput,
   flattenTrace,
@@ -51,6 +52,10 @@ import { renderNode } from "./render.ts";
 import { imageSeedPromptConstraint } from "./seed-constraints.ts";
 import type { RunStore } from "./storage.ts";
 
+export type AudioDescriber = (
+  node: Extract<InputObj["inputNode"], { type: "audio" }>,
+) => Promise<AudioDescription | undefined>;
+
 export type ExecuteRunArgs = {
   id: string;
   input: InputObj;
@@ -64,6 +69,7 @@ export type ExecuteRunArgs = {
   candidateModel?: string;
   judgeModel?: string;
   fluxUrl?: string;
+  describeAudio?: AudioDescriber;
 };
 
 export type ResumeRunArgs = Omit<ExecuteRunArgs, "input" | "output">;
@@ -214,6 +220,7 @@ type RunLoopResult = {
   target: {
     rendered: RenderedStimulus;
     activation: Awaited<ReturnType<NeuralOracle["encode"]>>;
+    description?: AudioDescription;
   };
   seedTarget?: SeedTarget;
   iterations: IterationResult[];
@@ -433,13 +440,36 @@ async function buildTarget(
     run: () => args.oracle.encode(targetRendered.encoderInput),
     output: activationSummary,
   });
+  const description = await describeTarget(args);
   const target = {
     rendered: targetRendered,
     activation: targetActivation,
+    description,
   };
   await writeJson(join(args.runPath, "target.json"), target);
+  if (description) {
+    await writeJson(join(args.runPath, "describe-target.json"), description);
+  }
   await writeCachedTarget(args, target);
   return target;
+}
+
+// Perceptual description of an input the agent cannot read directly. Only audio
+// targets are described today; the describer fails soft, so a missing or down
+// service yields no description and the run proceeds on neural similarity alone.
+async function describeTarget(
+  args: RunLoopArgs,
+): Promise<AudioDescription | undefined> {
+  const node = args.input.inputNode;
+  if (node.type !== "audio" || !args.describeAudio) {
+    return undefined;
+  }
+  return args.journal.trace({
+    name: "target.describe",
+    input: { runId: args.id, source: node.payload.source.uri },
+    run: () => args.describeAudio?.(node) ?? Promise.resolve(undefined),
+    output: (value) => value ?? { skipped: true },
+  });
 }
 
 async function buildSeedTarget(
@@ -679,6 +709,7 @@ async function loadCachedTarget(
   return {
     rendered,
     activation: cached.activation,
+    description: cached.description,
   };
 }
 
@@ -815,6 +846,7 @@ async function executeIteration(
             entropy,
             archive: archiveContext,
             workspace,
+            inputDescription: args.target.description,
           }),
         output: candidateSummary,
       });
@@ -981,6 +1013,7 @@ async function executeIteration(
         output: args.output,
         rankedOutputs: evaluatedOutputs,
         workspace: judgeWorkspace,
+        inputDescription: args.target.description,
       }),
     output: (decision) => decision,
   });

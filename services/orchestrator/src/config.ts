@@ -12,6 +12,8 @@ export type OrchestratorConfig = {
   repoRoot: string;
   tribeUrl: string;
   fluxUrl: string;
+  audioUrl: string;
+  describeAudio: boolean;
   candidateModel?: string;
   judgeModel?: string;
   agentBackend: AgentBackendConfig;
@@ -67,6 +69,8 @@ export function loadConfig(): OrchestratorConfig {
     repoRoot,
     tribeUrl: process.env.VOLTA_TRIBE_URL ?? "https://tribe.bryanhu.com",
     fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
+    audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://qwen.bryanhu.com",
+    describeAudio: process.env.VOLTA_DESCRIBE_AUDIO !== "false",
     candidateModel: process.env.VOLTA_CANDIDATE_MODEL,
     judgeModel: process.env.VOLTA_JUDGE_MODEL,
     agentBackend: loadAgentBackendConfig(),
