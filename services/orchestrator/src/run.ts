@@ -17,6 +17,7 @@ import {
   type NeuralOracle,
   type NextIterationSeed,
   type OutputObj,
+  pooledTrace,
   type RenderedStimulus,
   scoreActivations,
 } from "@volta/core";
@@ -310,6 +311,13 @@ async function executeRunLoop(
       }),
     );
 
+    // Keep only the pooled frame of each attempt once the iteration is
+    // scored and judged — the full matrices are only needed within the
+    // iteration, and retaining them for a whole run has OOM'd a real
+    // experiment (the pooled frame serves novelty/crowding/carry-forward).
+    for (const output of iterationResult.rankedOutputs) {
+      output.activation = pooledTrace(output.activation);
+    }
     iterations.push(iterationResult);
     previous = iterationResult.nextIterationSeed;
 

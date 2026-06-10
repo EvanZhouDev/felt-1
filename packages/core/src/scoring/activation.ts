@@ -117,6 +117,20 @@ export function neuralTrajectorySimilarity(
   return cosineSimilarity(flatA, flatB);
 }
 
+// Collapse a trace to its single pooled (time-averaged) frame. The pooled
+// view is all the cross-iteration machinery needs (novelty, crowding,
+// best-so-far bookkeeping); full [T, 20484] matrices held for a whole run
+// have OOM'd a real experiment process.
+export function pooledTrace(trace: ActivationTrace): ActivationTrace {
+  if (!trace.values || trace.values.length <= 1) {
+    return trace;
+  }
+  return {
+    ...trace,
+    values: [meanFrame(trace.values)],
+  };
+}
+
 // Re-express a trace relative to a modality baseline: subtract the anchor
 // (pooled mean activation of a diverse same-modality corpus) from every frame.
 // Identity when no anchor or no values.
