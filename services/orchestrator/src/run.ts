@@ -88,6 +88,8 @@ export type ExecuteRunArgs = {
   // Modality-baseline activations for common-mode removal in scoring; absent
   // = legacy raw similarity.
   anchors?: AnchorSet;
+  // Per-vertex scoring weights (Yeo-7 network weighting); absent = uniform.
+  vertexWeights?: number[];
 };
 
 export type ResumeRunArgs = Omit<ExecuteRunArgs, "input" | "output">;
@@ -744,6 +746,7 @@ async function evaluateCandidate(
         candidate: activationWithDiagnostics,
         targetAnchor: anchorFor(args.anchors ?? {}, args.target.rendered.kind),
         candidateAnchor: anchorFor(args.anchors ?? {}, rendered.kind),
+        vertexWeights: args.vertexWeights,
         diversity: combinedNovelty({
           // Surface guard: near-verbatim repeats of prior texts.
           text: text ? textNovelty(text, args.noveltyPriors) : undefined,

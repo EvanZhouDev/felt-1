@@ -25,7 +25,9 @@
       "!**/.agent",
       "!**/experiments",
       "!**/runs",
-      "!**/data/runs"
+      "!**/data/runs",
+      "!**/yeo7-labels.json",
+      "!**/.agent/experiments/**"
     ]
   }
 }

@@ -2,7 +2,7 @@ import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
-import { loadAnchors } from "./anchors.ts";
+import { loadAnchors, loadNetworkWeights } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
 import { createImageGenerator } from "./imagegen.ts";
@@ -82,6 +82,7 @@ await executeRun({
   loop: config.loop,
   generateImage: createImageGenerator(config),
   anchors: loadAnchors(config.repoRoot),
+  vertexWeights: loadNetworkWeights(config.repoRoot, config.vibeWeight),
 });
 
 const completed = store.get(run.id);

@@ -26,7 +26,7 @@ import {
   type OutputObj,
   pooledActivationSimilarity,
 } from "@volta/core";
-import { loadAnchors } from "./anchors.ts";
+import { loadAnchors, loadNetworkWeights } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -86,6 +86,7 @@ const oracle = createOracle(config);
 const describer = createAudioDescriber(config);
 const generateImage = createImageGenerator(config);
 const anchors = loadAnchors(config.repoRoot);
+const vertexWeights = loadNetworkWeights(config.repoRoot, config.vibeWeight);
 const backend = createAgentBackend(config.agentBackend);
 
 await mkdir(runsRoot, { recursive: true });
@@ -299,6 +300,7 @@ async function runTarget(target: TargetSpec): Promise<Winner> {
     describeAudio: target.kind === "audio" ? describer : undefined,
     generateImage,
     anchors,
+    vertexWeights,
   });
 
   const record = store.get(id);

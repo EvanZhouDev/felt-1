@@ -2,7 +2,7 @@ import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
-import { loadAnchors } from "./anchors.ts";
+import { loadAnchors, loadNetworkWeights } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import type { OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -48,6 +48,7 @@ const config: OrchestratorConfig = {
   fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
   audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://qwen.bryanhu.com",
   describeAudio: process.env.VOLTA_DESCRIBE_AUDIO === "true",
+  vibeWeight: Number(process.env.VOLTA_VIBE_WEIGHT ?? 0),
   agentBackend: {
     chain: [
       {
@@ -102,6 +103,7 @@ await executeRun({
   describeAudio,
   generateImage: createImageGenerator(config),
   anchors: loadAnchors(config.repoRoot),
+  vertexWeights: loadNetworkWeights(config.repoRoot, config.vibeWeight),
   loop: {
     maxIterations: 1,
     similarityThreshold: 2,

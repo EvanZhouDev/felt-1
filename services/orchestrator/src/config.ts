@@ -14,6 +14,10 @@ export type OrchestratorConfig = {
   fluxUrl: string;
   audioUrl: string;
   describeAudio: boolean;
+  // 0 = perception-faithful scoring (default); 1 = score affective/association
+  // networks and suppress primary sensory cortex ("feels like" over
+  // "looks/sounds like"). Sharpens cross-target specificity.
+  vibeWeight: number;
   candidateModel?: string;
   judgeModel?: string;
   agentBackend: AgentBackendConfig;
@@ -78,6 +82,7 @@ export function loadConfig(): OrchestratorConfig {
     fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
     audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://qwen.bryanhu.com",
     describeAudio: process.env.VOLTA_DESCRIBE_AUDIO !== "false",
+    vibeWeight: numberFromEnv("VOLTA_VIBE_WEIGHT", 0),
     candidateModel: process.env.VOLTA_CANDIDATE_MODEL,
     judgeModel: process.env.VOLTA_JUDGE_MODEL,
     agentBackend: loadAgentBackendConfig(),

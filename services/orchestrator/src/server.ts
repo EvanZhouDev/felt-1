@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { InputObj, OutputObj } from "@volta/core";
-import { loadAnchors } from "./anchors.ts";
+import { loadAnchors, loadNetworkWeights } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import { type LoopConfig, loadConfig, normalizeLoopConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -18,6 +18,7 @@ const backend = createAgentBackend(config.agentBackend);
 const describeAudio = createAudioDescriber(config);
 const generateImage = createImageGenerator(config);
 const anchors = loadAnchors(config.repoRoot);
+const vertexWeights = loadNetworkWeights(config.repoRoot, config.vibeWeight);
 
 const server = Bun.serve({
   port: config.port,
@@ -81,6 +82,7 @@ const server = Bun.serve({
         describeAudio,
         generateImage,
         anchors,
+        vertexWeights,
       }).catch((error) => {
         console.error(`Run ${id} failed:`, error);
       });
@@ -129,6 +131,7 @@ const server = Bun.serve({
         describeAudio,
         generateImage,
         anchors,
+        vertexWeights,
       }).catch((error) => {
         console.error(`Run ${id} resume failed:`, error);
       });

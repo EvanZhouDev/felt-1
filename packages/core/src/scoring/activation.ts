@@ -64,6 +64,10 @@ export function scoreActivations(args: {
   // ~0.9 alike and compresses all vibe specificity into noise.
   targetAnchor?: number[];
   candidateAnchor?: number[];
+  // Per-vertex weights (length = vertex count). Down-weighting primary
+  // sensory cortex and up-weighting affective/association networks scores
+  // "how it feels" over "what it looks/sounds like" — see makeNetworkWeights.
+  vertexWeights?: number[];
   seedAdherence?: number;
   coherence?: number;
   diversity?: number;
@@ -71,6 +75,7 @@ export function scoreActivations(args: {
   const neuralSimilarity = neuralTrajectorySimilarity(
     anchorTrace(args.target, args.targetAnchor),
     anchorTrace(args.candidate, args.candidateAnchor),
+    args.vertexWeights,
   );
   const seedAdherence = args.seedAdherence ?? 0.5;
   const coherence = args.coherence ?? 0.5;
@@ -107,9 +112,14 @@ export function scoreActivations(args: {
 export function neuralTrajectorySimilarity(
   target: ActivationTrace,
   candidate: ActivationTrace,
+  vertexWeights?: number[],
 ): number {
-  const a = target.values;
-  const b = candidate.values;
+  const a = vertexWeights
+    ? applyVertexWeights(target.values, vertexWeights)
+    : target.values;
+  const b = vertexWeights
+    ? applyVertexWeights(candidate.values, vertexWeights)
+    : candidate.values;
 
   if (a && b && a.length >= 2 && b.length >= 2) {
     const pooled = cosineSimilarity(
@@ -132,8 +142,8 @@ export function neuralTrajectorySimilarity(
 
   // Single-timestep or mixed: mean-centered global cosine. Still drops the
   // generic baseline; just can't use temporal structure.
-  const flatA = flattenTrace(target);
-  const flatB = flattenTrace(candidate);
+  const flatA = a ? a.flat() : flattenTrace(target);
+  const flatB = b ? b.flat() : flattenTrace(candidate);
   if (a && b) {
     const raw = cosineSimilarity(centerInPlace(flatA), centerInPlace(flatB));
     return (raw + 1) / 2;
@@ -174,6 +184,45 @@ export function anchorTrace(
       frame.map((v, i) => v - (anchor[i] ?? 0)),
     ),
   };
+}
+
+// Scale every vertex of every frame by weights[vertex]. Cosine is invariant
+// to a global scale but NOT to per-vertex scaling, so this re-weights which
+// cortical networks drive the similarity. sqrt is applied by the caller if a
+// value-space (not vector-space) weighting is desired; here weights multiply
+// the activations directly.
+function applyVertexWeights(
+  frames: number[][] | undefined,
+  weights: number[],
+): number[][] | undefined {
+  if (!frames) {
+    return frames;
+  }
+  return frames.map((frame) => frame.map((v, i) => v * (weights[i] ?? 1)));
+}
+
+// Build per-vertex weights from a Yeo-7 network label per vertex and a
+// vibeWeight in [0, 1]. vibeWeight 0 = uniform (perception-faithful, the
+// default). vibeWeight 1 = sensory networks (Visual=1, Somatomotor=2) fully
+// suppressed and affective/association networks (3..7) at full weight — score
+// "how it feels", not "what it looks/sounds like". Intermediate values
+// interpolate. Visual cortex is the promiscuous axis (it calls unrelated
+// images ~0.9 similar on palette alone); suppressing it sharpens specificity.
+const SENSORY_NETWORKS = new Set([1, 2]);
+export function makeNetworkWeights(
+  labels: number[],
+  vibeWeight: number,
+): number[] {
+  const w = Math.min(1, Math.max(0, vibeWeight));
+  return labels.map((label) => {
+    if (label === 0) {
+      return 1 - w; // medial wall / background: fade out with vibe weight
+    }
+    if (SENSORY_NETWORKS.has(label)) {
+      return 1 - w; // suppress sensory as vibe weight rises
+    }
+    return 1; // affective / association: always full weight
+  });
 }
 
 // Pooled (time-averaged, mean-centered) cosine between two traces, in [0, 1].
