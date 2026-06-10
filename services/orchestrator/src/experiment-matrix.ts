@@ -15,7 +15,7 @@
 // Target activations cache in .agent/experiments/matrix/target-cache/ shared
 // across experiments, so iterating on the system re-uses target encodes.
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
@@ -251,6 +251,11 @@ process.exit(0);
 
 async function runTarget(target: TargetSpec): Promise<Winner> {
   const id = runId(target);
+  // Fresh attempt: clear any partial state from a previously failed run of
+  // this target (same run id → sqlite UNIQUE violation; stale iteration
+  // artifacts would pollute winner extraction).
+  rmSync(join(expRoot, `${target.id}.sqlite`), { force: true });
+  rmSync(join(runsRoot, id), { recursive: true, force: true });
   const store = new RunStore(join(expRoot, `${target.id}.sqlite`));
   const inputNode =
     target.kind === "audio"
