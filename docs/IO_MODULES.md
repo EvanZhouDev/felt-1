@@ -148,7 +148,6 @@ Each agent produces an output node.
 type AgentOutput = {
   agentId: string;
   outputNode: OutputNode;
-  entropy?: string;
 };
 ```
 
@@ -287,10 +286,10 @@ Audio describer:
 AudioNode -> structured audio description -> agent context
 ```
 
-Initial agent generation:
+Initial agent generation (round 1, no trajectory yet):
 
 ```
-InputObj + OutputObj + entropy -> AgentOutput[]
+InputObj + OutputObj -> AgentOutput[]
 ```
 
 Rendering and scoring:
@@ -305,24 +304,35 @@ Judge:
 ranked EvaluatedOutput[] + InputObj -> JudgeDecision
 ```
 
-Next iteration:
+Next iteration (trajectory = ranked past attempts + judge critique):
 
 ```
-InputObj + OutputObj + NextIterationSeed + entropy -> AgentOutput[]
+InputObj + OutputObj + trajectory -> AgentOutput[]
 ```
 
-### API integration notes (verified live 2026-06-06)
+### API integration notes (re-verified live 2026-06-07)
 
-- **Do not batch TRIBE text scoring.** `tribe.bryanhu.com` has a
-  `POST /predict/text/batch` (≤64 texts) endpoint, but its result omits the raw
-  per-vertex predictions: the batch job's `preds.norm.f16.bin` is empty and there
-  is no per-item binary route (all 404). `result.json` exposes only the 7
-  `yeo7_means` per item. Our cosine (`scoring/activation.ts`) runs over the full
-  pooled `R^20484` vector, so batching would silently collapse scoring to 7
-  dimensions. The N-candidate scoring loop therefore issues N single
-  `POST /predict/text` jobs. `loop.scoringConcurrency` controls how many
-  candidate evaluations can be in flight at once; keep it low for hosted TRIBE
-  and raise it only for deliberate throughput experiments.
+- **Batch text scoring still cannot drive the trajectory metric.**
+  `tribe.bryanhu.com` exposes `POST /predict/text/batch` (≤64 texts), and the
+  server *computes* full per-vertex predictions for batch items —
+  `result.json` reports `preds_shape: [timesteps, 20484]` per item. **But those
+  per-vertex values are not retrievable over HTTP for batch jobs:** the only
+  artifact routes are `result.json` and `/jobs/{id}/preds.norm.f16.bin` (see
+  `/openapi.json`), and the binary route 404s for batch jobs (it returns real
+  data only for single jobs). Per item, `result.json` carries only the 7
+  `yeo7_means` scalars, no inline preds array. The fitness metric
+  (`scoring/activation.ts`) is a three-view blend over the full per-timestep
+  `[timesteps, 20484]` trajectory (pooled + resampled-trajectory + best-match;
+  see [Architecture → Scoring the Vibe](./ARCHITECTURE.md#scoring-the-vibe)), so
+  batching would silently collapse scoring to 7 dimensions. The N-candidate
+  scoring loop therefore issues N single `POST /predict/{text,image,video}` jobs,
+  polls `GET /jobs/{id}`, and reads the full prediction matrix from each job's
+  result. `loop.scoringConcurrency` controls how many candidate evaluations are
+  in flight at once; keep it low for hosted TRIBE and raise it only for
+  deliberate throughput experiments.
+  - The batch route *is* usable if you only need Yeo-7 network means (e.g. the
+    `probe:yeo` diagnostic), where one ≤64-text request replaces N jobs. It is
+    not usable as the fitness oracle while fitness is the full-trajectory blend.
 - **Flux has no batch endpoint.** `images.bryanhu.com` is one prompt per request
   (`GET/POST /generate?prompt=...&model=klein&steps=4&seed=N`). When the agent
   backend generates N image candidates, vary `seed`/`prompt`; concurrency should
@@ -346,24 +356,34 @@ const DEFAULT_VIEWPORT: Viewport = {
 
 ## Scaffold Status
 
-Current scaffold:
+`packages/core` holds the contracts (schema in `src/types.ts`; render/agent/
+judge/describer/pipeline contracts under the matching folders; the scoring
+algorithm in `src/scoring/activation.ts`). The render contracts under
+`src/renderers` are type-only — the working render dispatch lives in the
+orchestrator (`services/orchestrator/src/render.ts`).
 
-- Core schema lives in `packages/core/src/types.ts`.
-- Render contracts live in `packages/core/src/renderers`.
-- Agent contracts live in `packages/core/src/agents`.
-- Judge contracts live in `packages/core/src/judges`.
-- Audio description contracts live in `packages/core/src/describers`.
-- Pipeline iteration types live in `packages/core/src/pipeline`.
-- Orchestrator run, storage, server, and smoke entrypoints are shaped around
-  `InputObj` and `OutputObj`.
+Implemented:
+
+- `render(payload)` dispatch for all four media (`render.ts`): text → word-timed
+  text stimulus, audio → audio artifact, image/code → still-hold video for TRIBE.
+- Agent generation via the Codex CLI backend (`packages/agent-sdk`), steered by
+  the OPRO-style score trajectory + Reflexion critique assembled in
+  `trajectory.ts` (the Ranked-Reflect loop in `run.ts`).
+- TRIBE scoring/ranking over `AgentOutput` (the three-view trajectory metric),
+  through the mock / local-Python / hosted-HTTP oracle abstraction (`oracle.ts`).
+- Judge critique and best-so-far carry-forward (the new leader seeds the next
+  round; its activation is cached, so re-ranking it costs no TRIBE calls).
+- Tiered audio description (`describer.ts`, soft-fail): hosted Qwen2.5-Omni
+  caption + local DSP musical features (`python/audio_features.py`).
+- SQLite run index + readable per-iteration JSON artifacts (`storage.ts`),
+  resumable runs, and Weave Evolution-Journal tracing (`observability.ts`).
 
 Open implementation work:
 
-- Implement `render(payload)` dispatch.
-- Implement text, audio, image, and code renderers.
-- Implement code screenshot capture and still-video conversion.
-- Implement audio description for instrumental targets.
-- Implement agent generation and entropy injection.
-- Implement TRIBE scoring/ranking over `AgentOutput`.
-- Implement judge reasoning and next-iteration seed selection.
+- Wire **Flux image generation** into the agent backend so image-output agents
+  produce real images instead of conceptual asset URIs.
+- Implement code-screenshot capture (the still-video path consumes a screenshot/
+  `cachedVideo` that the agent loop does not yet generate).
+- Build the MCP tool gateway for agents.
+- Make `apps/web` an interactive client (currently an informational shell).
 - Add database migration handling for existing local old-schema run tables.

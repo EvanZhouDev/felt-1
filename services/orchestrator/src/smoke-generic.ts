@@ -1,6 +1,7 @@
 import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
 import { createOracle } from "./oracle.ts";
 import { executeRun } from "./run.ts";
@@ -27,26 +28,24 @@ const oracle = createOracle({
   audioUrl: "https://qwen.bryanhu.com",
   describeAudio: false,
   agentBackend: {
-    mode: "deterministic",
+    mode: "codex",
+    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+    timeoutMs: 900_000,
   },
   loop: {
     maxIterations: 1,
     similarityThreshold: 2,
     candidateCount: 3,
     scoringConcurrency: 1,
-    reuseTargetArchive: false,
-    textMicroMutations: 0,
-    imageSeedMutations: 0,
-    imageLocalMutations: 0,
-    textProbeCount: 0,
-    textProbeRecombinations: 0,
-    textProbeLocalMutations: 0,
-    contrastTargetRoots: [],
   },
   weave: {
     enabled: false,
     capturePayloads: false,
   },
+});
+const backend = new CodexCliBackend({
+  command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+  timeoutMs: 900_000,
 });
 
 const scenarios: Scenario[] = [
@@ -142,6 +141,7 @@ for (const scenario of scenarios) {
     output: scenario.output,
     store,
     oracle,
+    backend,
     runsRoot,
     loop: {
       maxIterations: 1,
@@ -165,10 +165,8 @@ for (const scenario of scenarios) {
     throw new Error(`${scenario.id} did not produce three candidates.`);
   }
   for (const candidate of result.candidates) {
-    if (
-      !candidate.entropy?.includes(`outputType=${scenario.output.outputType}`)
-    ) {
-      throw new Error(`${scenario.id} candidate entropy is not medium-aware.`);
+    if (candidate.outputNode?.type !== scenario.output.outputType) {
+      throw new Error(`${scenario.id} candidate is not medium-aware.`);
     }
   }
   if (scenario.id === "text-to-text") {
@@ -185,7 +183,6 @@ for (const scenario of scenarios) {
     }
   }
 
-  await assertExists(join(runsRoot, scenario.id, "candidate-archive.json"));
   await assertExists(join(runsRoot, scenario.id, "evolution-journal.json"));
 }
 
@@ -205,7 +202,6 @@ console.log(
 type GenericSmokeResult = {
   iterations: unknown[];
   candidates: Array<{
-    entropy?: string;
     outputNode?: {
       type: string;
       payload: {

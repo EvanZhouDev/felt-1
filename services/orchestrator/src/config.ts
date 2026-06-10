@@ -21,31 +21,19 @@ export type OrchestratorConfig = {
   weave: WeaveConfig;
 };
 
-export type AgentBackendConfig =
-  | {
-      mode: "codex";
-      command: string;
-      model?: string;
-      profile?: string;
-      timeoutMs: number;
-    }
-  | {
-      mode: "deterministic";
-    };
+export type AgentBackendConfig = {
+  mode: "codex";
+  command: string;
+  model?: string;
+  profile?: string;
+  timeoutMs: number;
+};
 
 export type LoopConfig = {
   maxIterations: number;
   similarityThreshold: number;
   candidateCount: number;
   scoringConcurrency: number;
-  reuseTargetArchive: boolean;
-  textMicroMutations: number;
-  imageSeedMutations: number;
-  imageLocalMutations: number;
-  textProbeCount: number;
-  textProbeRecombinations: number;
-  textProbeLocalMutations: number;
-  contrastTargetRoots: string[];
 };
 
 export type WeaveConfig = {
@@ -79,22 +67,6 @@ export function loadConfig(): OrchestratorConfig {
       similarityThreshold: numberFromEnv("VOLTA_SIMILARITY_THRESHOLD", 0.9),
       candidateCount: numberFromEnv("VOLTA_CANDIDATE_COUNT", 2),
       scoringConcurrency: numberFromEnv("VOLTA_SCORING_CONCURRENCY", 1),
-      reuseTargetArchive: process.env.VOLTA_REUSE_TARGET_ARCHIVE === "true",
-      textMicroMutations: integerFromEnv("VOLTA_TEXT_MICRO_MUTATIONS", 0),
-      imageSeedMutations: integerFromEnv("VOLTA_IMAGE_SEED_MUTATIONS", 0),
-      imageLocalMutations: integerFromEnv("VOLTA_IMAGE_LOCAL_MUTATIONS", 1),
-      textProbeCount: integerFromEnv("VOLTA_TEXT_PROBE_COUNT", 0),
-      textProbeRecombinations: integerFromEnv(
-        "VOLTA_TEXT_PROBE_RECOMBINATIONS",
-        0,
-      ),
-      textProbeLocalMutations: integerFromEnv(
-        "VOLTA_TEXT_PROBE_LOCAL_MUTATIONS",
-        0,
-      ),
-      contrastTargetRoots: pathListFromEnv("VOLTA_CONTRAST_TARGET_ROOTS").map(
-        (path) => resolve(repoRoot, path),
-      ),
     }),
     weave: {
       enabled: process.env.VOLTA_WEAVE_ENABLED === "true",
@@ -112,22 +84,6 @@ export function normalizeLoopConfig(
     similarityThreshold: finiteNumber(config?.similarityThreshold, 0.9),
     candidateCount: positiveInteger(config?.candidateCount, 2),
     scoringConcurrency: positiveInteger(config?.scoringConcurrency, 1),
-    reuseTargetArchive: config?.reuseTargetArchive === true,
-    textMicroMutations: nonNegativeInteger(config?.textMicroMutations, 0),
-    imageSeedMutations: nonNegativeInteger(config?.imageSeedMutations, 0),
-    imageLocalMutations: nonNegativeInteger(config?.imageLocalMutations, 1),
-    textProbeCount: nonNegativeInteger(config?.textProbeCount, 0),
-    textProbeRecombinations: nonNegativeInteger(
-      config?.textProbeRecombinations,
-      0,
-    ),
-    textProbeLocalMutations: nonNegativeInteger(
-      config?.textProbeLocalMutations,
-      0,
-    ),
-    contrastTargetRoots: Array.isArray(config?.contrastTargetRoots)
-      ? config.contrastTargetRoots
-      : [],
   };
 }
 
@@ -142,12 +98,6 @@ function loadOracleMode(): OracleMode {
 }
 
 function loadAgentBackendConfig(): AgentBackendConfig {
-  if (process.env.VOLTA_AGENT_BACKEND === "deterministic") {
-    return {
-      mode: "deterministic",
-    };
-  }
-
   return {
     mode: "codex",
     command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
@@ -165,33 +115,11 @@ function numberFromEnv(name: string, fallback: number): number {
   return finiteNumber(Number(value), fallback);
 }
 
-function integerFromEnv(name: string, fallback: number): number {
-  const value = process.env[name];
-  if (!value) {
-    return fallback;
-  }
-  return nonNegativeInteger(Number(value), fallback);
-}
-
-function pathListFromEnv(name: string): string[] {
-  return (process.env[name] ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-}
-
 function positiveInteger(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
   return Math.max(1, Math.floor(value));
-}
-
-function nonNegativeInteger(value: unknown, fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return fallback;
-  }
-  return Math.max(0, Math.floor(value));
 }
 
 function finiteNumber(value: unknown, fallback: number): number {

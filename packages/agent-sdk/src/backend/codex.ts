@@ -70,7 +70,6 @@ export class CodexCliBackend implements AgentBackend {
     const output = {
       agentId: invocation.spec.id,
       outputNode,
-      entropy: invocation.entropy,
     };
 
     await writeJson(join(invocation.workspace.outputPath, "candidate.json"), {
@@ -471,10 +470,6 @@ function nullableSchema(schema: JsonSchema): JsonSchema {
 function imageAttachmentPaths(invocation: AgentInvocation): string[] {
   const refs = assetRefsForImageAttachments(invocation.input.inputNode);
 
-  if (invocation.role === "candidate") {
-    refs.push(...assetRefsForPreviousSeed(invocation.previous));
-  }
-
   if (invocation.role === "judge") {
     for (const output of invocation.rankedOutputs) {
       refs.push(...assetRefsForImageAttachments(output.outputNode));
@@ -488,15 +483,6 @@ function imageAttachmentPaths(invocation: AgentInvocation): string[] {
         .filter((path): path is string => Boolean(path)),
     ),
   );
-}
-
-function assetRefsForPreviousSeed(
-  previous: CandidateAgentInvocation["previous"],
-): AssetRef[] {
-  if (!previous || previous.type === "fresh" || previous.node.type === "text") {
-    return [];
-  }
-  return assetRefsForImageAttachments(previous.node);
 }
 
 function assetRefsForImageAttachments(node: Node): AssetRef[] {

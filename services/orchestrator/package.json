@@ -6,8 +6,9 @@
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
     "smoke": "bun src/smoke.ts",
-    "typecheck": "tsc -p tsconfig.json",
-    "smoke:audio": "bun src/smoke-audio.ts"
+    "smoke:audio": "bun src/smoke-audio.ts",
+    "smoke:image": "bun src/smoke-image.ts",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@volta/agent-sdk": "workspace:*",

@@ -22,6 +22,8 @@
       "!**/tribev2.egg-info",
       "!**/cache",
       "!**/.volta",
+      "!**/.agent",
+      "!**/experiments",
       "!**/runs",
       "!**/data/runs"
     ]

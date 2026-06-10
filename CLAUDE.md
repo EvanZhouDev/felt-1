@@ -42,17 +42,54 @@ bun run check            # lint (biome) + typecheck — run before committing
 bun run typecheck        # tsc across all workspaces
 bun run lint             # biome check .
 bun run format           # biome format --write .
-bun run smoke            # end-to-end run with the fast MOCK oracle
+bun run smoke            # end-to-end run with the fast MOCK oracle (text input)
+bun run smoke:audio      # end-to-end run with an AUDIO input node (mock oracle)
+bun run smoke:image      # end-to-end run with an IMAGE input node (mock oracle)
 bun run dev              # watch the orchestrator service
 bun run dev:web          # Next.js dev (Turbopack)
 
 # TRIBE (heavy — Python venv + model download on first run):
 bun run setup:tribe      # create vendor/tribev2/.venv, install TRIBE
 bun run smoke:tribe      # end-to-end run with the REAL TRIBE oracle
+bun run smoke:audio:tribe # audio input via the hosted (http) TRIBE oracle + describer
+bun run smoke:image:tribe # image input via the hosted (http) TRIBE oracle
 ```
 
 Use `bun run smoke` (mock) for fast iteration; reach for `smoke:tribe` only when
 you need real activations.
+
+## Running on your own input
+
+The loop is **medium-agnostic** — `executeRun` never branches on input/output
+type, so "run Volta on X" is always the same run with a different input `Node`.
+The `smoke:audio` / `smoke:image` scripts are the front door for that; both take
+an arbitrary file or URL and a chosen output medium.
+
+```bash
+# Image → text vibe transfer, scored by REAL TRIBE (image goes to /predict/image):
+VOLTA_ORACLE=http VOLTA_SMOKE_IMAGE=path/to/photo.jpg bun run smoke:image
+
+# Audio → image, real TRIBE + audio description:
+VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true \
+  VOLTA_SMOKE_AUDIO=path/to/song.mp3 VOLTA_SMOKE_OUTPUT=image bun run smoke:audio
+```
+
+Knobs (all optional; sensible defaults):
+
+- `VOLTA_SMOKE_IMAGE` / `VOLTA_SMOKE_AUDIO` — input file path or http(s) URL.
+  Defaults are the fixtures under `services/orchestrator/fixtures/`
+  (`swatch.png`, `tone.wav`).
+- `VOLTA_SMOKE_OUTPUT` — output medium: `text` (default), `image`, or `code`.
+- `VOLTA_ORACLE` — `mock` (default, fast/offline) or `http` (real hosted TRIBE).
+  Use `http` for a real run; mock only proves the wiring.
+- `VOLTA_MAX_ITERATIONS` / `VOLTA_CANDIDATE_COUNT` — search depth/width (the
+  smoke entrypoints pin these low; raise for a real search).
+
+Each run writes readable artifacts under a temp `smokeRoot` (printed on exit):
+`target.json`, per-iteration `trajectory.json` / `scores.json` / `judge.json`,
+and `evolution-journal.json` (includes the per-iteration score curve). For a
+long-lived service instead of a one-shot, `bun run dev` then
+`POST /runs` with an `{ input: InputObj, output: OutputObj }` body.
 
 ## Conventions
 
@@ -93,14 +130,24 @@ Set in `services/orchestrator/src/config.ts`:
   (hosted TRIBE at `VOLTA_TRIBE_URL`; no Python venv needed, returns real
   20484-dim values).
 - `VOLTA_TRIBE_URL` — hosted TRIBE base URL (default `https://tribe.bryanhu.com`).
+- `VOLTA_IMAGE_DURATION_S` / `VOLTA_IMAGE_FPS` — still-image hold passed to
+  `/predict/image?duration=&fps=` (defaults `10` / `10`). The server default of
+  2s yields only 2 timesteps and under-samples; 10s separates image targets far
+  better (cross-painting collinearity 0.855 → 0.674).
 - `VOLTA_FLUX_URL` — hosted Flux image API (default `https://images.bryanhu.com`).
-- `VOLTA_CANDIDATE_COUNT` — N candidates per iteration (default `2`).
+- `VOLTA_AUDIO_URL` — hosted Qwen2.5-Omni audio-description service for the audio
+  describer (default `https://qwen.bryanhu.com`). Multipart `POST /describe`;
+  failure is non-fatal — the local DSP pass (`python/audio_features.py`,
+  tempo/energy/brightness/key) still runs, and if both fail the run proceeds on
+  neural similarity alone.
+- `VOLTA_DESCRIBE_AUDIO` — describe audio targets so agents get perceptual
+  context they can't hear (default `true`; set `false` to skip, e.g. mock smokes).
+- `VOLTA_CANDIDATE_COUNT` — N candidates generated per iteration (default `2`).
 - `VOLTA_SCORING_CONCURRENCY` — max simultaneous candidate scoring calls
   (default `1`; keep low for hosted TRIBE).
-- `VOLTA_REUSE_TARGET_ARCHIVE` — include prior candidates for the same target in
-  new runs (default `false`; enable only for explicit warm-start experiments).
-- `VOLTA_MAX_ITERATIONS` — M search iterations; loop feeds the judge's
-  `NextIterationSeed` forward and keeps the best-scoring iteration (default `1`).
+- `VOLTA_MAX_ITERATIONS` — M search iterations of the Ranked-Reflect loop; each
+  round shows candidates the ranked score trajectory + judge critique and keeps
+  the best-so-far (default `1`).
 - `VOLTA_CANDIDATE_MODEL` / `VOLTA_JUDGE_MODEL` — model ids passed to the agent
   backend's `AgentSpec` (unused by the deterministic backend; for the future
   Codex/LLM backend).
@@ -127,21 +174,23 @@ is gone.
 
 What's **MVP only** right now:
 
-- Renderers (`render(payload)` dispatch, text/audio/image/code), code screenshot
-  + still-video capture, and audio description are still mostly type signatures.
+- Renderers (`render(payload)` dispatch, text/audio/image/code) and code
+  screenshot + still-video capture are still mostly type signatures.
 - `packages/agent-sdk` has shared Candidate/Judge contracts, workspace creation,
-  prompt templates, a deterministic backend, and a Codex CLI backend.
-- The orchestrator runs a configurable multi-iteration candidate-score-judge
-  loop. It writes a SQLite index row plus readable JSON artifacts under
-  `.volta/runs/<runId>/`, including per-iteration artifacts and
-  `evolution-journal.json`.
+  the OPRO/Reflexion prompt templates, and a Codex CLI backend.
+- The orchestrator runs the **Ranked-Reflect** search loop (`run.ts` +
+  `trajectory.ts`): each round shows candidate agents the ranked score
+  trajectory plus the judge's critique and asks for better outputs. It writes a
+  SQLite index row plus readable JSON artifacts under `.volta/runs/<runId>/`,
+  including per-iteration artifacts and `evolution-journal.json`.
 - Completed runs can be resumed with `POST /runs/:id/resume`; the resume request
   appends new iteration folders using the saved target activation and latest
   `NextIterationSeed`. On resume, `loop.maxIterations` means additional
   iterations.
-- TRIBE scoring/ranking works through the oracle abstraction, and Weave tracing
-  can observe the loop. Real renderers, Flux tools, and audio description tools
-  are still open implementation work.
+- TRIBE scoring/ranking works through the oracle abstraction, the tiered audio
+  describer (hosted Qwen + local DSP) is wired, and Weave tracing can observe
+  the loop. Real renderers and Flux image tools are still open implementation
+  work.
 
 See the open-implementation checklist in `docs/IO_MODULES.md` (Scaffold Status).
 

@@ -17,19 +17,13 @@
     "typecheck": "bun --filter '*' typecheck",
     "smoke": "bun --filter @volta/orchestrator smoke",
     "smoke:audio": "bun --filter @volta/orchestrator smoke:audio",
+    "smoke:image": "bun --filter @volta/orchestrator smoke:image",
     "smoke:generic": "bun services/orchestrator/src/smoke-generic.ts",
-    "benchmark:cold": "bun services/orchestrator/src/benchmark-cold.ts",
-    "probe:images": "bun services/orchestrator/src/probe-images.ts",
-    "probe:texts": "bun services/orchestrator/src/probe-texts.ts",
-    "probe:evolve-texts": "bun services/orchestrator/src/probe-evolve-texts.ts",
-    "probe:yeo": "bun services/orchestrator/src/probe-yeo.ts",
     "traces:export": "bun services/orchestrator/src/export-traces.ts && biome format --write .agent/traces/volta-run-traces.json .agent/traces/volta-run-traces.summary.md",
-    "audit:similarity": "bun services/orchestrator/src/audit-similarity.ts",
-    "calibration:images": "bun services/orchestrator/src/build-image-calibration.ts",
-    "calibration:texts": "bun services/orchestrator/src/build-text-calibration.ts",
     "setup:tribe": "bash scripts/setup-tribe.sh",
     "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts",
-    "smoke:audio:tribe": "VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true bun services/orchestrator/src/smoke-audio.ts"
+    "smoke:audio:tribe": "VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true bun services/orchestrator/src/smoke-audio.ts",
+    "smoke:image:tribe": "VOLTA_ORACLE=http bun services/orchestrator/src/smoke-image.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",

@@ -1,17 +1,9 @@
 import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import {
-  type AgentBackend,
-  CodexCliBackend,
-  DeterministicAgentBackend,
-} from "@volta/agent-sdk";
+import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
-import {
-  type AgentBackendConfig,
-  loadConfig,
-  type OrchestratorConfig,
-} from "./config.ts";
+import type { OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
 import { loadAudioNode } from "./loaders.ts";
 import { createOracle } from "./oracle.ts";
@@ -31,29 +23,53 @@ const audioSource =
   join(repoRoot, "services/orchestrator/fixtures/tone.wav");
 const outputType = (process.env.VOLTA_SMOKE_OUTPUT ??
   "text") as OutputNode["type"];
+const oracleMode =
+  process.env.VOLTA_ORACLE === "http"
+    ? "http"
+    : process.env.VOLTA_ORACLE === "tribe"
+      ? "tribe"
+      : "mock";
 
-const base = loadConfig();
 const smokeRoot = await mkdtemp(join(tmpdir(), "volta-audio-smoke-"));
+const store = new RunStore(join(smokeRoot, "volta.sqlite"));
+
 const config: OrchestratorConfig = {
-  ...base,
   port: 0,
   databasePath: join(smokeRoot, "volta.sqlite"),
   runsRoot: join(smokeRoot, "runs"),
-  // Mock unless an oracle is explicitly requested; describe off by default for
-  // a fast offline smoke (set VOLTA_DESCRIBE_AUDIO=true to exercise it).
-  oracleMode:
-    process.env.VOLTA_ORACLE === "http"
-      ? "http"
-      : process.env.VOLTA_ORACLE === "tribe"
-        ? "tribe"
-        : "mock",
+  oracleMode,
+  pythonPath:
+    process.env.VOLTA_PYTHON ??
+    join(repoRoot, "vendor/tribev2/.venv/bin/python"),
+  repoRoot,
+  tribeUrl: process.env.VOLTA_TRIBE_URL ?? "https://tribe.bryanhu.com",
+  fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
+  audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://qwen.bryanhu.com",
   describeAudio: process.env.VOLTA_DESCRIBE_AUDIO === "true",
-  loop: { ...base.loop, maxIterations: 1, similarityThreshold: 2 },
+  agentBackend: {
+    mode: "codex" as const,
+    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+    timeoutMs: 900_000,
+  },
+  loop: {
+    maxIterations: 1,
+    similarityThreshold: 2,
+    candidateCount: 2,
+    scoringConcurrency: 1,
+  },
+  weave: {
+    enabled: false,
+    capturePayloads: false,
+  },
 };
 
-const store = new RunStore(config.databasePath);
 const oracle = createOracle(config);
-const backend = createBackend(config.agentBackend);
+const backend = new CodexCliBackend({
+  command: config.agentBackend.command,
+  model: config.agentBackend.model,
+  profile: config.agentBackend.profile,
+  timeoutMs: config.agentBackend.timeoutMs,
+});
 const describeAudio = createAudioDescriber(config);
 
 const input: InputObj = {
@@ -62,13 +78,16 @@ const input: InputObj = {
     prompt: "Generate output that carries the vibe of this audio.",
   },
 };
-const output: OutputObj = { outputType };
+
+const output: OutputObj = {
+  outputType,
+};
 
 const run = store.create({
   id: "smoke-audio-run",
   input,
   output,
-  runPath: join(config.runsRoot, "smoke-audio-run"),
+  runPath: join(smokeRoot, "runs", "smoke-audio-run"),
 });
 
 await executeRun({
@@ -78,9 +97,13 @@ await executeRun({
   store,
   oracle,
   backend,
-  runsRoot: config.runsRoot,
+  runsRoot: join(smokeRoot, "runs"),
   describeAudio,
-  loop: config.loop,
+  loop: {
+    maxIterations: 1,
+    similarityThreshold: 2,
+    candidateCount: 2,
+  },
 });
 
 const completed = store.get(run.id);
@@ -93,31 +116,41 @@ if (completed.status !== "completed") {
 if (completed.inputNodeType !== "audio") {
   throw new Error(`Expected audio input, got ${completed.inputNodeType}.`);
 }
+if (!completed.selectedAgentId || completed.bestScore === null) {
+  throw new Error("Audio smoke run did not update SQLite summary columns.");
+}
 
 const artifact = store.getArtifact(run.id);
 if (!artifact?.result) {
   throw new Error("Audio smoke run has no result artifact.");
 }
 const result = artifact.result as SmokeResult;
+if (result.candidates.length !== 2) {
+  throw new Error(
+    `Expected 2 candidates, received ${result.candidates.length}.`,
+  );
+}
 if (result.candidates[0]?.outputNode.type !== outputType) {
   throw new Error(
     `Expected ${outputType} candidates, got ${result.candidates[0]?.outputNode.type}.`,
   );
 }
 
-await assertExists(join(config.runsRoot, run.id, "target.json"));
-await assertExists(join(config.runsRoot, run.id, "input.json"));
+await assertExists(join(smokeRoot, "runs", run.id, "target.json"));
+await assertExists(join(smokeRoot, "runs", run.id, "input.json"));
+await assertExists(join(smokeRoot, "runs", run.id, "evolution-journal.json"));
 
 console.log(
   JSON.stringify(
     {
       ok: true,
       runId: run.id,
-      oracleMode: config.oracleMode,
+      oracleMode,
       inputNodeType: completed.inputNodeType,
       outputType,
       describeAudio: Boolean(describeAudio),
       audioSource,
+      selectedAgentId: result.judge.selectedAgentId,
       candidateCount: result.candidates.length,
       bestNeuralSimilarity: result.bestNeuralSimilarity,
       hasDescription: Boolean(result.target?.description),
@@ -128,22 +161,18 @@ console.log(
   ),
 );
 
-function createBackend(cfg: AgentBackendConfig): AgentBackend {
-  if (cfg.mode === "deterministic") {
-    return new DeterministicAgentBackend();
-  }
-  return new CodexCliBackend({
-    command: cfg.command,
-    model: cfg.model,
-    profile: cfg.profile,
-    timeoutMs: cfg.timeoutMs,
-  });
-}
-
 type SmokeResult = {
-  candidates: Array<{ agentId: string; outputNode: OutputNode }>;
+  candidates: Array<{
+    agentId: string;
+    outputNode: OutputNode;
+  }>;
+  judge: {
+    selectedAgentId: string;
+  };
   bestNeuralSimilarity?: number;
-  target?: { description?: unknown };
+  target?: {
+    description?: unknown;
+  };
 };
 
 async function assertExists(path: string): Promise<void> {

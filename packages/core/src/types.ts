@@ -71,7 +71,6 @@ export type OutputNode = TextNode | ImageNode | CodeNode;
 
 export type SeedPayload = {
   prompt: string;
-  node?: InputNode;
 };
 
 export type InputObj = {
@@ -137,10 +136,17 @@ export type Render = (payload: Payload) => Promise<RenderedStimulus>;
 
 export type ActivationTrace = {
   model: string;
+  // [timesteps, vertices]. The hosted oracle preserves every timestep (no
+  // mean-pool) so the scorer can compare the activation *trajectory*, not just
+  // its time-average — the temporal structure is where cross-modal vibe lives.
   shape: [number, number];
   artifactPath?: string;
+  // Full per-timestep activation: values[t] is the R^vertices frame at step t.
   values?: number[][];
   diagnostics?: {
+    // One scalar per Yeo network: its mean activation magnitude over the run.
+    // (The hosted API returns full per-network vectors; the oracle reduces them
+    // to these scalars so judge prompts stay small.)
     yeo7Means?: Record<string, number>;
     yeo7DeltaFromTarget?: Record<string, number>;
   };
@@ -153,28 +159,6 @@ export type ActivationTrace = {
 
 export type ScoreBundle = {
   neuralSimilarity: number;
-  adjustedSimilarity: number;
-  calibratedSimilarity?: number;
-  rawAdjustedSimilarity?: number;
-  contrastSimilarity?: number;
-  discriminativeSimilarity?: number;
-  residualSimilarity?: number;
-  residualAdjustedSimilarity?: number;
-  retrievalMargin?: number;
-  nearMissSimilarity?: number;
-  cslsSimilarity?: number;
-  hubnessPenalty?: number;
-  searchProgressSignal?: number;
-  calibrationTargetCount?: number;
-  calibrationVertexCount?: number;
-  targetSpecificity?: number;
-  seedModality?: "text" | "image";
-  seedSimilarity?: number;
-  seedTargetSimilarity?: number;
-  seedSpecificity?: number;
-  seedPromptAdherence?: number;
-  seedPromptPenalty?: number;
-  penalty?: number;
   seedAdherence: number;
   coherence: number;
   diversity: number;
@@ -184,7 +168,6 @@ export type ScoreBundle = {
 export type AgentOutput = {
   agentId: string;
   outputNode: OutputNode;
-  entropy?: string;
 };
 
 export type EvaluatedOutput = AgentOutput & {
@@ -214,7 +197,6 @@ export type NextIterationSeed =
     };
 
 export type NeuralOracle = {
-  model?: string;
   encode(stimulus: EncoderStimulus): Promise<ActivationTrace>;
   shutdown?(): Promise<void> | void;
 };
