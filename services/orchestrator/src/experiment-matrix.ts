@@ -23,6 +23,7 @@ import {
   type ActivationTrace,
   type InputObj,
   neuralTrajectorySimilarity,
+  type OutputNode,
   type OutputObj,
   pooledActivationSimilarity,
 } from "@volta/core";
@@ -35,7 +36,13 @@ import { renderPayload } from "./render.ts";
 import { executeRun } from "./run.ts";
 import { RunStore } from "./storage.ts";
 
-type TargetSpec = { id: string; kind: "audio" | "image"; source: string };
+type TargetSpec = {
+  id: string;
+  kind: "audio" | "image";
+  source: string;
+  // Output medium for the run (default text). "image" exercises the Flux path.
+  output?: "text" | "image";
+};
 
 const expName = process.argv[2];
 const targetsPath = process.argv[3];
@@ -94,7 +101,10 @@ type Winner = {
   bestNeuralSimilarity?: number;
   stopReason?: string;
   curve?: Array<{ iteration: number; best: number }>;
-  text?: string;
+  // Best-scoring output node across all iterations (full payload — text body
+  // or materialized image source + generation prompt).
+  node?: OutputNode;
+  preview?: string;
   durationS?: number;
 };
 
@@ -154,10 +164,10 @@ type MatrixCell = { full: number; pooled: number | undefined };
 const matrix: Record<string, Record<string, MatrixCell>> = {};
 
 for (const winner of winners) {
-  if (!winner.ok || !winner.text) {
+  if (!winner.ok || !winner.node) {
     continue;
   }
-  const rendered = await renderPayload({ type: "text", text: winner.text });
+  const rendered = await renderPayload(winner.node.payload);
   const activation = await oracle.encode(rendered.encoderInput);
   matrix[winner.id] = {};
   for (const [targetId, targetActivation] of targetActivations) {
@@ -244,7 +254,7 @@ async function runTarget(target: TargetSpec): Promise<Winner> {
     inputNode,
     seed: { prompt: "Generate output that carries the vibe of this input." },
   };
-  const output: OutputObj = { outputType: "text" };
+  const output: OutputObj = { outputType: target.output ?? "text" };
   store.create({ id, input, output, runPath: join(runsRoot, id) });
 
   await executeRun({
@@ -281,9 +291,9 @@ function loadWinnerFromDisk(target: TargetSpec): Winner | undefined {
     stopReason?: string;
     scoreCurve?: Array<{ iteration: number; bestNeuralSimilarity: number }>;
   };
-  // Best text across all iterations by neural similarity. The journal
+  // Best output node across all iterations by neural similarity. The journal
   // truncates payloads, so read the per-iteration scores.json (full nodes).
-  let bestText: string | undefined;
+  let bestNode: OutputNode | undefined;
   let bestSim = Number.NEGATIVE_INFINITY;
   const iterationsDir = join(runsRoot, runId(target), "iterations");
   if (existsSync(iterationsDir)) {
@@ -294,19 +304,12 @@ function loadWinnerFromDisk(target: TargetSpec): Winner | undefined {
       }
       const ranked = JSON.parse(readFileSync(scoresPath, "utf8")) as Array<{
         score: { neuralSimilarity: number };
-        outputNode?: {
-          type: string;
-          payload?: { type: string; text?: string };
-        };
+        outputNode?: OutputNode;
       }>;
       for (const output of ranked) {
-        const text =
-          output.outputNode?.payload?.type === "text"
-            ? output.outputNode.payload.text
-            : undefined;
-        if (text && output.score.neuralSimilarity > bestSim) {
+        if (output.outputNode && output.score.neuralSimilarity > bestSim) {
           bestSim = output.score.neuralSimilarity;
-          bestText = text;
+          bestNode = output.outputNode;
         }
       }
     }
@@ -321,8 +324,22 @@ function loadWinnerFromDisk(target: TargetSpec): Winner | undefined {
       iteration: c.iteration,
       best: c.bestNeuralSimilarity,
     })),
-    text: bestText,
+    node: bestNode,
+    preview: nodePreview(bestNode),
   };
+}
+
+function nodePreview(node: OutputNode | undefined): string | undefined {
+  if (!node) {
+    return undefined;
+  }
+  if (node.type === "text") {
+    return node.payload.text;
+  }
+  if (node.type === "image") {
+    return node.payload.prompt ?? node.payload.source.uri;
+  }
+  return node.type;
 }
 
 function runId(target: TargetSpec): string {
