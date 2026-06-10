@@ -175,6 +175,13 @@ for (const winner of winners) {
   }
   const rendered = await renderPayload(winner.node.payload);
   const activation = await oracle.encode(rendered.encoderInput);
+  // Persist for offline metric experiments (values included — the run
+  // artifacts drop them, which made every metric question cost oracle calls).
+  await writeJson(join(expRoot, "activations", `winner-${winner.id}.json`), {
+    id: winner.id,
+    preview: winner.preview,
+    activation,
+  });
   matrix[winner.id] = {};
   for (const [targetId, targetActivation] of targetActivations) {
     matrix[winner.id][targetId] = {
