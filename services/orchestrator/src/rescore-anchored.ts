@@ -18,8 +18,12 @@ import { loadAnchors } from "./anchors.ts";
 const repoRoot = resolve(import.meta.dir, "../../..");
 const expRoot = process.argv[2];
 const ids = (process.argv[3] ?? "").split(",").filter(Boolean);
+// Winner modality: "text" (default) or "video" for generated-image winners.
+const winnerKind = (process.argv[4] ?? "text") as "text" | "video";
 if (!expRoot || ids.length < 2) {
-  console.error("usage: bun rescore-anchored.ts <expRoot> <id,id,...>");
+  console.error(
+    "usage: bun rescore-anchored.ts <expRoot> <id,id,...> [text|video]",
+  );
   process.exit(1);
 }
 
@@ -57,7 +61,7 @@ const items: Loaded[] = ids.map((id) => {
     target: target.activation,
     targetKind: (target.rendered?.kind ?? "audio") as Loaded["targetKind"],
     winner: winner?.activation,
-    winnerKind: "text",
+    winnerKind,
     preview: winner?.preview,
   };
 });
