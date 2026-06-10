@@ -1,12 +1,7 @@
 import { join } from "node:path";
-import { type AgentBackend, CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
-import {
-  type AgentBackendConfig,
-  type LoopConfig,
-  loadConfig,
-  normalizeLoopConfig,
-} from "./config.ts";
+import { createAgentBackend } from "./backend.ts";
+import { type LoopConfig, loadConfig, normalizeLoopConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
 import { createImageGenerator } from "./imagegen.ts";
 import { createEvolutionJournal } from "./observability.ts";
@@ -165,14 +160,5 @@ function json(value: unknown, status = 200): Response {
     headers: {
       "Content-Type": "application/json",
     },
-  });
-}
-
-function createAgentBackend(config: AgentBackendConfig): AgentBackend {
-  return new CodexCliBackend({
-    command: config.command,
-    model: config.model,
-    profile: config.profile,
-    timeoutMs: config.timeoutMs,
   });
 }

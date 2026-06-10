@@ -234,7 +234,7 @@ async function spawnCodex(args: {
   });
 }
 
-function candidateSchema(outputType: OutputNode["type"]): JsonSchema {
+export function candidateSchema(outputType: OutputNode["type"]): JsonSchema {
   return {
     type: "object",
     additionalProperties: false,
@@ -248,7 +248,7 @@ function candidateSchema(outputType: OutputNode["type"]): JsonSchema {
   };
 }
 
-function judgeSchema(invocation: JudgeAgentInvocation): JsonSchema {
+export function judgeSchema(invocation: JudgeAgentInvocation): JsonSchema {
   return {
     type: "object",
     additionalProperties: false,
@@ -467,7 +467,7 @@ function nullableSchema(schema: JsonSchema): JsonSchema {
   };
 }
 
-function imageAttachmentPaths(invocation: AgentInvocation): string[] {
+export function imageAttachmentPaths(invocation: AgentInvocation): string[] {
   const refs = assetRefsForImageAttachments(invocation.input.inputNode);
 
   if (invocation.role === "judge") {
@@ -524,7 +524,7 @@ function localPathFromUri(uri: string): string | undefined {
   return undefined;
 }
 
-function normalizeOutputNode(
+export function normalizeOutputNode(
   value: unknown,
   outputType: OutputNode["type"],
 ): OutputNode {
@@ -573,7 +573,7 @@ function parseJsonOutput(value: string): unknown {
   }
 }
 
-function pruneNulls(value: unknown): unknown {
+export function pruneNulls(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(pruneNulls);
   }

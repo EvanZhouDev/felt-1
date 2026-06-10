@@ -1,3 +1,4 @@
+export * from "./backend/claude.ts";
 export * from "./backend/codex.ts";
 export * from "./prompts.ts";
 export * from "./runner.ts";

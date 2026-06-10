@@ -1,8 +1,8 @@
 import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
+import { createAgentBackend } from "./backend.ts";
 import type { OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
 import { createImageGenerator } from "./imagegen.ts";
@@ -65,12 +65,7 @@ const config: OrchestratorConfig = {
 };
 
 const oracle = createOracle(config);
-const backend = new CodexCliBackend({
-  command: config.agentBackend.command,
-  model: config.agentBackend.model,
-  profile: config.agentBackend.profile,
-  timeoutMs: config.agentBackend.timeoutMs,
-});
+const backend = createAgentBackend(config.agentBackend);
 const describeAudio = createAudioDescriber(config);
 
 const input: InputObj = {

@@ -1,8 +1,9 @@
 import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
+import { createAgentBackend } from "./backend.ts";
+import { loadConfig } from "./config.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun } from "./run.ts";
 import { RunStore } from "./storage.ts";
@@ -43,10 +44,7 @@ const oracle = createOracle({
     capturePayloads: false,
   },
 });
-const backend = new CodexCliBackend({
-  command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
-  timeoutMs: 900_000,
-});
+const backend = createAgentBackend(loadConfig().agentBackend);
 
 const scenarios: Scenario[] = [
   {

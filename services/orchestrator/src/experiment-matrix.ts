@@ -18,7 +18,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { CodexCliBackend } from "@volta/agent-sdk";
 import {
   type ActivationTrace,
   type InputObj,
@@ -27,6 +26,7 @@ import {
   type OutputObj,
   pooledActivationSimilarity,
 } from "@volta/core";
+import { createAgentBackend } from "./backend.ts";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
 import { createImageGenerator } from "./imagegen.ts";
@@ -81,12 +81,7 @@ const config: OrchestratorConfig = {
 const oracle = createOracle(config);
 const describer = createAudioDescriber(config);
 const generateImage = createImageGenerator(config);
-const backend = new CodexCliBackend({
-  command: config.agentBackend.command,
-  model: config.agentBackend.model,
-  profile: config.agentBackend.profile,
-  timeoutMs: config.agentBackend.timeoutMs,
-});
+const backend = createAgentBackend(config.agentBackend);
 
 await mkdir(runsRoot, { recursive: true });
 log(

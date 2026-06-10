@@ -21,13 +21,20 @@ export type OrchestratorConfig = {
   weave: WeaveConfig;
 };
 
-export type AgentBackendConfig = {
-  mode: "codex";
-  command: string;
-  model?: string;
-  profile?: string;
-  timeoutMs: number;
-};
+export type AgentBackendConfig =
+  | {
+      mode: "codex";
+      command: string;
+      model?: string;
+      profile?: string;
+      timeoutMs: number;
+    }
+  | {
+      mode: "claude";
+      command: string;
+      model?: string;
+      timeoutMs: number;
+    };
 
 export type LoopConfig = {
   maxIterations: number;
@@ -98,6 +105,14 @@ function loadOracleMode(): OracleMode {
 }
 
 function loadAgentBackendConfig(): AgentBackendConfig {
+  if (process.env.VOLTA_AGENT_BACKEND === "claude") {
+    return {
+      mode: "claude",
+      command: process.env.VOLTA_CLAUDE_COMMAND ?? "claude",
+      model: process.env.VOLTA_CLAUDE_MODEL,
+      timeoutMs: numberFromEnv("VOLTA_CLAUDE_TIMEOUT_MS", 600_000),
+    };
+  }
   return {
     mode: "codex",
     command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
