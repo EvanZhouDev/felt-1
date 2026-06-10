@@ -174,21 +174,30 @@ export class ClaudeCliBackend implements AgentBackend {
       writeFile(join(logsPath, "claude.stderr"), result.stderr, "utf8"),
     ]);
 
+    // Trust the envelope over the exit code: the CLI has been observed to
+    // exit 1 while emitting a fully valid success envelope (empty final text
+    // alongside present structured_output). Only fall back to the exit code
+    // when stdout has no usable envelope.
+    let envelope: ClaudeEnvelope | undefined;
+    try {
+      envelope = JSON.parse(result.stdout) as ClaudeEnvelope;
+    } catch {
+      envelope = undefined;
+    }
+    if (envelope && !envelope.is_error && envelope.structured_output != null) {
+      return envelope.structured_output as T;
+    }
     if (result.exitCode !== 0) {
       throw new Error(
         `Claude exited with ${result.exitCode}. Stderr: ${result.stderr.slice(-1000)}`,
       );
     }
-    const envelope = JSON.parse(result.stdout) as ClaudeEnvelope;
-    if (envelope.is_error) {
+    if (envelope?.is_error) {
       throw new Error(`Claude returned an error: ${envelope.result}`);
     }
-    if (envelope.structured_output == null) {
-      throw new Error(
-        `Claude returned no structured output. Result: ${(envelope.result ?? "").slice(0, 500)}`,
-      );
-    }
-    return envelope.structured_output as T;
+    throw new Error(
+      `Claude returned no structured output. Result: ${(envelope?.result ?? "").slice(0, 500)}`,
+    );
   }
 }
 
