@@ -2,6 +2,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   ActivationTrace,
   EncoderStimulus,
@@ -213,9 +214,9 @@ class HttpTribeOracle implements NeuralOracle {
       }
       return { blob: await response.blob(), name: basename(path) };
     }
-    const local = path.startsWith("file://")
-      ? path.slice("file://".length)
-      : path;
+    // fileURLToPath percent-decodes (pathToFileURL encodes spaces etc.);
+    // slicing the prefix off would leave %20s and break readFile.
+    const local = path.startsWith("file://") ? fileURLToPath(path) : path;
     if (local.includes("://")) {
       throw new Error(
         `HttpTribeOracle: unsupported artifact URI scheme: ${path}. Provide a local file path or http(s) URL.`,

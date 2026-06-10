@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AudioDescription, AudioNode } from "@volta/core";
 import type { OrchestratorConfig } from "./config.ts";
 
@@ -209,7 +210,7 @@ function summarizeFeatures(features: AudioFeatures | undefined): string {
 }
 
 async function readAudio(uri: string): Promise<{ blob: Blob; name: string }> {
-  const local = uri.startsWith("file://") ? new URL(uri).pathname : uri;
+  const local = uri.startsWith("file://") ? fileURLToPath(uri) : uri;
   if (local.startsWith("http://") || local.startsWith("https://")) {
     const response = await fetch(local);
     if (!response.ok) {
@@ -236,7 +237,7 @@ async function readAudio(uri: string): Promise<{ blob: Blob; name: string }> {
 
 function localPath(uri: string): string | undefined {
   if (uri.startsWith("file://")) {
-    return new URL(uri).pathname;
+    return fileURLToPath(uri);
   }
   if (uri.includes("://")) {
     return undefined;

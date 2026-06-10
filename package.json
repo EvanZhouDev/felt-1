@@ -23,7 +23,8 @@
     "setup:tribe": "bash scripts/setup-tribe.sh",
     "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts",
     "smoke:audio:tribe": "VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true bun services/orchestrator/src/smoke-audio.ts",
-    "smoke:image:tribe": "VOLTA_ORACLE=http bun services/orchestrator/src/smoke-image.ts"
+    "smoke:image:tribe": "VOLTA_ORACLE=http bun services/orchestrator/src/smoke-image.ts",
+    "exp:matrix": "bun services/orchestrator/src/experiment-matrix.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",

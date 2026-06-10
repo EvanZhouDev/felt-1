@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { AssetRef, AudioNode, ImageNode, RenderTiming } from "@volta/core";
 
 // Default still-frame timing shared with the renderers (IO_MODULES Hackathon
@@ -82,7 +82,7 @@ async function resolveAsset(
   }
 
   const localPath = source.startsWith("file://")
-    ? new URL(source).pathname
+    ? fileURLToPath(source)
     : isAbsolute(source)
       ? source
       : resolve(process.cwd(), source);
