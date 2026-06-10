@@ -107,6 +107,17 @@ const winners: Winner[] = [];
 
 if (!skipRuns) {
   await mapWithConcurrency(targets, concurrency, async (target) => {
+    // Completed runs on disk are reused so a partially-failed experiment can
+    // be relaunched without repeating its finished targets.
+    const existing = loadWinnerFromDisk(target);
+    if (existing?.stopReason) {
+      winners.push(existing);
+      log(
+        `[${target.id}] reusing completed run from disk (best=${existing.bestNeuralSimilarity?.toFixed(4)})`,
+      );
+      await writeJson(join(expRoot, "winners.json"), winners);
+      return;
+    }
     const started = Date.now();
     log(`[${target.id}] run starting (${target.kind})`);
     try {
