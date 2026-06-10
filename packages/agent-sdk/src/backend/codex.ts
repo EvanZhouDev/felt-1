@@ -30,6 +30,7 @@ type CandidateCodexResponse = {
 type JudgeCodexResponse = {
   selectedAgentId: string;
   reasoning: string;
+  seedAdherence?: Array<{ agentId: string; score: number }> | null;
 };
 
 export class CodexCliBackend implements AgentBackend {
@@ -100,6 +101,9 @@ export class CodexCliBackend implements AgentBackend {
       selectedAgentId: selected.agentId,
       selectedNode: selected.outputNode,
       reasoning: response.reasoning,
+      ...(response.seedAdherence
+        ? { seedAdherence: response.seedAdherence }
+        : {}),
     };
 
     await writeJson(join(invocation.workspace.outputPath, "judge.json"), {
@@ -249,17 +253,42 @@ export function candidateSchema(outputType: OutputNode["type"]): JsonSchema {
 }
 
 export function judgeSchema(invocation: JudgeAgentInvocation): JsonSchema {
-  return {
+  const agentIds = invocation.rankedOutputs.map((output) => output.agentId);
+  const base: JsonSchema = {
     type: "object",
     additionalProperties: false,
     required: ["selectedAgentId", "reasoning"],
     properties: {
       selectedAgentId: {
         type: "string",
-        enum: invocation.rankedOutputs.map((output) => output.agentId),
+        enum: agentIds,
       },
       reasoning: {
         type: "string",
+      },
+    },
+  };
+  if (!invocation.input.seed) {
+    return base;
+  }
+  // Seeded runs: the judge also rates each candidate's fidelity to the seed
+  // content; the orchestrator folds these into the score totals.
+  return {
+    ...base,
+    required: ["selectedAgentId", "reasoning", "seedAdherence"],
+    properties: {
+      ...(base.properties as Record<string, unknown>),
+      seedAdherence: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["agentId", "score"],
+          properties: {
+            agentId: { type: "string", enum: agentIds },
+            score: { type: "number", minimum: 0, maximum: 1 },
+          },
+        },
       },
     },
   };

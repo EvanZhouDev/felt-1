@@ -184,6 +184,11 @@ export type JudgeDecision = {
   selectedAgentId: string;
   selectedNode: OutputNode;
   reasoning: string;
+  // Judge-rated fidelity of each candidate to the run's seed content, in
+  // [0, 1] (1 = clearly depicts it). Present only for seeded runs. Folded
+  // back into each candidate's ScoreBundle so abandoning the subject to
+  // chase the vibe costs real score.
+  seedAdherence?: Array<{ agentId: string; score: number }>;
 };
 
 export type NextIterationSeed =

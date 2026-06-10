@@ -46,6 +46,7 @@ type CandidateResponse = {
 type JudgeResponse = {
   selectedAgentId: string;
   reasoning: string;
+  seedAdherence?: Array<{ agentId: string; score: number }> | null;
 };
 
 const MAX_TURNS = 8;
@@ -114,6 +115,9 @@ export class ClaudeCliBackend implements AgentBackend {
       selectedAgentId: selected.agentId,
       selectedNode: selected.outputNode,
       reasoning: response.reasoning,
+      ...(response.seedAdherence
+        ? { seedAdherence: response.seedAdherence }
+        : {}),
     };
     await writeJson(join(invocation.workspace.outputPath, "judge.json"), {
       ...decision,

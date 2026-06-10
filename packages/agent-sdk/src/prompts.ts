@@ -88,6 +88,9 @@ export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
     "Use the TRIBE neural similarity scores as the primary signal.",
     "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as hints only; never let them override the full-vector neural similarity ranking.",
     "Your reasoning doubles as the critique fed to the next round's candidate agents. State concretely: what the selected candidate does that earns its score, what it still lacks relative to the target's vibe, and what a higher-scoring attempt should try next.",
+    invocation.input.seed
+      ? "This run has a SEED: the output is required to depict the seed's content while carrying the target's vibe. For EVERY candidate in the ranked list, rate seedAdherence in [0, 1]: 1.0 = the seed content is clearly and fully depicted; 0.5 = partially present or heavily transformed; 0.0 = the seed content was abandoned. Inspect attached candidate images where available. Rate every agentId exactly once. These ratings carry real score weight — an output that abandons the seed to chase the vibe must pay for it."
+      : "",
     "Low diversity scores mean the candidates are crowding one region of activation space — usually a shared generically-evocative register rather than the target's specific signature. When you see that, say so in the critique and direct the next round to diverge in perceptual form (rhythm, sentence shape, density), not just imagery.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",

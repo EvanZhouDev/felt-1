@@ -27,6 +27,33 @@ const BEST_MATCH_WEIGHT = 0.3;
 const TEMPORAL_SHARE = 0.5;
 const DYNAMICS_SHARE = 0.5;
 
+// ScoreBundle blend weights — shared by initial scoring and post-judge
+// seed-adherence re-totaling.
+export const SCORE_WEIGHTS = {
+  neuralSimilarity: 0.7,
+  seedAdherence: 0.15,
+  coherence: 0.1,
+  diversity: 0.05,
+} as const;
+
+// Re-total a bundle with a judged seed-adherence value (the initial pass
+// uses a neutral 0.5 because no rater has seen the rendered output yet).
+export function withSeedAdherence(
+  score: ScoreBundle,
+  seedAdherence: number,
+): ScoreBundle {
+  const clamped = Math.min(1, Math.max(0, seedAdherence));
+  return {
+    ...score,
+    seedAdherence: clamped,
+    total:
+      score.neuralSimilarity * SCORE_WEIGHTS.neuralSimilarity +
+      clamped * SCORE_WEIGHTS.seedAdherence +
+      score.coherence * SCORE_WEIGHTS.coherence +
+      score.diversity * SCORE_WEIGHTS.diversity,
+  };
+}
+
 export function scoreActivations(args: {
   target: ActivationTrace;
   candidate: ActivationTrace;
@@ -55,10 +82,10 @@ export function scoreActivations(args: {
     coherence,
     diversity,
     total:
-      neuralSimilarity * 0.7 +
-      seedAdherence * 0.15 +
-      coherence * 0.1 +
-      diversity * 0.05,
+      neuralSimilarity * SCORE_WEIGHTS.neuralSimilarity +
+      seedAdherence * SCORE_WEIGHTS.seedAdherence +
+      coherence * SCORE_WEIGHTS.coherence +
+      diversity * SCORE_WEIGHTS.diversity,
   };
 }
 

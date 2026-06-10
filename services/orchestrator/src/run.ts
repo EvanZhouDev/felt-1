@@ -20,6 +20,7 @@ import {
   pooledTrace,
   type RenderedStimulus,
   scoreActivations,
+  withSeedAdherence,
 } from "@volta/core";
 import { type AnchorSet, anchorFor } from "./anchors.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
@@ -632,6 +633,26 @@ async function executeIteration(
       }),
     output: (decision) => decision,
   });
+  // Judged seed adherence replaces the neutral 0.5 in each bundle and the
+  // ranking is recomputed — an output that abandoned the seed content loses
+  // its share of the total and can be displaced before next-seed selection.
+  const adherenceByAgent = new Map(
+    (judge.seedAdherence ?? []).map((entry) => [entry.agentId, entry.score]),
+  );
+  if (adherenceByAgent.size > 0) {
+    for (const output of rankedOutputs) {
+      const rated = adherenceByAgent.get(output.agentId);
+      if (typeof rated === "number") {
+        output.score = withSeedAdherence(output.score, rated);
+      }
+    }
+    rankedOutputs.sort((left, right) => right.score.total - left.score.total);
+    await writeJson(
+      join(iterationPath, "scores.json"),
+      rankedOutputs.map(forDisk),
+    );
+  }
+
   // The next seed is always the global best (rank 0 after re-insertion) so the
   // next round refines the champion; the judge's reasoning rides along as the
   // critique shown to the next round's candidates.

@@ -104,6 +104,7 @@ export class DeepSeekBackend implements AgentBackend {
     const response = await this.complete<{
       selectedAgentId: string;
       reasoning: string;
+      seedAdherence?: Array<{ agentId: string; score: number }> | null;
     }>({
       invocation,
       prompt: buildJudgePrompt(invocation),
@@ -129,6 +130,9 @@ export class DeepSeekBackend implements AgentBackend {
       selectedAgentId: selected.agentId,
       selectedNode: selected.outputNode,
       reasoning: response.reasoning,
+      ...(response.seedAdherence
+        ? { seedAdherence: response.seedAdherence }
+        : {}),
     };
     await writeJson(join(invocation.workspace.outputPath, "judge.json"), {
       ...decision,
