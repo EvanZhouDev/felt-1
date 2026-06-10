@@ -30,13 +30,20 @@ const DYNAMICS_SHARE = 0.5;
 export function scoreActivations(args: {
   target: ActivationTrace;
   candidate: ActivationTrace;
+  // Modality baseline activations (pooled anchor-corpus means). When present,
+  // each trace is re-expressed relative to its own modality's baseline before
+  // similarity — removing the "this is music being heard" / "this is text
+  // being read" common mode that otherwise makes emotionally OPPOSITE inputs
+  // ~0.9 alike and compresses all vibe specificity into noise.
+  targetAnchor?: number[];
+  candidateAnchor?: number[];
   seedAdherence?: number;
   coherence?: number;
   diversity?: number;
 }): ScoreBundle {
   const neuralSimilarity = neuralTrajectorySimilarity(
-    args.target,
-    args.candidate,
+    anchorTrace(args.target, args.targetAnchor),
+    anchorTrace(args.candidate, args.candidateAnchor),
   );
   const seedAdherence = args.seedAdherence ?? 0.5;
   const coherence = args.coherence ?? 0.5;
@@ -108,6 +115,24 @@ export function neuralTrajectorySimilarity(
   // No per-vertex values at all (sparse summary-only trace): keep the legacy
   // uncentered cosine over the summary vector, which is already non-negative.
   return cosineSimilarity(flatA, flatB);
+}
+
+// Re-express a trace relative to a modality baseline: subtract the anchor
+// (pooled mean activation of a diverse same-modality corpus) from every frame.
+// Identity when no anchor or no values.
+export function anchorTrace(
+  trace: ActivationTrace,
+  anchor: number[] | undefined,
+): ActivationTrace {
+  if (!anchor || anchor.length === 0 || !trace.values) {
+    return trace;
+  }
+  return {
+    ...trace,
+    values: trace.values.map((frame) =>
+      frame.map((v, i) => v - (anchor[i] ?? 0)),
+    ),
+  };
 }
 
 // Pooled (time-averaged, mean-centered) cosine between two traces, in [0, 1].

@@ -2,6 +2,7 @@ import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
+import { loadAnchors } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import type { OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -96,6 +97,7 @@ await executeRun({
   runsRoot: join(smokeRoot, "runs"),
   describeAudio,
   generateImage: createImageGenerator(config),
+  anchors: loadAnchors(config.repoRoot),
   loop: {
     maxIterations: 1,
     similarityThreshold: 2,

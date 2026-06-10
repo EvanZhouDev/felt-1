@@ -20,6 +20,7 @@ import {
   type RenderedStimulus,
   scoreActivations,
 } from "@volta/core";
+import { type AnchorSet, anchorFor } from "./anchors.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import { FLUX_URI_PREFIX, type ImageGenerator } from "./imagegen.ts";
 import {
@@ -82,6 +83,9 @@ export type ExecuteRunArgs = {
   judgeModel?: string;
   describeAudio?: AudioDescriber;
   generateImage?: ImageGenerator;
+  // Modality-baseline activations for common-mode removal in scoring; absent
+  // = legacy raw similarity.
+  anchors?: AnchorSet;
 };
 
 export type ResumeRunArgs = Omit<ExecuteRunArgs, "input" | "output">;
@@ -283,6 +287,7 @@ async function executeRunLoop(
       trajectory: buildTrajectoryContext({
         attempts: scoredAttempts(iterations),
         critique: iterations.at(-1)?.judge.reasoning,
+        anchor: anchorFor(args.anchors ?? {}, kindForOutput(args.output)),
       }),
       bestSoFar: bestOverallOutput(iterations),
       priorActivations: priorActivations(iterations),
@@ -647,6 +652,7 @@ async function evaluateCandidate(
   args: RunLoopArgs & {
     iteration: number;
     candidate: Awaited<ReturnType<typeof runCandidateAgent>>;
+    target: RunLoopResult["target"];
     targetActivation: RunLoopResult["target"]["activation"];
     noveltyPriors: string[];
     priorActivations: ActivationTrace[];
@@ -707,6 +713,8 @@ async function evaluateCandidate(
       scoreActivations({
         target: args.targetActivation,
         candidate: activationWithDiagnostics,
+        targetAnchor: anchorFor(args.anchors ?? {}, args.target.rendered.kind),
+        candidateAnchor: anchorFor(args.anchors ?? {}, rendered.kind),
         diversity: combinedNovelty({
           // Surface guard: near-verbatim repeats of prior texts.
           text: text ? textNovelty(text, args.noveltyPriors) : undefined,
@@ -716,6 +724,7 @@ async function evaluateCandidate(
           activation: activationNovelty(
             activationWithDiagnostics,
             args.priorActivations,
+            anchorFor(args.anchors ?? {}, rendered.kind),
           ),
         }),
       }),
@@ -1044,6 +1053,11 @@ function bestOverallOutput(
       (left, right) =>
         right.score.neuralSimilarity - left.score.neuralSimilarity,
     )[0];
+}
+
+// Encoder modality of a given output medium (image/code render to video).
+function kindForOutput(output: OutputObj): "text" | "audio" | "video" {
+  return output.outputType === "text" ? "text" : "video";
 }
 
 function iterationId(iteration: number): string {

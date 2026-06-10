@@ -1,6 +1,7 @@
 import type { TrajectoryContext, TrajectoryEntry } from "@volta/agent-sdk";
 import {
   type ActivationTrace,
+  anchorTrace,
   type EvaluatedOutput,
   pooledActivationSimilarity,
 } from "@volta/core";
@@ -21,6 +22,9 @@ export type ScoredAttempt = {
 export function buildTrajectoryContext(args: {
   attempts: ScoredAttempt[];
   critique?: string;
+  // Candidate-modality anchor: crowding is measured in common-mode-free space
+  // when available, so a shared modality baseline doesn't read as crowding.
+  anchor?: number[];
 }): TrajectoryContext | undefined {
   const deduped = dedupeByStimulus(args.attempts);
   if (deduped.length === 0) {
@@ -40,6 +44,7 @@ export function buildTrajectoryContext(args: {
     trajectoryEntry(
       attempt,
       attempt === best ? undefined : best?.output.activation,
+      args.anchor,
     ),
   );
   return {
@@ -85,9 +90,13 @@ function dedupeByStimulus(attempts: ScoredAttempt[]): ScoredAttempt[] {
 function trajectoryEntry(
   attempt: ScoredAttempt,
   bestActivation?: ActivationTrace,
+  anchor?: number[],
 ): TrajectoryEntry {
   const similarityToBest = bestActivation
-    ? pooledActivationSimilarity(attempt.output.activation, bestActivation)
+    ? pooledActivationSimilarity(
+        anchorTrace(attempt.output.activation, anchor),
+        anchorTrace(bestActivation, anchor),
+      )
     : undefined;
   return {
     iteration: attempt.iteration,
@@ -151,10 +160,15 @@ export function textNovelty(text: string, priorTexts: string[]): number {
 export function activationNovelty(
   candidate: ActivationTrace,
   priors: ActivationTrace[],
+  anchor?: number[],
 ): number | undefined {
+  const anchored = anchorTrace(candidate, anchor);
   let maxSimilarity: number | undefined;
   for (const prior of priors) {
-    const similarity = pooledActivationSimilarity(candidate, prior);
+    const similarity = pooledActivationSimilarity(
+      anchored,
+      anchorTrace(prior, anchor),
+    );
     if (similarity === undefined) {
       continue;
     }

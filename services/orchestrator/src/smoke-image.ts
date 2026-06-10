@@ -2,6 +2,7 @@ import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { InputObj, OutputNode, OutputObj } from "@volta/core";
+import { loadAnchors } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
 import { createImageGenerator } from "./imagegen.ts";
@@ -80,6 +81,7 @@ await executeRun({
   runsRoot: join(smokeRoot, "runs"),
   loop: config.loop,
   generateImage: createImageGenerator(config),
+  anchors: loadAnchors(config.repoRoot),
 });
 
 const completed = store.get(run.id);

@@ -26,6 +26,7 @@ import {
   type OutputObj,
   pooledActivationSimilarity,
 } from "@volta/core";
+import { loadAnchors } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -81,6 +82,7 @@ const config: OrchestratorConfig = {
 const oracle = createOracle(config);
 const describer = createAudioDescriber(config);
 const generateImage = createImageGenerator(config);
+const anchors = loadAnchors(config.repoRoot);
 const backend = createAgentBackend(config.agentBackend);
 
 await mkdir(runsRoot, { recursive: true });
@@ -286,6 +288,7 @@ async function runTarget(target: TargetSpec): Promise<Winner> {
     loop: config.loop,
     describeAudio: target.kind === "audio" ? describer : undefined,
     generateImage,
+    anchors,
   });
 
   const record = store.get(id);

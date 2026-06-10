@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import type { InputObj, OutputObj } from "@volta/core";
+import { loadAnchors } from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import { type LoopConfig, loadConfig, normalizeLoopConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -16,6 +17,7 @@ const journal = createEvolutionJournal(config.weave);
 const backend = createAgentBackend(config.agentBackend);
 const describeAudio = createAudioDescriber(config);
 const generateImage = createImageGenerator(config);
+const anchors = loadAnchors(config.repoRoot);
 
 const server = Bun.serve({
   port: config.port,
@@ -78,6 +80,7 @@ const server = Bun.serve({
         judgeModel: config.judgeModel,
         describeAudio,
         generateImage,
+        anchors,
       }).catch((error) => {
         console.error(`Run ${id} failed:`, error);
       });
@@ -125,6 +128,7 @@ const server = Bun.serve({
         judgeModel: config.judgeModel,
         describeAudio,
         generateImage,
+        anchors,
       }).catch((error) => {
         console.error(`Run ${id} resume failed:`, error);
       });
