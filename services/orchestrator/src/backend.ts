@@ -4,6 +4,7 @@ import {
   type AgentResult,
   ClaudeCliBackend,
   CodexCliBackend,
+  DeepSeekBackend,
 } from "@volta/agent-sdk";
 import type { AgentBackendConfig } from "./config.ts";
 
@@ -21,6 +22,13 @@ export function createAgentBackend(config: AgentBackendConfig): AgentBackend {
 }
 
 function buildOne(config: AgentBackendConfig["chain"][number]): AgentBackend {
+  if (config.mode === "deepseek") {
+    return new DeepSeekBackend({
+      model: config.model,
+      baseUrl: config.baseUrl,
+      timeoutMs: config.timeoutMs,
+    });
+  }
   if (config.mode === "claude") {
     return new ClaudeCliBackend({
       command: config.command,
@@ -65,6 +73,10 @@ function isUsageCapError(error: unknown): boolean {
     message.includes("rate limit") ||
     message.includes("usage_limit") ||
     message.includes("quota") ||
-    message.includes("purchase more credits")
+    message.includes("purchase more credits") ||
+    // DeepSeek insufficient-balance / throttling
+    message.includes("Insufficient Balance") ||
+    /\b402\b/.test(message) ||
+    /\b429\b/.test(message)
   );
 }

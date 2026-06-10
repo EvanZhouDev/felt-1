@@ -34,6 +34,12 @@ export type SingleBackendConfig =
       command: string;
       model?: string;
       timeoutMs: number;
+    }
+  | {
+      mode: "deepseek";
+      model?: string;
+      baseUrl?: string;
+      timeoutMs: number;
     };
 
 // Priority list: first entry is primary; later entries take over when the
@@ -123,6 +129,14 @@ function loadAgentBackendConfig(): AgentBackendConfig {
           command: process.env.VOLTA_CLAUDE_COMMAND ?? "claude",
           model: process.env.VOLTA_CLAUDE_MODEL,
           timeoutMs: numberFromEnv("VOLTA_CLAUDE_TIMEOUT_MS", 600_000),
+        };
+      }
+      if (mode === "deepseek") {
+        return {
+          mode: "deepseek",
+          model: process.env.VOLTA_DEEPSEEK_MODEL,
+          baseUrl: process.env.VOLTA_DEEPSEEK_URL,
+          timeoutMs: numberFromEnv("VOLTA_DEEPSEEK_TIMEOUT_MS", 300_000),
         };
       }
       if (mode !== "codex") {

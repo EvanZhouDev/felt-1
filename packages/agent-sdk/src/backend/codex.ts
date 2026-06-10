@@ -555,7 +555,7 @@ function filesArrayToRecord(files: unknown[]): Record<string, string> {
   return record;
 }
 
-function parseJsonOutput(value: string): unknown {
+export function parseJsonOutput(value: string): unknown {
   const trimmed = value.trim();
   try {
     return JSON.parse(trimmed);
