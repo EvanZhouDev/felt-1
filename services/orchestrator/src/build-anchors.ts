@@ -41,26 +41,34 @@ const anchorTexts: Record<string, string> = {
     "The hallway was longer than the house allowed. Each door she passed clicked softly shut behind her, and the wallpaper's pattern, when she finally looked, was made of small turned faces.",
 };
 
+// NOTE: anchor stimuli must NOT be experiment targets — a baseline that
+// contains the test set leaks the answers. Mid-piece cuts of the test pieces
+// remain a documented partial overlap until a broader music corpus exists.
 const anchorAudio = [
   join(repoRoot, "services/orchestrator/fixtures/tone.wav"),
-  join(assets, "clair-75s.mp3"),
-  join(assets, "moonlight-75s.mp3"),
-  join(assets, "dvorak-75s.mp3"),
   join(assets, "anchor-clair-mid.mp3"),
   join(assets, "anchor-moon-mid.mp3"),
   join(assets, "anchor-dvorak-mid.mp3"),
   join(assets, "anchor-pinknoise.wav"),
   join(assets, "anchor-pulse.wav"),
+  // Spoken word, varied register and pace: TRIBE renders text via speech
+  // synthesis, so WITHOUT speech in the audio battery the anchor space
+  // cannot cancel the "sounds like speech" axis — which made quiet piano
+  // out-match loud orchestra against every text candidate.
+  join(assets, "anchor-speech-news.mp3"),
+  join(assets, "anchor-speech-poem.mp3"),
+  join(assets, "anchor-speech-chat.mp3"),
+  join(assets, "anchor-speech-dread.mp3"),
 ];
 
 const anchorImages = [
   join(repoRoot, "services/orchestrator/fixtures/swatch.png"),
-  join(assets, "starry-night.jpg"),
-  join(assets, "pearl-earring.jpg"),
-  join(assets, "mondrian.jpg"),
-  join(repoRoot, "katherine-johnson.jpg"),
-  join(repoRoot, "doublebass.jpg"),
-  join(repoRoot, "album.jpeg"),
+  join(assets, "anchor-img-meadow.png"),
+  join(assets, "anchor-img-kitchen.png"),
+  join(assets, "anchor-img-crowd.png"),
+  join(assets, "anchor-img-machine.png"),
+  join(assets, "anchor-img-fruit.png"),
+  join(assets, "anchor-img-gradient.png"),
 ];
 
 const config = { ...loadConfig(), oracleMode: "http" as const };

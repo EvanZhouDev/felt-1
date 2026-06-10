@@ -43,6 +43,9 @@ type TargetSpec = {
   source: string;
   // Output medium for the run (default text). "image" exercises the Flux path.
   output?: "text" | "image";
+  // Content the output must depict (vibe transfer ONTO a subject): becomes
+  // the run's seed prompt. Default is an unconstrained vibe-carry directive.
+  seed?: string;
 };
 
 const expName = process.argv[2];
@@ -276,7 +279,10 @@ async function runTarget(target: TargetSpec): Promise<Winner> {
       : await loadImageNode(target.source);
   const input: InputObj = {
     inputNode,
-    seed: { prompt: "Generate output that carries the vibe of this input." },
+    seed: {
+      prompt:
+        target.seed ?? "Generate output that carries the vibe of this input.",
+    },
   };
   const output: OutputObj = { outputType: target.output ?? "text" };
   store.create({ id, input, output, runPath: join(runsRoot, id) });
