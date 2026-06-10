@@ -32,6 +32,7 @@ function buildExplorationPrompt(invocation: CandidateAgentInvocation): string {
     candidateSharedInstructions(invocation),
     siblingDiversityInstruction(invocation),
     "Choose ONE distinct emotional register through which the target is felt (for example: awe, tenderness, bodily sensation, stillness, tension, lyric intensity) and inhabit it fully. Read the target's actual vibe THROUGH that register — a calm target read with awe yields quiet awe, not forced drama.",
+    "Commit to a FORM that physically enacts that register, not just words that name it: sentence length and rhythm, syntax density, line shape, sound texture. An agitated target wants clipped, percussive, off-balance prose; a calm one wants long, even, unhurried lines. The scorer responds to perceptual form at least as much as to imagery.",
     "Return only a JSON object matching the provided output schema.",
   ]
     .filter(Boolean)
@@ -45,7 +46,7 @@ function buildImprovementPrompt(invocation: CandidateAgentInvocation): string {
     "Generate the next output candidate for a score-driven neural-similarity search.",
     candidateSharedInstructions(invocation),
     [
-      "Score trajectory — past attempts sorted worst to best (higher neuralSimilarity is better; the LAST entry is the current best):",
+      "Score trajectory — past attempts sorted worst to best (higher neuralSimilarity is better; the LAST entry is the current best). Each entry's activationSimilarityToBest says how close that attempt landed to the current best in neural-activation space: near 1 with different wording means it was a re-skin of the same neural point, not a new direction.",
       stableJson(trajectory?.entries ?? []),
       trajectory?.critique
         ? `Judge critique of the current best:\n${trajectory.critique}`
@@ -53,14 +54,32 @@ function buildImprovementPrompt(invocation: CandidateAgentInvocation): string {
     ]
       .filter(Boolean)
       .join("\n\n"),
+    crowdingInstruction(invocation),
     "Propose a NEW candidate you expect to score HIGHER than the current best. Study what the higher-scoring attempts share, and use the critique to fix what the best one still lacks. Preserve what is working; change what the evidence says is holding the score back.",
-    "Do not repeat any prior attempt verbatim or near-verbatim — near-duplicates are penalized at scoring time.",
+    "Do not repeat any prior attempt verbatim or near-verbatim, and do not land where prior attempts already sit in activation space — both are penalized at scoring time. Changing the imagery while keeping the same register and rhythm counts as landing in the same place.",
     siblingDiversityInstruction(invocation),
     "Return only a JSON object matching the provided output schema.",
   ]
     .filter(Boolean)
     .join("\n\n");
 }
+
+// Reflexion-style verbal gradient for the attractor failure mode (issue #6):
+// when past attempts cluster in activation space, more wording variations of
+// the same evocative register cannot improve the score — say so explicitly and
+// demand divergence in perceptual form.
+function crowdingInstruction(invocation: CandidateAgentInvocation): string {
+  const crowding = invocation.trajectory?.meanCrowding;
+  if (crowding === undefined || crowding < CROWDING_WARNING_THRESHOLD) {
+    return "";
+  }
+  return [
+    `WARNING: past attempts are crowded in neural-activation space (mean similarity to the best: ${crowding}). To the scorer they are nearly ONE point — likely a shared evocative-literary register acting as an attractor.`,
+    "Another thematic variation in that register will not move the score. Diverge in perceptual FORM: change the rhythm, sentence length and shape, syntactic density, concreteness, and sound texture so the text is FELT differently, while staying true to the target's vibe.",
+  ].join(" ");
+}
+
+const CROWDING_WARNING_THRESHOLD = 0.85;
 
 export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
   return [
@@ -69,6 +88,7 @@ export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
     "Use the TRIBE neural similarity scores as the primary signal.",
     "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as hints only; never let them override the full-vector neural similarity ranking.",
     "Your reasoning doubles as the critique fed to the next round's candidate agents. State concretely: what the selected candidate does that earns its score, what it still lacks relative to the target's vibe, and what a higher-scoring attempt should try next.",
+    "Low diversity scores mean the candidates are crowding one region of activation space — usually a shared generically-evocative register rather than the target's specific signature. When you see that, say so in the critique and direct the next round to diverge in perceptual form (rhythm, sentence shape, density), not just imagery.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",
     `Input object:\n${stableJson(sanitizeInput(invocation.input))}`,
@@ -109,6 +129,7 @@ function outputTypeInstruction(invocation: CandidateAgentInvocation): string {
     // scores select the register.
     return [
       "For text output, write language that makes a reader FEEL the target's vibe — its emotional charge, energy, mood, and atmosphere — rather than cataloguing what is in it. TRIBE scores the predicted emotional/perceptual response, not description, so flat inventories and comma-separated keyword lists score worst. Do not write drawing instructions, image-generation prompts, or commands.",
+      "Carry the vibe in the FORM of the prose, not only its imagery: an agitated, stormy target wants clipped, percussive, off-balance sentences; a calm target wants long, even, unhurried ones; a grand, building target wants lines that accumulate and swell. Soft abstract evocative-literary prose is the default register every target gets pulled toward — it reads 'emotional in general' to the scorer regardless of the target, so reach for the specific perceptual shape of THIS target instead.",
       "Match the target's register: an intense, turbulent target wants charged, moving prose; a calm, still target wants quiet, restrained language. Avoid proper names, dates, or explanatory facts unless they are central to the seed. Keep it short and high-signal.",
     ].join(" ");
   }
@@ -129,7 +150,7 @@ function siblingDiversityInstruction(
     return "";
   }
   const position = (invocation.candidateIndex ?? 0) + 1;
-  return `You are candidate ${position} of ${count} generated in parallel this round. Take a deliberately different angle than your siblings would — a different emotional register, structure, rhythm, or focus — so the round explores ${count} distinct directions.`;
+  return `You are candidate ${position} of ${count} generated in parallel this round. Take a deliberately different angle than your siblings would — and make the difference FORMAL, not just thematic: a different rhythm, sentence length, syntactic density, or concreteness. Sibling texts that differ only in imagery but share one evocative register land on the same point in activation space and waste the round; ${count} candidates should be ${count} genuinely different perceptual experiences.`;
 }
 
 // The input node may be a medium the agent cannot perceive from its payload

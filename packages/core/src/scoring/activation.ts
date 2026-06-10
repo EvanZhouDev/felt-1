@@ -110,6 +110,34 @@ export function neuralTrajectorySimilarity(
   return cosineSimilarity(flatA, flatB);
 }
 
+// Pooled (time-averaged, mean-centered) cosine between two traces, in [0, 1].
+// This is the "where does the activation land" view with the temporal terms
+// stripped out: candidates that legitimately converge on the target's pacing
+// still differ here when they sit in different activation regions. Used to
+// measure crowding among candidates (activation-space novelty), where the
+// temporal terms of the full blend would punish desirable convergence.
+export function pooledActivationSimilarity(
+  a: ActivationTrace,
+  b: ActivationTrace,
+): number | undefined {
+  if (
+    !a.values ||
+    !b.values ||
+    a.values.length === 0 ||
+    b.values.length === 0
+  ) {
+    // Summary-only traces (no per-vertex values) carry too little information
+    // to call two activations "the same place" — report nothing rather than a
+    // garbage similarity.
+    return undefined;
+  }
+  const raw = cosineSimilarity(
+    centerInPlace(meanFrame(a.values)),
+    centerInPlace(meanFrame(b.values)),
+  );
+  return (raw + 1) / 2;
+}
+
 // Mean over timesteps of the mean-centered cosine between aligned frames. Both
 // inputs are assumed already resampled to the same length.
 function temporalCenteredCosine(a: number[][], b: number[][]): number {

@@ -86,11 +86,20 @@ export type TrajectoryContext = {
   bestNeuralSimilarity: number;
   critique?: string;
   entries: TrajectoryEntry[];
+  // Mean activation similarity of the non-best entries to the current best,
+  // in [0, 1]. High values mean past attempts collapsed onto one
+  // activation-space attractor — surfaced so candidates diverge in form,
+  // not just theme.
+  meanCrowding?: number;
 };
 
 export type TrajectoryEntry = {
   iteration: number;
   agentId: string;
   neuralSimilarity: number;
+  // How close this attempt's TRIBE activation sits to the current best's
+  // (pooled cosine, [0, 1]). Near-1 with a different preview text means the
+  // attempt was a new wording of the same neural point, not a new direction.
+  activationSimilarityToBest?: number;
   preview: string;
 };

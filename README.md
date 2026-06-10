@@ -40,8 +40,10 @@ verbal feedback. Each round, the candidate agents see the *ranked* history of
 past attempts (sorted by brain-similarity) plus a one-line critique of the
 current best, and are asked to beat it. The ranked, critiqued history is the
 entire steering mechanism — no hand-coded mutation operators, no genetic
-algorithm. A text-novelty guard keeps the search from gaming the metric with
-repetition. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+algorithm. A two-axis novelty guard keeps the search honest: text novelty stops
+it from gaming the metric with repetition, and activation-space novelty stops it
+from collapsing onto generically-evocative language that scores well against any
+target. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 **Audio** is special: agents can't hear a song, so a tiered describer
 ([docs/AUDIO_INPUT.md](docs/AUDIO_INPUT.md)) gives them perceptual context — a

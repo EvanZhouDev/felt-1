@@ -97,11 +97,17 @@ flowchart TD
     Terminate -->|No| Traj
 ```
 
-A soft **anti-reward-hack guard** keeps the search honest: because the metric is
-known to be gameable by repetition and generic fluent language, each candidate's
-text novelty against everything already tried is folded into its score, so
-resubmitting (or trivially rephrasing) the leader loses its diversity share
-instead of riding the leader's neural similarity.
+A soft **anti-reward-hack guard** keeps the search honest, on two axes folded
+into each candidate's diversity share. *Text novelty* (trigram overlap against
+everything already tried) catches resubmitting or trivially rephrasing the
+leader. *Activation novelty* (pooled-cosine distance from where prior attempts
+landed in TRIBE space) catches the subtler failure: texts worded apart but
+written in one shared evocative register evoke nearly the same predicted neural
+response, so the search collapses onto a single generically-emotional attractor
+that scores well against any target (issue #6). The trajectory shown to
+candidates also reports each attempt's activation similarity to the current
+best plus a mean crowding figure, so the agents are told — not left to infer —
+when past attempts have been one neural point wearing different words.
 
 ## Scoring the Vibe
 
@@ -151,7 +157,7 @@ nodes/decisions via `--output-schema`. When image or code-screenshot nodes point
 at local image files, the backend also passes those files to `codex exec
 --image` so visual targets can be inspected directly. The score trajectory shown
 to each candidate is assembled in `services/orchestrator/src/trajectory.ts`,
-which also computes the text-novelty anti-hack guard.
+which also computes the text-novelty and activation-novelty anti-hack guards.
 
 The render boundary (`services/orchestrator/src/render.ts`) is implemented for
 all four media: text becomes a word-timed text stimulus, audio passes through as

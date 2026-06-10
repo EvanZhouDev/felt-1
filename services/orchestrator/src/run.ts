@@ -10,6 +10,7 @@ import {
   type TrajectoryContext,
 } from "@volta/agent-sdk";
 import {
+  type ActivationTrace,
   type AudioDescription,
   type EvaluatedOutput,
   type InputObj,
@@ -35,6 +36,7 @@ import {
 import { renderNode } from "./render.ts";
 import type { RunStore } from "./storage.ts";
 import {
+  activationNovelty,
   buildTrajectoryContext,
   type ScoredAttempt,
   textNovelty,
@@ -281,6 +283,7 @@ async function executeRunLoop(
         critique: iterations.at(-1)?.judge.reasoning,
       }),
       bestSoFar: bestOverallOutput(iterations),
+      priorActivations: priorActivations(iterations),
     });
     const stopReason = getStopReason({
       iterations: [...iterations, iterationResult],
@@ -479,6 +482,7 @@ async function executeIteration(
     target: RunLoopResult["target"];
     trajectory?: TrajectoryContext;
     bestSoFar?: EvaluatedOutput;
+    priorActivations: ActivationTrace[];
   },
 ): Promise<IterationResult> {
   const iterationPath = join(
@@ -643,6 +647,7 @@ async function evaluateCandidate(
     candidate: Awaited<ReturnType<typeof runCandidateAgent>>;
     targetActivation: RunLoopResult["target"]["activation"];
     noveltyPriors: string[];
+    priorActivations: ActivationTrace[];
   },
 ): Promise<EvaluatedOutput> {
   const rendered = await args.journal.trace({
@@ -699,7 +704,17 @@ async function evaluateCandidate(
       scoreActivations({
         target: args.targetActivation,
         candidate: activationWithDiagnostics,
-        diversity: text ? textNovelty(text, args.noveltyPriors) : undefined,
+        diversity: combinedNovelty({
+          // Surface guard: near-verbatim repeats of prior texts.
+          text: text ? textNovelty(text, args.noveltyPriors) : undefined,
+          // Attractor guard (issue #6): distance from where prior attempts
+          // landed in TRIBE space — texts can be worded apart yet neurally
+          // identical, and only this term sees that.
+          activation: activationNovelty(
+            activationWithDiagnostics,
+            args.priorActivations,
+          ),
+        }),
       }),
     output: scoreSummary,
   });
@@ -722,6 +737,43 @@ function candidateText(candidate: {
 
 function trajectoryTexts(trajectory: TrajectoryContext | undefined): string[] {
   return (trajectory?.entries ?? []).map((entry) => entry.preview);
+}
+
+// A candidate's diversity share requires being novel on BOTH axes: a verbatim
+// repeat fails the text guard even when its activation drifts; a fresh wording
+// of the same neural point fails the activation guard. Min, not mean, so one
+// axis can't buy back the other.
+function combinedNovelty(novelty: {
+  text?: number;
+  activation?: number;
+}): number | undefined {
+  const defined = [novelty.text, novelty.activation].filter(
+    (value): value is number => typeof value === "number",
+  );
+  if (defined.length === 0) {
+    return undefined;
+  }
+  return Math.min(...defined);
+}
+
+// Activations of every distinct attempt so far, for the activation-space
+// novelty guard. Deduped by rendered stimulus (the best-so-far is re-ranked
+// into every round); attempts reloaded from disk on resume have no values and
+// are skipped downstream. Same-round siblings are scored concurrently, so they
+// are not in each other's priors — the text guard covers sibling collisions.
+function priorActivations(iterations: IterationResult[]): ActivationTrace[] {
+  const seen = new Set<string>();
+  const traces: ActivationTrace[] = [];
+  for (const iteration of iterations) {
+    for (const output of iteration.rankedOutputs) {
+      if (seen.has(output.rendered.sha256)) {
+        continue;
+      }
+      seen.add(output.rendered.sha256);
+      traces.push(output.activation);
+    }
+  }
+  return traces;
 }
 
 function scoredAttempts(iterations: IterationResult[]): ScoredAttempt[] {
