@@ -29,9 +29,13 @@ const oracle = createOracle({
   audioUrl: "https://qwen.bryanhu.com",
   describeAudio: false,
   agentBackend: {
-    mode: "codex",
-    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
-    timeoutMs: 900_000,
+    chain: [
+      {
+        mode: "codex",
+        command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+        timeoutMs: 900_000,
+      },
+    ],
   },
   loop: {
     maxIterations: 1,

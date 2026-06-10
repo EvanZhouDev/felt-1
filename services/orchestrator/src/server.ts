@@ -29,7 +29,7 @@ const server = Bun.serve({
         ok: true,
         oracleMode: config.oracleMode,
         tribeUrl: config.tribeUrl,
-        agentBackend: config.agentBackend.mode,
+        agentBackend: config.agentBackend.chain.map((b) => b.mode).join(","),
         loop: config.loop,
         weave: {
           enabled: journal.enabled,

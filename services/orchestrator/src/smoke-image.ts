@@ -142,7 +142,7 @@ console.log(
       ok: true,
       runId: run.id,
       oracleMode,
-      backend: config.agentBackend.mode,
+      backend: config.agentBackend.chain.map((b) => b.mode).join(","),
       maxIterations: config.loop.maxIterations,
       candidateCount: config.loop.candidateCount,
       weaveEnabled: config.weave.enabled,

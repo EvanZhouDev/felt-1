@@ -21,7 +21,7 @@ export type OrchestratorConfig = {
   weave: WeaveConfig;
 };
 
-export type AgentBackendConfig =
+export type SingleBackendConfig =
   | {
       mode: "codex";
       command: string;
@@ -35,6 +35,12 @@ export type AgentBackendConfig =
       model?: string;
       timeoutMs: number;
     };
+
+// Priority list: first entry is primary; later entries take over when the
+// primary throws a usage/rate-cap error (VOLTA_AGENT_BACKEND="codex,claude").
+export type AgentBackendConfig = {
+  chain: SingleBackendConfig[];
+};
 
 export type LoopConfig = {
   maxIterations: number;
@@ -105,21 +111,37 @@ function loadOracleMode(): OracleMode {
 }
 
 function loadAgentBackendConfig(): AgentBackendConfig {
-  if (process.env.VOLTA_AGENT_BACKEND === "claude") {
-    return {
-      mode: "claude",
-      command: process.env.VOLTA_CLAUDE_COMMAND ?? "claude",
-      model: process.env.VOLTA_CLAUDE_MODEL,
-      timeoutMs: numberFromEnv("VOLTA_CLAUDE_TIMEOUT_MS", 600_000),
-    };
+  const spec = process.env.VOLTA_AGENT_BACKEND ?? "codex";
+  const chain = spec
+    .split(",")
+    .map((mode) => mode.trim())
+    .filter(Boolean)
+    .map((mode): SingleBackendConfig => {
+      if (mode === "claude") {
+        return {
+          mode: "claude",
+          command: process.env.VOLTA_CLAUDE_COMMAND ?? "claude",
+          model: process.env.VOLTA_CLAUDE_MODEL,
+          timeoutMs: numberFromEnv("VOLTA_CLAUDE_TIMEOUT_MS", 600_000),
+        };
+      }
+      if (mode !== "codex") {
+        throw new Error(
+          `Unknown agent backend '${mode}' in VOLTA_AGENT_BACKEND.`,
+        );
+      }
+      return {
+        mode: "codex",
+        command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+        model: process.env.VOLTA_CODEX_MODEL,
+        profile: process.env.VOLTA_CODEX_PROFILE,
+        timeoutMs: numberFromEnv("VOLTA_CODEX_TIMEOUT_MS", 900_000),
+      };
+    });
+  if (chain.length === 0) {
+    throw new Error("VOLTA_AGENT_BACKEND resolved to an empty backend chain.");
   }
-  return {
-    mode: "codex",
-    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
-    model: process.env.VOLTA_CODEX_MODEL,
-    profile: process.env.VOLTA_CODEX_PROFILE,
-    timeoutMs: numberFromEnv("VOLTA_CODEX_TIMEOUT_MS", 900_000),
-  };
+  return { chain };
 }
 
 function numberFromEnv(name: string, fallback: number): number {

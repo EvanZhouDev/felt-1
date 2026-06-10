@@ -49,9 +49,13 @@ const config: OrchestratorConfig = {
   audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://qwen.bryanhu.com",
   describeAudio: process.env.VOLTA_DESCRIBE_AUDIO === "true",
   agentBackend: {
-    mode: "codex" as const,
-    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
-    timeoutMs: 900_000,
+    chain: [
+      {
+        mode: "codex" as const,
+        command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+        timeoutMs: 900_000,
+      },
+    ],
   },
   loop: {
     maxIterations: 1,
