@@ -1,63 +1,105 @@
-import type { EvaluatedOutput } from "@volta/core";
+import type { AudioDescription, EvaluatedOutput } from "@volta/core";
 import type {
+  BaseAgentInvocation,
   CandidateAgentInvocation,
   JudgeAgentInvocation,
 } from "./types.ts";
 
+// Candidate prompts implement an OPRO-style optimization step (Yang et al.
+// 2023, "Large Language Models as Optimizers"): the agent sees the score-sorted
+// trajectory of past attempts plus the judge's critique of the current best
+// (Reflexion-style verbal feedback), and is asked to propose a candidate that
+// scores higher. The ranked history IS the steering signal — there are no
+// hand-coded mutation operators.
+
 export function buildCandidatePrompt(
   invocation: CandidateAgentInvocation,
 ): string {
-  if (!invocation.previous || invocation.previous.type === "fresh") {
-    return buildFirstGenerationCandidatePrompt(invocation);
+  if (!invocation.trajectory) {
+    return buildExplorationPrompt(invocation);
   }
-  return buildRefinementCandidatePrompt(invocation);
+  return buildImprovementPrompt(invocation);
 }
 
-export function buildFirstGenerationCandidatePrompt(
-  invocation: CandidateAgentInvocation,
-): string {
+// Round 1: no scored attempts yet. Parallel candidates span distinct emotional
+// registers — TRIBE scores the predicted felt response, so the first round's
+// job is to cover different affective stances toward the same target and let
+// the scores reveal which one the target rewards.
+function buildExplorationPrompt(invocation: CandidateAgentInvocation): string {
   return [
     `You are Volta candidate agent ${invocation.spec.id}.`,
-    "Generate the first output candidate for a vibe-transfer run.",
+    "Generate the first output candidate for a vibe-transfer run. No attempts have been scored yet — this is the exploration round.",
     candidateSharedInstructions(invocation),
-    archiveInstructions(invocation),
-    "There is no previous selected output. Start fresh, but use the optional seed to steer content if present.",
+    siblingDiversityInstruction(invocation),
+    "Choose ONE distinct emotional register through which the target is felt (for example: awe, tenderness, bodily sensation, stillness, tension, lyric intensity) and inhabit it fully. Read the target's actual vibe THROUGH that register — a calm target read with awe yields quiet awe, not forced drama.",
+    "Commit to a FORM that physically enacts that register, not just words that name it: sentence length and rhythm, syntax density, line shape, sound texture. An agitated target wants clipped, percussive, off-balance prose; a calm one wants long, even, unhurried lines. The scorer responds to perceptual form at least as much as to imagery.",
     "Return only a JSON object matching the provided output schema.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
-export function buildRefinementCandidatePrompt(
-  invocation: CandidateAgentInvocation,
-): string {
+function buildImprovementPrompt(invocation: CandidateAgentInvocation): string {
+  const trajectory = invocation.trajectory;
   return [
-    `You are Volta refinement candidate agent ${invocation.spec.id}.`,
-    "Generate the next output candidate for a score-driven neural similarity search.",
+    `You are Volta candidate agent ${invocation.spec.id}.`,
+    "Generate the next output candidate for a score-driven neural-similarity search.",
     candidateSharedInstructions(invocation),
-    archiveInstructions(invocation),
-    `Previous seed:\n${stableJson(invocation.previous)}`,
-    "Use the previous selected output as evidence, not as a script to copy. Preserve what worked, change one or two meaningful variables, and keep the output aimed at the target neural activation.",
-    "If the previous selected output is visual and attached, compare it against the target image: keep the visible traits that worked and correct one concrete miss in composition, subject scale, light, texture, or sparseness.",
-    "If the previous seed is written as instructions or an image-generation prompt, convert it into declarative descriptive prose before refining.",
+    [
+      "Score trajectory — past attempts sorted worst to best (higher neuralSimilarity is better; the LAST entry is the current best). Each entry's activationSimilarityToBest says how close that attempt landed to the current best in neural-activation space: near 1 with different wording means it was a re-skin of the same neural point, not a new direction.",
+      stableJson(trajectory?.entries ?? []),
+      trajectory?.critique
+        ? `Judge critique of the current best:\n${trajectory.critique}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    crowdingInstruction(invocation),
+    "Propose a NEW candidate you expect to score HIGHER than the current best. Study what the higher-scoring attempts share, and use the critique to fix what the best one still lacks. Preserve what is working; change what the evidence says is holding the score back.",
+    "Do not repeat any prior attempt verbatim or near-verbatim, and do not land where prior attempts already sit in activation space — both are penalized at scoring time. Changing the imagery while keeping the same register and rhythm counts as landing in the same place.",
+    siblingDiversityInstruction(invocation),
     "Return only a JSON object matching the provided output schema.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
+
+// Reflexion-style verbal gradient for the attractor failure mode (issue #6):
+// when past attempts cluster in activation space, more wording variations of
+// the same evocative register cannot improve the score — say so explicitly and
+// demand divergence in perceptual form.
+function crowdingInstruction(invocation: CandidateAgentInvocation): string {
+  const crowding = invocation.trajectory?.meanCrowding;
+  if (crowding === undefined || crowding < CROWDING_WARNING_THRESHOLD) {
+    return "";
+  }
+  return [
+    `WARNING: past attempts are crowded in neural-activation space (mean similarity to the best: ${crowding}). To the scorer they are nearly ONE point — likely a shared evocative-literary register acting as an attractor.`,
+    "Another thematic variation in that register will not move the score. Diverge in perceptual FORM: change the rhythm, sentence length and shape, syntactic density, concreteness, and sound texture so the text is FELT differently, while staying true to the target's vibe.",
+  ].join(" ");
+}
+
+const CROWDING_WARNING_THRESHOLD = 0.85;
 
 export function buildJudgePrompt(invocation: JudgeAgentInvocation): string {
   return [
     `You are Volta judge agent ${invocation.spec.id}.`,
-    "Choose which candidate should become the seed for the next iteration.",
-    "Use score.total as the authoritative ranking signal. If score.adjustedSimilarity is present, treat it as the optimized similarity; raw score.neuralSimilarity is diagnostic only.",
-    "If score.contrastSimilarity or score.targetSpecificity is present, penalize generic attractors that score well against unrelated contrast targets.",
-    "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as mutation-axis hints only; never let them override the score.total ranking.",
-    "Reason like an optimizer: name what to keep, what to discard, and what mutation should be tried next. Include the selected candidate's neural similarity and the runner-up's neural similarity when available.",
+    "Choose which candidate best matches the target's neural activation, and critique it.",
+    "Use the TRIBE neural similarity scores as the primary signal.",
+    "If auxiliary diagnostics such as Yeo-7 network deltas are present, treat them as hints only; never let them override the full-vector neural similarity ranking.",
+    "Your reasoning doubles as the critique fed to the next round's candidate agents. State concretely: what the selected candidate does that earns its score, what it still lacks relative to the target's vibe, and what a higher-scoring attempt should try next.",
+    "Low diversity scores mean the candidates are crowding one region of activation space — usually a shared generically-evocative register rather than the target's specific signature. When you see that, say so in the critique and direct the next round to diverge in perceptual form (rhythm, sentence shape, density), not just imagery.",
     "If the Codex run includes attached images, inspect them directly as visual context for the target or candidates.",
     "Return only a JSON object matching the provided output schema.",
-    `Input object:\n${stableJson(invocation.input)}`,
+    `Input object:\n${stableJson(sanitizeInput(invocation.input))}`,
+    inputDescriptionBlock(invocation),
     `Output request:\n${stableJson(invocation.output)}`,
     `Ranked candidate summaries:\n${stableJson(
       invocation.rankedOutputs.map(summarizeEvaluatedOutput),
     )}`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function candidateSharedInstructions(
@@ -66,81 +108,79 @@ function candidateSharedInstructions(
   return [
     "The inputNode is the target whose emotion, energy, and perceptual feel should be matched.",
     "If the Codex run includes attached images, inspect them directly; they are visual evidence for the target or rendered candidate nodes.",
-    seedInstruction(invocation),
+    "The optional seed is content direction, not the target itself. When a seed is present, keep the generated output about the seed's requested topic or medium while matching the input target's perceptual feel.",
     "For same-medium transfers such as text-to-text, do not solve the task by copying or paraphrasing the target. Translate the target's activation feel into the seed topic.",
     "Do not train a model. Produce one renderable output node.",
-    "The entropy cue is an assigned evolutionary operator. Follow it so parallel candidates behave like a population: elite preservation, point mutation, crossover, novelty injection, ablation, or representation reset.",
-    ...textOutputInstructions(invocation),
-    "For text output, optimize for TRIBE neural similarity rather than art-historical correctness. Avoid adding proper names, dates, or explanatory facts unless they are central to the seed.",
-    "For image output, produce an image node whose source.uri is a Flux generation request: flux://generate?prompt=<urlencoded image prompt>&model=klein&steps=4&seed=<integer>. Set cachedVideo to null, timing to { durationSec: 0.5, fps: 2 }, fit to contain, and background to #000000. Preserve the target's camera quality and framing; do not beautify or add polished stock-photo detail unless the seed asks for it.",
-    "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots.",
-    `Input object:\n${stableJson(invocation.input)}`,
+    outputTypeInstruction(invocation),
+    `Input object:\n${stableJson(sanitizeInput(invocation.input))}`,
+    inputDescriptionBlock(invocation),
     `Output request:\n${stableJson(invocation.output)}`,
-    `Entropy cue:\n${invocation.entropy ?? "none"}`,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
-function seedInstruction(invocation: CandidateAgentInvocation): string {
-  if (
-    invocation.input.seed?.prompt &&
-    invocation.input.inputNode.type === "image" &&
-    invocation.output.outputType === "image"
-  ) {
+function outputTypeInstruction(invocation: CandidateAgentInvocation): string {
+  const outputType = invocation.output.outputType;
+  if (outputType === "text") {
+    // TRIBE predicts the reader's emotional/perceptual neural response, not
+    // semantic accuracy: flat description scores worst, and the register that
+    // scores best is target-dependent, so we ask for felt language and let the
+    // scores select the register.
     return [
-      "The optional seed is a replacement subject constraint for this image-to-image run.",
-      invocation.input.seed.node
-        ? "The seed includes an attached node; treat it as visual evidence for the replacement subject."
-        : "",
-      "When a seed is present, the generated image must read primarily as the seed subject, not as the target scene with seed objects added.",
-      "Use the target image for perceptual transfer only: composition skeleton, camera distance, aspect ratio, low-level capture quality, light/color, texture, sparsity/density, and affect.",
-      "Example: if the seed is flowers and the target is a backrooms room, output a flower image that feels like the backrooms image; do not output a backrooms room with flowers placed inside it.",
-    ]
-      .filter(Boolean)
-      .join(" ");
+      "For text output, write language that makes a reader FEEL the target's vibe — its emotional charge, energy, mood, and atmosphere — rather than cataloguing what is in it. TRIBE scores the predicted emotional/perceptual response, not description, so flat inventories and comma-separated keyword lists score worst. Do not write drawing instructions, image-generation prompts, or commands.",
+      "Carry the vibe in the FORM of the prose, not only its imagery: an agitated, stormy target wants clipped, percussive, off-balance sentences; a calm target wants long, even, unhurried ones; a grand, building target wants lines that accumulate and swell. Soft abstract evocative-literary prose is the default register every target gets pulled toward — it reads 'emotional in general' to the scorer regardless of the target, so reach for the specific perceptual shape of THIS target instead.",
+      "Match the target's register: an intense, turbulent target wants charged, moving prose; a calm, still target wants quiet, restrained language. Avoid proper names, dates, or explanatory facts unless they are central to the seed. Keep it short and high-signal.",
+    ].join(" ");
   }
-
-  return "The optional seed is content direction, not the target itself. When a seed is present, keep the generated output about the seed's requested topic or medium while matching the input target's perceptual feel.";
+  if (outputType === "image") {
+    return "For image output, produce an image node referencing the intended generated image asset URI. Express the vibe through composition, subject anchors, light/color, texture, framing, and atmosphere.";
+  }
+  return "For code output, produce a complete code node with HTML or React files that can be rendered to screenshots. Express the vibe through layout, density, typography, color/contrast, and texture.";
 }
 
-function textOutputInstructions(
+// Parallel candidates within one round share the same trajectory; without an
+// explicit push they converge on one approach and the round wastes oracle
+// calls scoring near-duplicates.
+function siblingDiversityInstruction(
   invocation: CandidateAgentInvocation,
-): string[] {
-  if (invocation.output.outputType !== "text") {
-    return [];
+): string {
+  const count = invocation.candidateCount ?? 1;
+  if (count <= 1) {
+    return "";
   }
-  if (invocation.input.inputNode.type === "image") {
-    return [
-      "For image-to-text output, prefer one concise natural caption sentence, usually 8-20 words, that directly describes the visible target image.",
-      "Use ordinary sentence grammar, a clear subject, a simple verb or visible relation, and simple visible anchor words for subject, color, setting, gaze, texture, background, and framing.",
-      "Keep only the strongest visible anchors; do not list every detail in one long compound sentence.",
-      "Do not return a label-only phrase, even if the main object category is obvious.",
-      "Prefer literal common words over soft mood drift: avoid vague adverbs such as gently/calmly and avoid over-specific labels such as exact breeds or art terms unless they are visually obvious.",
-      "Do not default to comma-separated activation-code fragments. Prior real TRIBE probes showed natural captions can score better than short fragment inventories.",
-    ];
-  }
-  return [
-    "For text output, follow the entropy cue's requested representation. Use compact phrase units only when the operator explicitly asks for a slot code.",
-    "For first-pass text output, favor readable perceptual descriptions over reward-hacky short phrases. Keep content grounded in the seed/topic constraints.",
-    "For text-output mutation, preserve the strongest high-scoring traits, but do not assume shorter comma fragments are inherently better.",
-  ];
+  const position = (invocation.candidateIndex ?? 0) + 1;
+  return `You are candidate ${position} of ${count} generated in parallel this round. Take a deliberately different angle than your siblings would — and make the difference FORMAL, not just thematic: a different rhythm, sentence length, syntactic density, or concreteness. Sibling texts that differ only in imagery but share one evocative register land on the same point in activation space and waste the round; ${count} candidates should be ${count} genuinely different perceptual experiences.`;
 }
 
-function archiveInstructions(invocation: CandidateAgentInvocation): string {
-  if (!invocation.archive) {
-    return "Search archive: none yet. This is an exploration candidate.";
+// The input node may be a medium the agent cannot perceive from its payload
+// (e.g. audio, whose payload is just an asset URI). When a perceptual
+// description is supplied, surface it so the agent can match the vibe.
+function inputDescriptionBlock(invocation: BaseAgentInvocation): string {
+  const description = invocation.inputDescription;
+  if (!description) {
+    return "";
   }
   return [
-    "Search archive:",
-    stableJson(invocation.archive),
-    "Use the archive as the evolving population. Consider each entry's score, behavior key, and entropy/operator lineage. Do not copy archive text verbatim; generate a child candidate that follows your assigned operator.",
-    "If top entries come from text-probe-calibration, treat them as freshly scored basis vectors for this target. A probe-elite operator should preserve the best probe's strongest slots and mutate or inherit only the assigned slot.",
-  ].join("\n\n");
+    "What the input sounds/feels like (perceptual description of the target the agent cannot directly perceive):",
+    stableJson(compactDescription(description)),
+    "Treat this as evidence about the target vibe, not as content to copy verbatim.",
+  ].join("\n");
+}
+
+function compactDescription(
+  description: AudioDescription,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(description).filter(([, value]) =>
+      Array.isArray(value) ? value.length > 0 : value != null,
+    ),
+  );
 }
 
 function summarizeEvaluatedOutput(output: EvaluatedOutput) {
   return {
     agentId: output.agentId,
-    entropy: output.entropy,
     outputNode: output.outputNode,
     score: output.score,
     rendered: {
@@ -160,4 +200,20 @@ function summarizeEvaluatedOutput(output: EvaluatedOutput) {
 
 function stableJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
+}
+
+// Strip identifying file names / paths from any node source before it reaches a
+// prompt. Otherwise a uri like "file:///tmp/audio/clair_de_lune.wav" leaks the
+// title to the agent, which then writes from recognizing the famous work rather
+// than from the target's actual perceptual content — a leakage path that
+// invalidates vibe-transfer results. Replace the uri with the medium + a short
+// content hash so renders still have a stable id, minus the human-readable name.
+function sanitizeInput<T>(input: T): T {
+  return JSON.parse(JSON.stringify(input), (key, value) => {
+    if (key === "uri" && typeof value === "string") {
+      const ext = value.match(/\.([a-z0-9]+)$/i)?.[1] ?? "bin";
+      return `anonymized-source.${ext}`;
+    }
+    return value;
+  });
 }

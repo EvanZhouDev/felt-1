@@ -1,6 +1,7 @@
 import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
 import { createOracle } from "./oracle.ts";
 import { renderPayload } from "./render.ts";
@@ -20,27 +21,28 @@ const oracle = createOracle({
   repoRoot: process.cwd(),
   tribeUrl: "https://tribe.bryanhu.com",
   fluxUrl: "https://images.bryanhu.com",
+  audioUrl: "https://qwen.bryanhu.com",
+  describeAudio: false,
   agentBackend: {
-    mode: "deterministic",
+    mode: "codex",
+    command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+    timeoutMs: 900_000,
   },
   loop: {
     maxIterations: 2,
     similarityThreshold: 2,
     candidateCount: 2,
     scoringConcurrency: 1,
-    reuseTargetArchive: false,
-    textMicroMutations: 0,
-    imageSeedMutations: 0,
-    imageLocalMutations: 0,
-    textProbeCount: 0,
-    textProbeRecombinations: 0,
-    textProbeLocalMutations: 0,
-    contrastTargetRoots: [],
   },
   weave: {
     enabled: false,
     capturePayloads: false,
   },
+});
+
+const backend = new CodexCliBackend({
+  command: process.env.VOLTA_CODEX_COMMAND ?? "codex",
+  timeoutMs: 900_000,
 });
 
 const input: InputObj = {
@@ -73,6 +75,7 @@ await executeRun({
   output,
   store,
   oracle,
+  backend,
   runsRoot: join(smokeRoot, "runs"),
   loop: {
     maxIterations: 1,
@@ -85,6 +88,7 @@ await resumeRun({
   id: run.id,
   store,
   oracle,
+  backend,
   runsRoot: join(smokeRoot, "runs"),
   loop: {
     maxIterations: 1,
@@ -117,13 +121,20 @@ if (result.iterations.length !== 2) {
     `Expected 2 iterations, received ${result.iterations.length}.`,
   );
 }
-if (result.candidates.length < 2) {
+// From iteration 2 on, the reigning best-so-far is re-ranked with the fresh
+// candidates, so the final ranking holds candidateCount fresh candidates plus
+// (when one exists) the carried-forward best.
+if (result.candidates.length !== 2 && result.candidates.length !== 3) {
   throw new Error(
-    `Expected at least 2 candidates, received ${result.candidates.length}.`,
+    `Expected 2 or 3 candidates, received ${result.candidates.length}.`,
   );
 }
-if (result.judge.selectedAgentId !== result.candidates[0]?.agentId) {
-  throw new Error("Judge did not select the top ranked candidate.");
+if (
+  !result.candidates.some(
+    (candidate) => candidate.agentId === result.judge.selectedAgentId,
+  )
+) {
+  throw new Error("Judge selected an agent outside the ranked candidates.");
 }
 
 await assertExists(

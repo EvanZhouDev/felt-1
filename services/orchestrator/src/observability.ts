@@ -62,14 +62,6 @@ export function runSummary(args: {
     similarityThreshold: number;
     candidateCount: number;
     scoringConcurrency: number;
-    reuseTargetArchive: boolean;
-    textMicroMutations: number;
-    imageSeedMutations: number;
-    imageLocalMutations: number;
-    textProbeCount: number;
-    textProbeRecombinations: number;
-    textProbeLocalMutations: number;
-    contrastTargetRoots: string[];
   };
 }) {
   return {
@@ -94,7 +86,6 @@ export function targetSummary(args: {
 export function candidateSummary(output: AgentOutput) {
   return {
     agentId: output.agentId,
-    entropy: output.entropy,
     outputNode: summarizeNode(output.outputNode, false),
   };
 }
@@ -102,7 +93,6 @@ export function candidateSummary(output: AgentOutput) {
 export function evaluatedOutputSummary(output: EvaluatedOutput) {
   return {
     agentId: output.agentId,
-    entropy: output.entropy,
     outputNode: summarizeNode(output.outputNode, false),
     rendered: summarizeRendered(output.rendered),
     activation: summarizeActivation(output.activation),
@@ -131,27 +121,6 @@ export function iterationSummary(args: {
 export function scoreSummary(score: ScoreBundle) {
   return {
     neuralSimilarity: score.neuralSimilarity,
-    adjustedSimilarity: score.adjustedSimilarity,
-    calibratedSimilarity: score.calibratedSimilarity,
-    rawAdjustedSimilarity: score.rawAdjustedSimilarity,
-    contrastSimilarity: score.contrastSimilarity,
-    discriminativeSimilarity: score.discriminativeSimilarity,
-    residualSimilarity: score.residualSimilarity,
-    residualAdjustedSimilarity: score.residualAdjustedSimilarity,
-    retrievalMargin: score.retrievalMargin,
-    cslsSimilarity: score.cslsSimilarity,
-    hubnessPenalty: score.hubnessPenalty,
-    searchProgressSignal: score.searchProgressSignal,
-    calibrationTargetCount: score.calibrationTargetCount,
-    calibrationVertexCount: score.calibrationVertexCount,
-    targetSpecificity: score.targetSpecificity,
-    seedModality: score.seedModality,
-    seedSimilarity: score.seedSimilarity,
-    seedTargetSimilarity: score.seedTargetSimilarity,
-    seedSpecificity: score.seedSpecificity,
-    seedPromptAdherence: score.seedPromptAdherence,
-    seedPromptPenalty: score.seedPromptPenalty,
-    penalty: score.penalty,
     seedAdherence: score.seedAdherence,
     coherence: score.coherence,
     diversity: score.diversity,
@@ -307,7 +276,6 @@ function summarizeSeed(seed: InputObj["seed"]) {
   return {
     promptPreview: truncate(seed.prompt, 280),
     promptLength: seed.prompt.length,
-    node: seed.node ? summarizeNode(seed.node, false) : undefined,
   };
 }
 

@@ -1,9 +1,5 @@
 import { join } from "node:path";
-import {
-  type AgentBackend,
-  CodexCliBackend,
-  DeterministicAgentBackend,
-} from "@volta/agent-sdk";
+import { type AgentBackend, CodexCliBackend } from "@volta/agent-sdk";
 import type { InputObj, OutputObj } from "@volta/core";
 import {
   type AgentBackendConfig,
@@ -11,6 +7,7 @@ import {
   loadConfig,
   normalizeLoopConfig,
 } from "./config.ts";
+import { createAudioDescriber } from "./describer.ts";
 import { createEvolutionJournal } from "./observability.ts";
 import { createOracle } from "./oracle.ts";
 import { executeRun, resumeRun } from "./run.ts";
@@ -21,6 +18,7 @@ const store = new RunStore(config.databasePath);
 const oracle = createOracle(config);
 const journal = createEvolutionJournal(config.weave);
 const backend = createAgentBackend(config.agentBackend);
+const describeAudio = createAudioDescriber(config);
 
 const server = Bun.serve({
   port: config.port,
@@ -81,7 +79,7 @@ const server = Bun.serve({
         journal,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
-        fluxUrl: config.fluxUrl,
+        describeAudio,
       }).catch((error) => {
         console.error(`Run ${id} failed:`, error);
       });
@@ -127,7 +125,7 @@ const server = Bun.serve({
         journal,
         candidateModel: config.candidateModel,
         judgeModel: config.judgeModel,
-        fluxUrl: config.fluxUrl,
+        describeAudio,
       }).catch((error) => {
         console.error(`Run ${id} resume failed:`, error);
       });
@@ -167,9 +165,6 @@ function json(value: unknown, status = 200): Response {
 }
 
 function createAgentBackend(config: AgentBackendConfig): AgentBackend {
-  if (config.mode === "deterministic") {
-    return new DeterministicAgentBackend();
-  }
   return new CodexCliBackend({
     command: config.command,
     model: config.model,

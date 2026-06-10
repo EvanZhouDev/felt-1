@@ -70,7 +70,6 @@ export class CodexCliBackend implements AgentBackend {
     const output = {
       agentId: invocation.spec.id,
       outputNode,
-      entropy: invocation.entropy,
     };
 
     await writeJson(join(invocation.workspace.outputPath, "candidate.json"), {
@@ -365,10 +364,20 @@ function outputNodeSchema(outputType: OutputNode["type"]): JsonSchema {
             type: "string",
             enum: ["code"],
           },
+          // OpenAI strict structured output rejects a free-form
+          // additionalProperties map, so the agent returns files as an array of
+          // { path, contents }; normalizeOutputNode folds it back into the
+          // Record<string, string> the CodePayload type expects.
           files: {
-            type: "object",
-            additionalProperties: {
-              type: "string",
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["path", "contents"],
+              properties: {
+                path: { type: "string" },
+                contents: { type: "string" },
+              },
             },
           },
           entrypoint: {
@@ -461,10 +470,6 @@ function nullableSchema(schema: JsonSchema): JsonSchema {
 function imageAttachmentPaths(invocation: AgentInvocation): string[] {
   const refs = assetRefsForImageAttachments(invocation.input.inputNode);
 
-  if (invocation.role === "candidate") {
-    refs.push(...assetRefsForPreviousSeed(invocation.previous));
-  }
-
   if (invocation.role === "judge") {
     for (const output of invocation.rankedOutputs) {
       refs.push(...assetRefsForImageAttachments(output.outputNode));
@@ -478,15 +483,6 @@ function imageAttachmentPaths(invocation: AgentInvocation): string[] {
         .filter((path): path is string => Boolean(path)),
     ),
   );
-}
-
-function assetRefsForPreviousSeed(
-  previous: CandidateAgentInvocation["previous"],
-): AssetRef[] {
-  if (!previous || previous.type === "fresh" || previous.node.type === "text") {
-    return [];
-  }
-  return assetRefsForImageAttachments(previous.node);
 }
 
 function assetRefsForImageAttachments(node: Node): AssetRef[] {
@@ -539,7 +535,24 @@ function normalizeOutputNode(
   ) {
     throw new Error(`Codex returned an invalid ${outputType} output node.`);
   }
+  // The code schema returns files as an array of { path, contents } (strict
+  // structured output can't express a free-form map); fold it back into the
+  // Record<string, string> the CodePayload type uses.
+  if (outputType === "code" && Array.isArray(value.payload.files)) {
+    value.payload.files = filesArrayToRecord(value.payload.files);
+  }
   return value as OutputNode;
+}
+
+function filesArrayToRecord(files: unknown[]): Record<string, string> {
+  const record: Record<string, string> = {};
+  for (const file of files) {
+    if (isRecord(file) && typeof file.path === "string") {
+      record[file.path] =
+        typeof file.contents === "string" ? file.contents : "";
+    }
+  }
+  return record;
 }
 
 function parseJsonOutput(value: string): unknown {

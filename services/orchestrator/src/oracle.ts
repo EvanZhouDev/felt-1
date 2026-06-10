@@ -49,12 +49,18 @@ class MockOracle implements NeuralOracle {
 }
 
 // Hosted TRIBE v2 brain encoder (https://tribe.bryanhu.com): an async job API.
-// Submit a stimulus, poll the job, then download the raw float16 prediction
-// vector (shape [timesteps, 20484] over the fsaverage5 mesh) and mean-pool over
-// time into one R^20484 vector that `scoreActivations` can compare with cosine.
+// Submit a stimulus, poll the job, then download `result.json`, which carries
+// the FULL per-timestep prediction matrix (shape [timesteps, 20484] over the
+// fsaverage5 mesh) plus a per-Yeo-network breakdown. We keep every timestep —
+// the scorer compares the activation trajectory, so we must not collapse time.
 const TRIBE_VERTEX_COUNT = 20484;
 const TRIBE_POLL_INTERVAL_MS = 1500;
 const TRIBE_REQUEST_TIMEOUT_MS = 30_000;
+// Still-image hold for the /predict/image route. The server defaults to 2s
+// (2 timesteps), which under-samples — 10s separates targets much better.
+// Configurable via VOLTA_IMAGE_DURATION_S / VOLTA_IMAGE_FPS.
+const IMAGE_DURATION_S = Number(process.env.VOLTA_IMAGE_DURATION_S ?? 10);
+const IMAGE_FPS = Number(process.env.VOLTA_IMAGE_FPS ?? 10);
 
 type TribeJob = {
   job_id: string;
@@ -63,6 +69,17 @@ type TribeJob = {
 type TribeJobStatus = {
   status: "queued" | "running" | "completed" | "failed";
   error?: string;
+};
+
+// Shape of GET /jobs/:id/result.json under the current hosted TRIBE API.
+type TribeResult = {
+  timesteps: number;
+  vertices: number;
+  // [timesteps][vertices] — the full activation, one frame per ~1s segment.
+  predictions: number[][];
+  // Per-Yeo-network: each value is [timesteps][verticesInNetwork].
+  predictions_by_network?: Record<string, number[][]>;
+  yeo7_means?: Record<string, number>;
 };
 
 class HttpTribeOracle implements NeuralOracle {
@@ -79,15 +96,18 @@ class HttpTribeOracle implements NeuralOracle {
 
   async encode(stimulus: EncoderStimulus): Promise<ActivationTrace> {
     let lastError: unknown;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
         return await this.encodeOnce(stimulus);
       } catch (error) {
         lastError = error;
-        if (!isRetryableTribeError(error) || attempt === 3) {
+        if (!isRetryableTribeError(error) || attempt === maxAttempts) {
           throw error;
         }
-        await delay(TRIBE_POLL_INTERVAL_MS * attempt);
+        // Exponential backoff: the hosted TRIBE is a slow async job API that
+        // restarts and returns transient 5xx/Cloudflare 502s mid-run.
+        await delay(TRIBE_POLL_INTERVAL_MS * 2 ** (attempt - 1));
       }
     }
 
@@ -99,21 +119,37 @@ class HttpTribeOracle implements NeuralOracle {
   ): Promise<ActivationTrace> {
     const job = await this.submit(stimulus);
     await this.waitForJob(job.job_id);
-    const values = await this.fetchPooledValues(job.job_id);
-    const diagnostics = await this.fetchDiagnostics(job.job_id);
+    const result = await this.fetchResult(job.job_id);
 
-    const flat = values[0];
-    const mean = flat.reduce((sum, value) => sum + value, 0) / flat.length;
-    const variance =
-      flat.reduce((sum, value) => sum + (value - mean) ** 2, 0) / flat.length;
-    const norm = Math.sqrt(flat.reduce((sum, value) => sum + value * value, 0));
+    // Keep every timestep: values[t] is the R^vertices frame at segment t.
+    const values = result.predictions;
+    const timesteps = values.length;
+    const vertices = values[0]?.length ?? 0;
+
+    // Summary stats over the whole flattened matrix (kept for archive/index
+    // display and the sparse-trace fallback; scoring uses the full `values`).
+    let sum = 0;
+    let sumSq = 0;
+    let count = 0;
+    for (const frame of values) {
+      for (const v of frame) {
+        sum += v;
+        sumSq += v * v;
+        count += 1;
+      }
+    }
+    const mean = count ? sum / count : 0;
+    const variance = count ? sumSq / count - mean * mean : 0;
+    const norm = Math.sqrt(sumSq);
+
+    const diagnostics = buildDiagnostics(result);
 
     return {
       model: "tribev2-http",
-      shape: [1, flat.length],
+      shape: [timesteps, vertices],
       values,
-      diagnostics,
-      summary: { mean, std: Math.sqrt(variance), norm },
+      ...(diagnostics ? { diagnostics } : {}),
+      summary: { mean, std: Math.sqrt(Math.max(variance, 0)), norm },
     };
   }
 
@@ -132,14 +168,26 @@ class HttpTribeOracle implements NeuralOracle {
       return this.asJob(response, "POST /predict/text");
     }
 
-    // image targets are fed as a short still-hold mp4 via /predict/video
-    // (the multipart /predict/image route is broken server-side).
-    const endpoint = stimulus.kind === "audio" ? "audio" : "video";
+    // A still image renders with kind "video" (it becomes a still-hold clip for
+    // TRIBE) but carries an "Image" stimulus event and no pre-built mp4. The
+    // hosted /predict/image route ingests a raw image directly (verified live
+    // 2026-06-07), so route those there; only genuine pre-rendered video/code
+    // clips go to /predict/video.
+    const endpoint = endpointForStimulus(stimulus);
     const file = await this.readArtifact(stimulus);
     const form = new FormData();
     form.append("file", file.blob, file.name);
+    // A still image is held for `duration` seconds at `fps` to make a clip TRIBE
+    // can encode. The server default is 2s -> only 2 timesteps, which under-
+    // samples: at 10s the painting targets separate far better (mean
+    // cross-painting collinearity 0.855 -> 0.674). Request a longer hold for
+    // images via query params (the route accepts ?duration=&fps=).
+    const query =
+      endpoint === "image"
+        ? `?duration=${IMAGE_DURATION_S}&fps=${IMAGE_FPS}`
+        : "";
     const response = await fetchWithTimeout(
-      `${this.baseUrl}/predict/${endpoint}`,
+      `${this.baseUrl}/predict/${endpoint}${query}`,
       {
         method: "POST",
         body: form,
@@ -218,59 +266,88 @@ class HttpTribeOracle implements NeuralOracle {
     );
   }
 
-  private async fetchPooledValues(jobId: string): Promise<number[][]> {
-    const response = await fetchWithTimeout(
-      `${this.baseUrl}/jobs/${jobId}/preds.norm.f16.bin`,
-      undefined,
-      `GET /jobs/${jobId}/preds.norm.f16.bin`,
-    );
-    if (!response.ok) {
-      throw new Error(
-        `GET /jobs/${jobId}/preds.norm.f16.bin failed: ${response.status}`,
-      );
-    }
-    const buffer = await response.arrayBuffer();
-    const raw = decodeFloat16(new Uint8Array(buffer));
-    if (raw.length === 0 || raw.length % TRIBE_VERTEX_COUNT !== 0) {
-      throw new Error(
-        `Unexpected prediction length ${raw.length}; expected a multiple of ${TRIBE_VERTEX_COUNT}.`,
-      );
-    }
-    const timesteps = raw.length / TRIBE_VERTEX_COUNT;
-    const pooled = new Array<number>(TRIBE_VERTEX_COUNT).fill(0);
-    for (let t = 0; t < timesteps; t += 1) {
-      const offset = t * TRIBE_VERTEX_COUNT;
-      for (let v = 0; v < TRIBE_VERTEX_COUNT; v += 1) {
-        pooled[v] += raw[offset + v];
-      }
-    }
-    for (let v = 0; v < TRIBE_VERTEX_COUNT; v += 1) {
-      pooled[v] /= timesteps;
-    }
-    return [pooled];
-  }
-
-  private async fetchDiagnostics(
-    jobId: string,
-  ): Promise<ActivationTrace["diagnostics"] | undefined> {
+  private async fetchResult(jobId: string): Promise<TribeResult> {
     const response = await fetchWithTimeout(
       `${this.baseUrl}/jobs/${jobId}/result.json`,
       undefined,
       `GET /jobs/${jobId}/result.json`,
-    ).catch(() => undefined);
-    if (!response?.ok) {
-      return undefined;
+    );
+    if (!response.ok) {
+      throw new Error(
+        `GET /jobs/${jobId}/result.json failed: ${response.status}`,
+      );
     }
-    const result = (await response.json().catch(() => undefined)) as
-      | { yeo7_means?: Record<string, number> }
-      | undefined;
-    if (!result?.yeo7_means) {
-      return undefined;
+    const result = (await response.json()) as TribeResult;
+    if (!Array.isArray(result.predictions) || result.predictions.length === 0) {
+      throw new Error(`TRIBE result ${jobId} has no predictions array.`);
     }
-    return {
-      yeo7Means: result.yeo7_means,
-    };
+    const vertices = result.predictions[0]?.length ?? 0;
+    if (vertices !== TRIBE_VERTEX_COUNT) {
+      throw new Error(
+        `TRIBE result ${jobId} has ${vertices} vertices; expected ${TRIBE_VERTEX_COUNT}.`,
+      );
+    }
+    return result;
   }
+}
+
+// Build the optional diagnostics block from a hosted-TRIBE result. The new API
+// returns the full per-network activation (`predictions_by_network`) instead of
+// the old scalar `yeo7_means`. We summarize each network to ONE scalar — its
+// mean activation magnitude over the run — so the judge keeps its compact,
+// promptable per-network mutation hints. We deliberately do NOT store the full
+// per-network vectors on the trace: they are ~143k floats and would flood the
+// Codex prompts that serialize `activation.diagnostics`.
+function buildDiagnostics(
+  result: TribeResult,
+): ActivationTrace["diagnostics"] | undefined {
+  if (result.yeo7_means) {
+    return { yeo7Means: result.yeo7_means };
+  }
+  if (result.predictions_by_network) {
+    const yeo7Means: Record<string, number> = {};
+    for (const [network, frames] of Object.entries(
+      result.predictions_by_network,
+    )) {
+      yeo7Means[network] = meanMagnitude(frames);
+    }
+    return { yeo7Means };
+  }
+  return undefined;
+}
+
+// Mean absolute activation across every value of a [timesteps][n] matrix — a
+// single scalar standing for how strongly a Yeo network engaged over the run.
+function meanMagnitude(frames: number[][]): number {
+  let sum = 0;
+  let count = 0;
+  for (const frame of frames) {
+    for (const value of frame) {
+      sum += Math.abs(value);
+      count += 1;
+    }
+  }
+  return count > 0 ? sum / count : 0;
+}
+
+const IMAGE_ARTIFACT_EXT = /\.(png|jpe?g|webp)$/i;
+
+// Pick the hosted predict endpoint for a non-text stimulus. Audio is explicit.
+// A still image renders with kind "video" but carries an "Image" event (and an
+// image-extension artifact) and no pre-built mp4 — those go to /predict/image.
+// Anything else with kind "video" is a real rendered clip → /predict/video.
+function endpointForStimulus(
+  stimulus: EncoderStimulus,
+): "audio" | "image" | "video" {
+  if (stimulus.kind === "audio") {
+    return "audio";
+  }
+  const isStillImage =
+    stimulus.events.some((event) => event.type === "Image") ||
+    (stimulus.artifactPath
+      ? IMAGE_ARTIFACT_EXT.test(stimulus.artifactPath)
+      : false);
+  return isStillImage ? "image" : "video";
 }
 
 function delay(ms: number): Promise<void> {
@@ -286,9 +363,11 @@ function isRetryableTribeError(error: unknown): boolean {
     message.includes("resubmitted as new job") ||
     message.includes("timed out") ||
     message.includes("aborted") ||
-    message.includes(" 502 ") ||
-    message.includes(" 503 ") ||
-    message.includes(" 504 ")
+    // Match 5xx by status digits anywhere, not " 502 " with surrounding spaces:
+    // the thrown errors read "...failed: 502" (no trailing space), so the old
+    // whitespace match let transient bad-gateways kill a whole run.
+    /\b50[234]\b/.test(message) ||
+    message.includes("Bad Gateway")
   );
 }
 
@@ -322,30 +401,6 @@ async function fetchWithTimeout(
       clearTimeout(timeout);
     }
   }
-}
-
-// Decode a little-endian IEEE 754 half-precision (float16) byte array.
-function decodeFloat16(bytes: Uint8Array): number[] {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const count = Math.floor(bytes.byteLength / 2);
-  const out = new Array<number>(count);
-  for (let i = 0; i < count; i += 1) {
-    out[i] = halfToFloat(view.getUint16(i * 2, true));
-  }
-  return out;
-}
-
-function halfToFloat(half: number): number {
-  const sign = (half & 0x8000) >> 15;
-  const exponent = (half & 0x7c00) >> 10;
-  const fraction = half & 0x03ff;
-  if (exponent === 0) {
-    return (sign ? -1 : 1) * 2 ** -14 * (fraction / 1024);
-  }
-  if (exponent === 0x1f) {
-    return fraction ? Number.NaN : (sign ? -1 : 1) * Number.POSITIVE_INFINITY;
-  }
-  return (sign ? -1 : 1) * 2 ** (exponent - 15) * (1 + fraction / 1024);
 }
 
 class TribeOracle implements NeuralOracle {
