@@ -131,9 +131,10 @@ function outputTypeInstruction(invocation: CandidateAgentInvocation): string {
     // scores best is target-dependent, so we ask for felt language and let the
     // scores select the register.
     return [
-      "For text output, write language that makes a reader FEEL the target's vibe — its emotional charge, energy, mood, and atmosphere — rather than cataloguing what is in it. TRIBE scores the predicted emotional/perceptual response, not description, so flat inventories and comma-separated keyword lists score worst. Do not write drawing instructions, image-generation prompts, or commands.",
-      "Carry the vibe in the FORM of the prose, not only its imagery: an agitated, stormy target wants clipped, percussive, off-balance sentences; a calm target wants long, even, unhurried ones; a grand, building target wants lines that accumulate and swell. Soft abstract evocative-literary prose is the default register every target gets pulled toward — it reads 'emotional in general' to the scorer regardless of the target, so reach for the specific perceptual shape of THIS target instead.",
-      "Match the target's register: an intense, turbulent target wants charged, moving prose; a calm, still target wants quiet, restrained language. Avoid proper names, dates, or explanatory facts unless they are central to the seed. Keep it short and high-signal.",
+      "For text output, write a POEM that re-creates in its reader the same emotion the target evokes — not a text about the target. TRIBE scores the predicted emotional/perceptual response, not semantic accuracy: flat description scores worst. The reader of your poem will never see the target or its description; the poem must do its emotional work standing completely alone. Do not write drawing instructions, image-generation prompts, or commands.",
+      "The input description and its features (key, BPM, tempo, instrument names, genre labels) are EVIDENCE for you, not material for the poem. Never quote or mention them: no note names, no beats-per-minute, no 'minor key', no instrument inventory, no music-theory vocabulary at all. Translate them into lived, bodily, perceptual experience — a tempo is a heartbeat, a pace of walking, breath; brightness is light, temperature, edge; an instrument is at most the gesture it makes, never its name. A poem that explains what the music is doing has failed; a poem that does to the reader what the music does has succeeded.",
+      "Carry the vibe in the FORM of the poem, not only its imagery: line length, rhythm, enjambment, density, sound texture. An agitated, stormy target wants clipped, percussive, off-balance lines; a calm target wants long, even, unhurried ones; a grand, building target wants lines that accumulate and swell. Soft abstract evocative-literary verse is the default register every target gets pulled toward — it reads 'emotional in general' to the scorer regardless of the target, so reach for the specific perceptual shape of THIS target instead.",
+      "Avoid proper names, dates, or explanatory facts unless they are central to the seed. Keep it short and high-signal.",
     ].join(" ");
   }
   if (outputType === "image") {
@@ -157,12 +158,12 @@ function outputTypeInstruction(invocation: CandidateAgentInvocation): string {
 // orthogonal in rhythm/syntax/length so the resulting texts land far apart in
 // activation space; each still reads the SAME target vibe through its form.
 const SIBLING_FORMS = [
-  "long, unbroken, hypotactic sentences that accumulate clauses and resist stopping — one continuous breath",
-  "short, clipped, fragmentary lines; heavy punctuation; staccato rhythm with abrupt stops",
-  "a plain, concrete, low-adjective register: short declaratives naming physical particulars, almost reportorial",
-  "dense, sound-driven prose foregrounding texture — assonance, repetition, and stress patterns over imagery",
+  "long, unbroken lines that accumulate clauses and resist stopping — one continuous breath, few full stops",
+  "short, clipped, fragmentary lines; heavy stops; staccato rhythm with abrupt breaks",
+  "a plain, concrete, low-adjective register: short declarative lines naming physical particulars",
+  "dense, sound-driven lines foregrounding texture — assonance, repetition, and stress patterns over imagery",
   "a sparse, white-space-heavy form: very short lines with long pauses, each landing alone",
-  "a building, list-like accumulation that escalates in intensity from one item to the next",
+  "a building, list-like accumulation that escalates in intensity from one line to the next",
 ];
 
 function siblingDiversityInstruction(
