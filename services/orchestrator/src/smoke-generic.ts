@@ -28,6 +28,7 @@ const oracle = createOracle({
   fluxUrl: "https://images.bryanhu.com",
   audioUrl: "https://audio.bryanhu.com",
   describeAudio: false,
+  contrastWeight: 0,
   vibeWeight: 0,
   agentBackend: {
     chain: [

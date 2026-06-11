@@ -154,6 +154,13 @@ for (const kind of ["text", "audio", "video"] as const) {
 }
 
 writeFileSync(outPath, JSON.stringify(anchors));
+// Per-stimulus pooled vectors (not just the mean): the contrastive scorer
+// normalizes a candidate's target similarity against its similarity to the
+// whole same-modality battery (VOLTA_CONTRAST_WEIGHT).
+writeFileSync(
+  outPath.replace(/anchors\.json$/, "anchors-battery.json"),
+  JSON.stringify(pooledByKind),
+);
 console.log(
   JSON.stringify({
     ok: true,

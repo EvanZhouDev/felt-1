@@ -29,6 +29,38 @@ export function anchorFor(
   return anchors[kind];
 }
 
+// Per-stimulus pooled battery vectors per modality (anchors-battery.json,
+// written alongside anchors.json by build-anchors.ts). Used by the
+// contrastive scorer; absent file = contrast disabled.
+export type AnchorBattery = Partial<Record<EncoderStimulusKind, number[][]>>;
+
+export function loadAnchorBattery(repoRoot: string): AnchorBattery {
+  const anchorsPath =
+    process.env.VOLTA_ANCHORS_PATH ??
+    join(repoRoot, "services/orchestrator/anchors/anchors.json");
+  const path = anchorsPath.replace(/anchors\.json$/, "anchors-battery.json");
+  if (path === anchorsPath || !existsSync(path)) {
+    return {};
+  }
+  return JSON.parse(readFileSync(path, "utf8")) as AnchorBattery;
+}
+
+// Battery for contrasting candidates against the TARGET's modality, expressed
+// in anchored space (each stimulus minus the modality mean) — the same space
+// scoreActivations compares traces in.
+export function anchoredBatteryFor(
+  battery: AnchorBattery,
+  anchors: AnchorSet,
+  kind: EncoderStimulusKind,
+): number[][] | undefined {
+  const vecs = battery[kind];
+  const anchor = anchors[kind];
+  if (!vecs || vecs.length < 3 || !anchor) {
+    return undefined;
+  }
+  return vecs.map((v) => v.map((x, i) => x - (anchor[i] ?? 0)));
+}
+
 // Per-vertex scoring weights from the Yeo-7 parcellation and a vibe weight
 // (VOLTA_VIBE_WEIGHT). undefined when vibeWeight is 0 (uniform) or the label
 // file is absent — callers treat that as "no weighting".

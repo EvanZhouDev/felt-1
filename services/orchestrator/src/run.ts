@@ -22,7 +22,12 @@ import {
   scoreActivations,
   withSeedAdherence,
 } from "@volta/core";
-import { type AnchorSet, anchorFor } from "./anchors.ts";
+import {
+  type AnchorBattery,
+  type AnchorSet,
+  anchoredBatteryFor,
+  anchorFor,
+} from "./anchors.ts";
 import { type LoopConfig, normalizeLoopConfig } from "./config.ts";
 import { FLUX_URI_PREFIX, type ImageGenerator } from "./imagegen.ts";
 import {
@@ -90,6 +95,10 @@ export type ExecuteRunArgs = {
   anchors?: AnchorSet;
   // Per-vertex scoring weights (Yeo-7 network weighting); absent = uniform.
   vertexWeights?: number[];
+  // Battery-contrastive scoring (VOLTA_CONTRAST_WEIGHT): per-stimulus anchor
+  // battery + blend weight; absent or weight 0 = plain anchored similarity.
+  anchorBattery?: AnchorBattery;
+  contrastWeight?: number;
 };
 
 export type ResumeRunArgs = Omit<ExecuteRunArgs, "input" | "output">;
@@ -746,6 +755,7 @@ async function evaluateCandidate(
         candidate: activationWithDiagnostics,
         targetAnchor: anchorFor(args.anchors ?? {}, args.target.rendered.kind),
         candidateAnchor: anchorFor(args.anchors ?? {}, rendered.kind),
+        contrast: contrastFor(args, args.target.rendered.kind),
         vertexWeights: args.vertexWeights,
         diversity: combinedNovelty({
           // Surface guard: near-verbatim repeats of prior texts.
@@ -1131,4 +1141,26 @@ async function mapWithConcurrency<T, U>(
 
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
   return results;
+}
+
+// Contrast spec for scoring against the target-modality battery; undefined
+// when the knob is off or the battery is missing.
+function contrastFor(
+  args: {
+    anchorBattery?: AnchorBattery;
+    anchors?: AnchorSet;
+    contrastWeight?: number;
+  },
+  targetKind: Parameters<typeof anchoredBatteryFor>[2],
+): { battery: number[][]; weight: number } | undefined {
+  const weight = args.contrastWeight ?? 0;
+  if (weight <= 0 || !args.anchorBattery) {
+    return undefined;
+  }
+  const battery = anchoredBatteryFor(
+    args.anchorBattery,
+    args.anchors ?? {},
+    targetKind,
+  );
+  return battery ? { battery, weight } : undefined;
 }

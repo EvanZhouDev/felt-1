@@ -172,6 +172,11 @@ Set in `services/orchestrator/src/config.ts`:
   scoring; >0 suppresses primary sensory cortex (Visual+Somatomotor) and scores
   the affective/association networks. Tested and found to give no benefit (see
   the Yeo-7 ablation) — kept as a documented dead-end knob.
+- `VOLTA_CONTRAST_WEIGHT` — `0`..`1` (default `0`). Blends a battery-contrastive
+  z-score into neural similarity: a candidate's similarity to the target is
+  normalized against its similarity to the whole target-modality anchor battery
+  (`anchors-battery.json`, written by `build-anchors.ts`). Penalizes the
+  "generically evocative" attractor that is close to everything.
 - `VOLTA_ANCHORS_PATH` — override the modality-anchor file (default
   `services/orchestrator/anchors/anchors.json`; absent = legacy raw scoring).
 - `VOLTA_SIMILARITY_THRESHOLD` — default neural similarity stop threshold (default 0.9).

@@ -48,6 +48,7 @@ const config: OrchestratorConfig = {
   fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
   audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://audio.bryanhu.com",
   describeAudio: process.env.VOLTA_DESCRIBE_AUDIO === "true",
+  contrastWeight: 0,
   vibeWeight: Number(process.env.VOLTA_VIBE_WEIGHT ?? 0),
   agentBackend: {
     chain: [

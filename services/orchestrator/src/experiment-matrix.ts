@@ -20,13 +20,20 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
   type ActivationTrace,
+  anchorTrace,
+  contrastiveNeuralSimilarity,
   type InputObj,
-  neuralTrajectorySimilarity,
   type OutputNode,
   type OutputObj,
   pooledActivationSimilarity,
 } from "@volta/core";
-import { loadAnchors, loadNetworkWeights } from "./anchors.ts";
+import {
+  anchoredBatteryFor,
+  anchorFor,
+  loadAnchorBattery,
+  loadAnchors,
+  loadNetworkWeights,
+} from "./anchors.ts";
 import { createAgentBackend } from "./backend.ts";
 import { loadConfig, type OrchestratorConfig } from "./config.ts";
 import { createAudioDescriber } from "./describer.ts";
@@ -86,6 +93,7 @@ const oracle = createOracle(config);
 const describer = createAudioDescriber(config);
 const generateImage = createImageGenerator(config);
 const anchors = loadAnchors(config.repoRoot);
+const anchorBattery = loadAnchorBattery(config.repoRoot);
 const vertexWeights = loadNetworkWeights(config.repoRoot, config.vibeWeight);
 const backend = createAgentBackend(config.agentBackend);
 
@@ -189,10 +197,30 @@ for (const winner of winners) {
     activation,
   });
   matrix[winner.id] = {};
+  const candidateKind = winner.node.type === "text" ? "text" : "video";
   for (const [targetId, targetActivation] of targetActivations) {
+    const targetKind =
+      targets.find((t) => t.id === targetId)?.kind === "image"
+        ? "video"
+        : "audio";
+    const anchoredTarget = anchorTrace(
+      targetActivation,
+      anchorFor(anchors, targetKind),
+    );
+    const anchoredCandidate = anchorTrace(
+      activation,
+      anchorFor(anchors, candidateKind),
+    );
+    const battery = anchoredBatteryFor(anchorBattery, anchors, targetKind);
     matrix[winner.id][targetId] = {
-      full: neuralTrajectorySimilarity(targetActivation, activation),
-      pooled: pooledActivationSimilarity(targetActivation, activation),
+      full: contrastiveNeuralSimilarity(
+        anchoredTarget,
+        anchoredCandidate,
+        battery && config.contrastWeight > 0
+          ? { battery, weight: config.contrastWeight }
+          : undefined,
+      ),
+      pooled: pooledActivationSimilarity(anchoredTarget, anchoredCandidate),
     };
   }
   log(
@@ -300,6 +328,8 @@ async function runTarget(target: TargetSpec): Promise<Winner> {
     describeAudio: target.kind === "audio" ? describer : undefined,
     generateImage,
     anchors,
+    anchorBattery,
+    contrastWeight: config.contrastWeight,
     vertexWeights,
   });
 

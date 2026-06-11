@@ -64,6 +64,14 @@ export function scoreActivations(args: {
   // ~0.9 alike and compresses all vibe specificity into noise.
   targetAnchor?: number[];
   candidateAnchor?: number[];
+  // Contrastive normalization against the target-modality anchor battery
+  // (per-stimulus pooled vectors, already anchor-subtracted). A candidate
+  // that is generically close to EVERYTHING in the target's modality — the
+  // "evocative in general" attractor — scores high against the whole battery,
+  // so its z-score against the battery stays low even when its raw similarity
+  // to the target is high. weight in [0, 1] blends the squashed z into the
+  // plain trajectory similarity.
+  contrast?: { battery: number[][]; weight: number };
   // Per-vertex weights (length = vertex count). Down-weighting primary
   // sensory cortex and up-weighting affective/association networks scores
   // "how it feels" over "what it looks/sounds like" — see makeNetworkWeights.
@@ -72,9 +80,10 @@ export function scoreActivations(args: {
   coherence?: number;
   diversity?: number;
 }): ScoreBundle {
-  const neuralSimilarity = neuralTrajectorySimilarity(
+  const neuralSimilarity = contrastiveNeuralSimilarity(
     anchorTrace(args.target, args.targetAnchor),
     anchorTrace(args.candidate, args.candidateAnchor),
+    args.contrast,
     args.vertexWeights,
   );
   const seedAdherence = args.seedAdherence ?? 0.5;
@@ -152,6 +161,45 @@ export function neuralTrajectorySimilarity(
   // No per-vertex values at all (sparse summary-only trace): keep the legacy
   // uncentered cosine over the summary vector, which is already non-negative.
   return cosineSimilarity(flatA, flatB);
+}
+
+// Trajectory similarity, optionally blended with a battery-contrastive
+// z-score. Inputs are assumed already anchored (modality common mode
+// removed); battery vectors likewise. The z term asks "is this candidate
+// closer to THIS target than it is to the rest of the target's modality?" —
+// the axis raw similarity cannot see, because the generic-evocative attractor
+// is close to the whole battery at once. z is squashed through a logistic so
+// the blend stays in [0, 1] and threshold semantics survive.
+export function contrastiveNeuralSimilarity(
+  target: ActivationTrace,
+  candidate: ActivationTrace,
+  contrast?: { battery: number[][]; weight: number },
+  vertexWeights?: number[],
+): number {
+  const base = neuralTrajectorySimilarity(target, candidate, vertexWeights);
+  if (!contrast || contrast.weight <= 0 || contrast.battery.length < 3) {
+    return base;
+  }
+  if (!target.values || !candidate.values) {
+    return base;
+  }
+  const c = centerInPlace(meanFrame(candidate.values));
+  const t = centerInPlace(meanFrame(target.values));
+  const toTarget = cosineSimilarity(c, t);
+  const toBattery = contrast.battery.map((b) =>
+    cosineSimilarity(c, centerInPlace([...b])),
+  );
+  const mean = toBattery.reduce((a, b) => a + b, 0) / toBattery.length;
+  const sd = Math.sqrt(
+    toBattery.reduce((a, b) => a + (b - mean) ** 2, 0) / toBattery.length,
+  );
+  if (!(sd > 1e-9)) {
+    return base;
+  }
+  const z = (toTarget - mean) / sd;
+  const squashed = 1 / (1 + Math.exp(-z));
+  const w = Math.min(1, Math.max(0, contrast.weight));
+  return (1 - w) * base + w * squashed;
 }
 
 // Collapse a trace to its single pooled (time-averaged) frame. The pooled

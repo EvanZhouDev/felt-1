@@ -18,6 +18,9 @@ export type OrchestratorConfig = {
   // networks and suppress primary sensory cortex ("feels like" over
   // "looks/sounds like"). Sharpens cross-target specificity.
   vibeWeight: number;
+  // Blend weight for battery-contrastive scoring (0 disables; see
+  // contrastiveNeuralSimilarity). Needs anchors-battery.json.
+  contrastWeight: number;
   candidateModel?: string;
   judgeModel?: string;
   agentBackend: AgentBackendConfig;
@@ -83,6 +86,7 @@ export function loadConfig(): OrchestratorConfig {
     audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://audio.bryanhu.com",
     describeAudio: process.env.VOLTA_DESCRIBE_AUDIO !== "false",
     vibeWeight: numberFromEnv("VOLTA_VIBE_WEIGHT", 0),
+    contrastWeight: numberFromEnv("VOLTA_CONTRAST_WEIGHT", 0),
     candidateModel: process.env.VOLTA_CANDIDATE_MODEL,
     judgeModel: process.env.VOLTA_JUDGE_MODEL,
     agentBackend: loadAgentBackendConfig(),
