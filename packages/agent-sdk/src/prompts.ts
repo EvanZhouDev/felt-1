@@ -148,6 +148,23 @@ function outputTypeInstruction(invocation: CandidateAgentInvocation): string {
 // Parallel candidates within one round share the same trajectory; without an
 // explicit push they converge on one approach and the round wastes oracle
 // calls scoring near-duplicates.
+// Parallel candidates are generated simultaneously, so a sibling cannot read
+// what the others wrote — telling it to "differ from your siblings" leaves a
+// deterministic backend with the same prompt minus an index, and it collapses
+// to one text (observed: 3 of 4 identical candidates). Instead ASSIGN each
+// index a concrete, mutually distinct perceptual FORM so divergence is forced
+// by construction, not left to imagination. The forms are deliberately
+// orthogonal in rhythm/syntax/length so the resulting texts land far apart in
+// activation space; each still reads the SAME target vibe through its form.
+const SIBLING_FORMS = [
+  "long, unbroken, hypotactic sentences that accumulate clauses and resist stopping — one continuous breath",
+  "short, clipped, fragmentary lines; heavy punctuation; staccato rhythm with abrupt stops",
+  "a plain, concrete, low-adjective register: short declaratives naming physical particulars, almost reportorial",
+  "dense, sound-driven prose foregrounding texture — assonance, repetition, and stress patterns over imagery",
+  "a sparse, white-space-heavy form: very short lines with long pauses, each landing alone",
+  "a building, list-like accumulation that escalates in intensity from one item to the next",
+];
+
 function siblingDiversityInstruction(
   invocation: CandidateAgentInvocation,
 ): string {
@@ -155,8 +172,10 @@ function siblingDiversityInstruction(
   if (count <= 1) {
     return "";
   }
-  const position = (invocation.candidateIndex ?? 0) + 1;
-  return `You are candidate ${position} of ${count} generated in parallel this round. Take a deliberately different angle than your siblings would — and make the difference FORMAL, not just thematic: a different rhythm, sentence length, syntactic density, or concreteness. Sibling texts that differ only in imagery but share one evocative register land on the same point in activation space and waste the round; ${count} candidates should be ${count} genuinely different perceptual experiences.`;
+  const index = invocation.candidateIndex ?? 0;
+  const position = index + 1;
+  const form = SIBLING_FORMS[index % SIBLING_FORMS.length];
+  return `You are candidate ${position} of ${count} generated in parallel this round. Your ASSIGNED perceptual form is: ${form}. Write THIS candidate in that form — it is what makes you different from your siblings, who are each assigned a different one. The difference must be FORMAL (rhythm, sentence length, syntactic density, sound), not merely thematic: imagery alone leaves siblings on the same point in activation space and wastes the round. Still read the target's actual vibe THROUGH your assigned form.`;
 }
 
 // The input node may be a medium the agent cannot perceive from its payload
