@@ -42,13 +42,19 @@ const anchorTexts: Record<string, string> = {
 };
 
 // NOTE: anchor stimuli must NOT be experiment targets — a baseline that
-// contains the test set leaks the answers. Mid-piece cuts of the test pieces
-// remain a documented partial overlap until a broader music corpus exists.
+// contains the test set leaks the answers. The music battery below is sourced
+// independently of every test piece (no shared works, movements, or sections).
 const anchorAudio = [
   join(repoRoot, "services/orchestrator/fixtures/tone.wav"),
-  join(assets, "anchor-clair-mid.mp3"),
-  join(assets, "anchor-moon-mid.mp3"),
-  join(assets, "anchor-dvorak-mid.mp3"),
+  join(assets, "anchor-jazztrio-75s.mp3"),
+  join(assets, "anchor-folkguitar-75s.mp3"),
+  join(assets, "anchor-edm-75s.mp3"),
+  join(assets, "anchor-lofibeat-75s.mp3"),
+  join(assets, "anchor-choir-75s.mp3"),
+  join(assets, "anchor-jazzpiano-75s.mp3"),
+  join(assets, "anchor-quartet-75s.mp3"),
+  join(assets, "anchor-rockriff-75s.mp3"),
+  join(assets, "anchor-salsa-75s.mp3"),
   join(assets, "anchor-pinknoise.wav"),
   join(assets, "anchor-pulse.wav"),
   // Spoken word, varied register and pace: TRIBE renders text via speech
