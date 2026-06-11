@@ -136,7 +136,7 @@ Set in `services/orchestrator/src/config.ts`:
   better (cross-painting collinearity 0.855 → 0.674).
 - `VOLTA_FLUX_URL` — hosted Flux image API (default `https://images.bryanhu.com`).
 - `VOLTA_AUDIO_URL` — hosted Qwen2.5-Omni audio-description service for the audio
-  describer (default `https://qwen.bryanhu.com`). Multipart `POST /describe`;
+  describer (default `https://audio.bryanhu.com`). Multipart `POST /describe`;
   failure is non-fatal — the local DSP pass (`python/audio_features.py`,
   tempo/energy/brightness/key) still runs, and if both fail the run proceeds on
   neural similarity alone.

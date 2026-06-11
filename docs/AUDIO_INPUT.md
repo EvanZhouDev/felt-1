@@ -44,7 +44,7 @@ A single audio-LLM is unreliable on *music* specifically — in testing, Qwen
 called a clear C-major arpeggio a "computer beep." So the describer
 (`describer.ts`) has two tiers and merges them into one `AudioDescription`:
 
-1. **Hosted Qwen2.5-Omni** (`VOLTA_AUDIO_URL`, default `https://qwen.bryanhu.com`,
+1. **Hosted Qwen2.5-Omni** (`VOLTA_AUDIO_URL`, default `https://audio.bryanhu.com`,
    `POST /describe`) writes a fluent perceptual **caption** — mood, texture,
    atmosphere.
 
@@ -62,7 +62,7 @@ generation but is never the scoring signal.
 
 ## Config
 
-- `VOLTA_AUDIO_URL` — hosted describer base URL (default `https://qwen.bryanhu.com`).
+- `VOLTA_AUDIO_URL` — hosted describer base URL (default `https://audio.bryanhu.com`).
 - `VOLTA_DESCRIBE_AUDIO` — `true`/`false` (default `true`; set `false` to skip,
   e.g. for fast mock smokes).
 - `VOLTA_PYTHON` — interpreter used for the local DSP pass (default the TRIBE

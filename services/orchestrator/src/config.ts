@@ -80,7 +80,7 @@ export function loadConfig(): OrchestratorConfig {
     repoRoot,
     tribeUrl: process.env.VOLTA_TRIBE_URL ?? "https://tribe.bryanhu.com",
     fluxUrl: process.env.VOLTA_FLUX_URL ?? "https://images.bryanhu.com",
-    audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://qwen.bryanhu.com",
+    audioUrl: process.env.VOLTA_AUDIO_URL ?? "https://audio.bryanhu.com",
     describeAudio: process.env.VOLTA_DESCRIBE_AUDIO !== "false",
     vibeWeight: numberFromEnv("VOLTA_VIBE_WEIGHT", 0),
     candidateModel: process.env.VOLTA_CANDIDATE_MODEL,
