@@ -157,10 +157,23 @@ Set in `services/orchestrator/src/config.ts`:
 - `VOLTA_PYTHON` — Python interpreter (default `vendor/tribev2/.venv/bin/python`).
 - `VOLTA_ORACLE_TIMEOUT_MS` — TRIBE request timeout (default 600000; also the
   job-poll deadline for the `http` oracle).
-- `VOLTA_AGENT_BACKEND` — `codex` (default) or `deterministic`.
+- `VOLTA_AGENT_BACKEND` — agent backend(s): a comma-separated priority list of
+  `codex` (default), `claude`, `deepseek`. Later entries take over when the
+  primary throws a usage/rate-cap error (e.g. `codex,claude,deepseek`).
 - `VOLTA_CODEX_COMMAND` — Codex CLI command (default `codex`).
 - `VOLTA_CODEX_MODEL` / `VOLTA_CODEX_PROFILE` — optional Codex overrides.
 - `VOLTA_CODEX_TIMEOUT_MS` — Codex agent timeout (default 900000).
+- `VOLTA_CLAUDE_COMMAND` / `VOLTA_CLAUDE_MODEL` / `VOLTA_CLAUDE_TIMEOUT_MS` —
+  Claude Code CLI backend (default command `claude`, model `sonnet`, 600000ms).
+- `VOLTA_DEEPSEEK_MODEL` / `VOLTA_DEEPSEEK_URL` / `VOLTA_DEEPSEEK_TIMEOUT_MS` —
+  DeepSeek HTTP backend (needs `DEEPSEEK_API_KEY`; default `deepseek-chat`,
+  `https://api.deepseek.com`, 300000ms).
+- `VOLTA_VIBE_WEIGHT` — `0`..`1` (default `0`). 0 = perception-faithful
+  scoring; >0 suppresses primary sensory cortex (Visual+Somatomotor) and scores
+  the affective/association networks. Tested and found to give no benefit (see
+  the Yeo-7 ablation) — kept as a documented dead-end knob.
+- `VOLTA_ANCHORS_PATH` — override the modality-anchor file (default
+  `services/orchestrator/anchors/anchors.json`; absent = legacy raw scoring).
 - `VOLTA_SIMILARITY_THRESHOLD` — default neural similarity stop threshold (default 0.9).
 - `VOLTA_WEAVE_ENABLED` / `VOLTA_WEAVE_PROJECT` — enable Weave Evolution Journal tracing.
 - `VOLTA_WEAVE_CAPTURE_PAYLOADS` — include rawer payload details in Weave traces (default false).
