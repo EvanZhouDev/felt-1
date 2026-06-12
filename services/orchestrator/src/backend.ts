@@ -54,16 +54,24 @@ class FailoverBackend implements AgentBackend {
         return await backend.run(invocation);
       } catch (error) {
         lastError = error;
-        if (!isUsageCapError(error)) {
+        if (!isUsageCapError(error) && !isOpaqueCrash(error)) {
           throw error;
         }
         console.error(
-          `[backend] usage cap hit (${String(error).slice(0, 120)}); failing over to next backend`,
+          `[backend] backend failed (${String(error).slice(0, 120)}); failing over to next backend`,
         );
       }
     }
     throw lastError;
   }
+}
+
+// A CLI backend dying with a nonzero exit and NO diagnostic output (observed:
+// "Claude exited with 1. Stderr:" killing all three audio-clean-v3 runs in
+// seconds while the CLI worked standalone). With nothing to classify, the
+// only wrong move is letting it kill the run when another backend is ready.
+function isOpaqueCrash(error: unknown): boolean {
+  return /exited with \d+\.?\s*Stderr:\s*$/i.test(String(error).trim());
 }
 
 function isUsageCapError(error: unknown): boolean {
