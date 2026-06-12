@@ -41,6 +41,31 @@ feeling source over the content source, despite depicting the starry content.
 That cell — feeling > content on a content/vibe conflict — is the claim that
 style transfer cannot make.
 
+## Music → words: text that carries the feeling
+
+Audio→text is the hardest pair (see below), but the clean-protocol runs now
+separate distinct pieces. Given a 75-second **glitch-electronic** track the
+agent never hears — it sees only an anonymized file and a title-free perceptual
+caption — the loop produced this (music vocabulary is banned; the description
+is evidence, not material):
+
+> The beat is a body, the body a drum, the drum a deep thrum that thrums
+> through the floor and up the bones, and the strings—oh the strings—they rise
+> and rip, a long bright rip through the thick of it, a silver shiver, a shiver
+> that shimmers, then shatters into a cascade of quick bright cuts from a voice
+> that is not voice but struck wire, and the pulse beneath pulses on, presses
+> on, pounds on, a steady shove in the chest […] a body wired bright and
+> waiting for the next strike, the next shiver, the next shatter.
+
+For the same run's **calm solo-piano** target, the winner is one long unhurried
+breath instead — "…you are not waiting for anything, not wishing for anything,
+simply present in the way water is present in a bowl that has been still so
+long the stillness has grown soft and deep and warm around you."
+
+The cross-score matrix confirms it isn't generic moodiness: the glitch text
+wins its own column (+0.048) *and* prefers its own audio over the other
+targets, while the calm text scores just **0.48** against the glitch piece.
+
 ## How it works
 
 The shared space is Meta's **TRIBE v2**, a model trained to predict human fMRI
@@ -102,11 +127,18 @@ win its column.
 - **Cross-modal →text is harder and bounded by TRIBE's rendering paths.** Text
   is rendered via *speech synthesis*, so every text activation is acoustically
   speech; quiet piano then resembles speech more than a loud orchestra does, and
-  audio→text specificity hits a floor. Adding synthesized speech to the anchor
-  corpus measurably helps (audio→text moved 1/3 → 2/3) — it's a corpus-coverage
-  problem, not a wall. Image→text specificity tracks how perceptually *distinct*
-  the targets are (three distinct paintings: 2/2; add a palette-similar image: a
-  hub returns).
+  audio→text under the plain anchored metric was a null (diagonal 0/3 with
+  noise-level margins). Three additions fixed it: pre-screen targets for
+  TRIBE-space separability (all energetic music is one 0.8–0.9-collinear blob —
+  an unseparable target set is unwinnable before the search starts), a
+  **battery-contrastive score** (`VOLTA_CONTRAST_WEIGHT`: a candidate's target
+  similarity is z-normalized against its similarity to the whole anchor battery,
+  so "evocative in general" gains nothing), and forced formal diversity across
+  parallel candidates. Result: diagonal 3/3 then 2/3 across two runs — clearly
+  distinct pieces separate with real margins; perceptually adjacent pairs remain
+  coin flips. Specificity is real but resolution-limited. The same lesson holds
+  for image→text: specificity tracks how perceptually *distinct* the targets
+  are.
 - **A rejected idea, kept honest:** we hypothesized that scoring only the
   affective/association brain networks (suppressing visual cortex) would isolate
   "feeling" from "looks-like." A 127-subset Yeo-7 ablation refuted it — for
