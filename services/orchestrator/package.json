@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/server.ts",
-    "start": "bun src/server.ts",
-    "smoke": "bun src/smoke.ts",
-    "smoke:audio": "bun src/smoke-audio.ts",
-    "smoke:image": "bun src/smoke-image.ts",
+    "dev": "bun ../../scripts/verify-runtime.mjs bun && bun --watch src/server.ts",
+    "start": "bun ../../scripts/verify-runtime.mjs bun && bun src/server.ts",
+    "smoke": "bun ../../scripts/verify-runtime.mjs bun && bun src/smoke.ts",
+    "smoke:audio": "bun ../../scripts/verify-runtime.mjs bun && bun src/smoke-audio.ts",
+    "smoke:image": "bun ../../scripts/verify-runtime.mjs bun && bun src/smoke-image.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
