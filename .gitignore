@@ -49,3 +49,6 @@ wandb/
 experiments/
 .worktrees/
 starrynight.jpg
+
+# Verified project-local runtime
+.runtime/

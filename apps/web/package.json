@@ -3,15 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node ../../scripts/verify-runtime.mjs node && next dev --turbopack",
+    "build": "node ../../scripts/verify-runtime.mjs node && next build",
+    "start": "node ../../scripts/verify-runtime.mjs node && next start",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@volta/core": "workspace:*",
     "@xyflow/react": "^12.11.0",
-    "next": "^16.0.10",
+    "next": "16.4.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "weave": "^0.15.1"

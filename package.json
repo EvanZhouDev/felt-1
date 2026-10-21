@@ -24,10 +24,16 @@
     "smoke:tribe": "VOLTA_ORACLE=tribe bun services/orchestrator/src/smoke.ts",
     "smoke:audio:tribe": "VOLTA_ORACLE=http VOLTA_DESCRIBE_AUDIO=true bun services/orchestrator/src/smoke-audio.ts",
     "smoke:image:tribe": "VOLTA_ORACLE=http bun services/orchestrator/src/smoke-image.ts",
-    "exp:matrix": "bun services/orchestrator/src/experiment-matrix.ts"
+    "exp:matrix": "bun services/orchestrator/src/experiment-matrix.ts",
+    "preinstall": "bun scripts/verify-runtime.mjs bun",
+    "setup:bun": "node scripts/install-secure-bun.mjs .runtime"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": "^22.23.4 || ^24.22.1 || >=26.12.1",
+    "bun": "1.4.4-canary.1+963452075"
   }
 }
